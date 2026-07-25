@@ -1200,4 +1200,9 @@ const App = (() => {
 })();
 
 // Uygulama başlatma
-document.addEventListener('DOMContentLoaded', App.init);
+document.addEventListener('DOMContentLoaded', async () => {
+    if (typeof VeriModulu !== 'undefined' && VeriModulu.init) {
+        await VeriModulu.init();
+    }
+    App.init();
+});

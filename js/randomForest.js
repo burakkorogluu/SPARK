@@ -49,7 +49,19 @@ const RandomForestModulu = (() => {
                 // Hızlı bir threshold seçimi için sadece belirli çeyreklikleri (veya uniq listeyi) alabiliriz
                 // Veri setimiz küçük olduğu için tüm unique değerleri test etmek yeterince hızlıdır
                 const values = X.map(row => row[featIdx]);
-                const uniqueValues = Array.from(new Set(values));
+                let uniqueValues = Array.from(new Set(values));
+
+                // OPTIMIZATION: Hızlandırmak için sürekli (continuous) değişkenlerde threshold sayısını sınırla
+                if (uniqueValues.length > 10) {
+                    uniqueValues.sort((a, b) => a - b);
+                    const step = Math.max(1, Math.floor(uniqueValues.length / 10));
+                    const reduced = [];
+                    for (let k = 0; k < uniqueValues.length; k += step) {
+                        reduced.push(uniqueValues[k]);
+                        if (reduced.length >= 10) break;
+                    }
+                    uniqueValues = reduced;
+                }
 
                 for (const threshold of uniqueValues) {
                     const { X_left, y_left, X_right, y_right } = this.split(X, y, featIdx, threshold);

@@ -6,8 +6,8 @@
 const WeatherModulu = (() => {
     'use strict';
 
-    let _weatherData = new Map(); // tarih_saat -> sicaklik
-    let _dailyWeatherData = new Map(); // tarih -> ortalama_sicaklik
+    let _weatherData = new Map(); // tarih_saat -> { temp, hum, cloud, rad }
+    let _dailyWeatherData = new Map(); // tarih -> { temp, hum, cloud, rad }
     let _isLoaded = false;
     let _isLoading = false;
 
@@ -25,7 +25,7 @@ const WeatherModulu = (() => {
         
         try {
             // past_days=92 ve forecast_days=14 saatlik sıcaklık verilerini çeker
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m&past_days=92&forecast_days=14&timezone=Europe%2FIstanbul`;
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m,relative_humidity_2m,cloud_cover,direct_radiation&past_days=92&forecast_days=14&timezone=Europe%2FIstanbul`;
             
             const response = await fetch(url);
             if (!response.ok) {
@@ -36,6 +36,9 @@ const WeatherModulu = (() => {
             if (data && data.hourly && data.hourly.time && data.hourly.temperature_2m) {
                 const times = data.hourly.time;
                 const temps = data.hourly.temperature_2m;
+                const hums = data.hourly.relative_humidity_2m;
+                const clouds = data.hourly.cloud_cover;
+                const rads = data.hourly.direct_radiation;
                 
                 const dailySums = new Map();
                 const dailyCounts = new Map();
@@ -43,24 +46,38 @@ const WeatherModulu = (() => {
                 for (let i = 0; i < times.length; i++) {
                     const timeStr = times[i].replace('T', ' '); // "2025-07-25 14:00"
                     const dateStr = times[i].split('T')[0];     // "2025-07-25"
+                    
                     const temp = temps[i];
+                    const hum = hums ? hums[i] : 50;
+                    const cloud = clouds ? clouds[i] : 0;
+                    const rad = rads ? rads[i] : 0;
                     
                     if (temp != null) {
-                        _weatherData.set(timeStr, temp);
+                        _weatherData.set(timeStr, { temp, hum, cloud, rad });
                         
                         if (!dailySums.has(dateStr)) {
-                            dailySums.set(dateStr, 0);
+                            dailySums.set(dateStr, { temp: 0, hum: 0, cloud: 0, rad: 0 });
                             dailyCounts.set(dateStr, 0);
                         }
-                        dailySums.set(dateStr, dailySums.get(dateStr) + temp);
+                        
+                        const sums = dailySums.get(dateStr);
+                        sums.temp += temp;
+                        sums.hum += hum;
+                        sums.cloud += cloud;
+                        sums.rad += rad;
                         dailyCounts.set(dateStr, dailyCounts.get(dateStr) + 1);
                     }
                 }
 
                 // Günlük ortalamaları hesapla
-                for (const [date, sum] of dailySums.entries()) {
+                for (const [date, sums] of dailySums.entries()) {
                     const count = dailyCounts.get(date);
-                    _dailyWeatherData.set(date, sum / count);
+                    _dailyWeatherData.set(date, {
+                        temp: sums.temp / count,
+                        hum: sums.hum / count,
+                        cloud: sums.cloud / count,
+                        rad: sums.rad / count
+                    });
                 }
 
                 console.log(`🌤️ WeatherModulu: ${times.length} saatlik hava durumu verisi başarıyla yüklendi.`);
@@ -80,13 +97,19 @@ const WeatherModulu = (() => {
      * @returns {number|null} Sıcaklık değeri (bulunamazsa null)
      */
     function getTemperature(dateStr, isHourly = true) {
+        const w = getWeather(dateStr, isHourly);
+        return w ? w.temp : null;
+    }
+
+    /**
+     * Belirtilen tarih/saat veya gün için tüm hava durumu objesini döndürür.
+     */
+    function getWeather(dateStr, isHourly = true) {
         if (isHourly) {
-            // Gelen saatte dakika tam değilse (örn: 14:00 yerine 14:30), saate yuvarlamak gerekebilir ama
-            // SPARK verilerindeki tarihlerin genelde saat başı olduğunu varsayıyoruz.
             const formatted = dateStr.length === 10 ? `${dateStr} 00:00` : dateStr;
             return _weatherData.has(formatted) ? _weatherData.get(formatted) : null;
         } else {
-            const formatted = dateStr.split(' ')[0]; // Sadece tarih kısmı
+            const formatted = dateStr.split(' ')[0];
             return _dailyWeatherData.has(formatted) ? _dailyWeatherData.get(formatted) : null;
         }
     }
@@ -98,6 +121,7 @@ const WeatherModulu = (() => {
     return {
         init,
         getTemperature,
+        getWeather,
         isLoaded
     };
 })();
