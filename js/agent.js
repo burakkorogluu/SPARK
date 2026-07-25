@@ -100,7 +100,7 @@ const AjanModulu = (function () {
                     logBasarili('Veri Kalitesi', '19.452+ saatlik kaydın tamamında sayısal bütünlük, tarih formatı ve pozitif enerji okumaları %100 geçerli.');
                 } else {
                     if (nanSayisi > 0) logHata('Veri Kalitesi', `${nanSayisi} kayıtta sayısal olmayan (NaN) değer tespit edildi.`);
-                    if (negatifSayisi > 0) logHata('Veri Kalitesi', `${negatifSayisi} kayıtta negatif enerji okuması tespit edildi.`);
+                    if (negatifSayisi > 0) logHata('Veri Kalitesi', `${negatifSayisi} kayıtta negatif enerji okuması (hatalı veri) tespit edildi.`);
                     if (bozukTarih > 0) logUyari('Veri Kalitesi', `${bozukTarih} kayıtta standart dışı tarih formatı var.`);
                 }
             } else {

@@ -57,9 +57,9 @@ const HesaplamaModulu = (() => {
                 });
             }
             const d = dayMap.get(dateStr);
-            d.aktifEnerji += (v.aktifEnerji || 0);
-            d.enduktifEnerji += (v.enduktifEnerji || 0);
-            d.kapasitifEnerji += (v.kapasitifEnerji || 0);
+            d.aktifEnerji += Math.max(0, v.aktifEnerji || 0);
+            d.enduktifEnerji += Math.max(0, v.enduktifEnerji || 0);
+            d.kapasitifEnerji += Math.max(0, v.kapasitifEnerji || 0);
         });
 
         let toplamAktif = 0;

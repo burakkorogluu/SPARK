@@ -420,6 +420,9 @@
                         <div class="form-group">
                             <label for="senaryo-tarih">Müdahale Başlangıç Tarihi</label>
                             <input type="date" id="senaryo-tarih" required>
+                            <p class="text-muted" style="font-size: 11px; margin-top: 4px; margin-bottom: 12px;">
+                                * Geçmiş tarihli müdahaleler sadece bugünden sonraki simülasyonları etkiler, gerçekleşmiş geçmiş ölçümleri değiştirmez.
+                            </p>
                         </div>
                         <div class="form-group">
                             <label for="senaryo-miktar" id="senaryo-miktar-label">Miktar (kVArh/gün)</label>
@@ -535,6 +538,7 @@
     <!-- ═══ Scripts (sıra önemli!) ═══ -->
     <script src="js/data.js"></script>
     <script src="js/calculations.js"></script>
+    <script src="js/weather.js"></script>
     <script src="js/forecast.js"></script>
     <script src="js/scenarios.js"></script>
     <script src="js/charts.js"></script>

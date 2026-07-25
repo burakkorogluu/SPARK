@@ -21,6 +21,8 @@ const App = (() => {
         selectedAy: 7,   // 1-12
         selectedYil: 2025,
         selectedYontem: 'ensemble',
+        lastOzetler: null,
+        lastOzetlerKey: null,
     };
 
     // ═══════════════════════════════════════════
@@ -55,6 +57,11 @@ const App = (() => {
         // Topoloji Modülü
         if (typeof TopolojiModulu !== 'undefined') {
             TopolojiModulu.init();
+        }
+
+        // Hava Durumu Modülünü Başlat (Asenkron)
+        if (typeof WeatherModulu !== 'undefined') {
+            WeatherModulu.init();
         }
 
         // İlk ekranı çiz
@@ -192,24 +199,36 @@ const App = (() => {
     // ═══════════════════════════════════════════
 
     function renderForecastBanner(ozetler) {
+        const currentKey = `${state.selectedYil}-${state.selectedAy}-${state.selectedYontem}`;
+        
         if (!ozetler) {
-            const hamOzetler = HesaplamaModulu.tumTrafoOzetleri(state.selectedYil, state.selectedAy);
-            ozetler = hamOzetler.map(({ trafo, ozet }) => {
-                if (!ozet) return { trafo, ozet: null, tahminOzet: null };
-                let tahminOzet = null;
-                try {
-                    if (typeof TahminModulu !== 'undefined') {
-                        const tSonuc = TahminModulu.aySonuTahminiYap(trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
-                        if (tSonuc && tSonuc.tumVeriler) {
-                            tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
+            if (state.lastOzetler && state.lastOzetlerKey === currentKey) {
+                ozetler = state.lastOzetler;
+            } else {
+                const hamOzetler = HesaplamaModulu.tumTrafoOzetleri(state.selectedYil, state.selectedAy);
+                ozetler = hamOzetler.map(({ trafo, ozet }) => {
+                    if (!ozet) return { trafo, ozet: null, tahminOzet: null };
+                    let tahminOzet = null;
+                    try {
+                        if (typeof TahminModulu !== 'undefined') {
+                            const tSonuc = TahminModulu.aySonuTahminiYap(trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
+                            if (tSonuc && tSonuc.tumVeriler) {
+                                tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
+                            }
                         }
+                    } catch (e) {
+                        console.warn('Tahmin hatası:', e);
                     }
-                } catch (e) {
-                    console.warn('Tahmin hatası:', e);
-                }
-                return { trafo, ozet, tahminOzet };
-            });
+                    return { trafo, ozet, tahminOzet };
+                });
+                state.lastOzetler = ozetler;
+                state.lastOzetlerKey = currentKey;
+            }
+        } else {
+            state.lastOzetler = ozetler;
+            state.lastOzetlerKey = currentKey;
         }
+
         if (!ozetler || ozetler.length === 0) return;
 
         let toplamTahminAktif = 0;
@@ -512,6 +531,11 @@ const App = (() => {
                 return;
             }
 
+            if (aktif < 0 || enduktif < 0 || kapasitif < 0) {
+                showToast('Negatif enerji değeri girilemez (Hatalı ölçüm).', 'error');
+                return;
+            }
+
             const d = VeriModulu.parseDate(tarih);
             VeriModulu.veriEkle({
                 trafoId,
@@ -665,6 +689,11 @@ const App = (() => {
                     const dateMatch = /^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?$/.test(tarih);
 
                     if (!trafoMap.has(trafoId) || !dateMatch || isNaN(aktif) || isNaN(enduktif) || isNaN(kapasitif)) {
+                        skipped++;
+                        continue;
+                    }
+
+                    if (aktif < 0 || enduktif < 0 || kapasitif < 0) {
                         skipped++;
                         continue;
                     }

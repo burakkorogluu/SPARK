@@ -19568,15 +19568,35 @@ const VeriModulu = (() => {
     let _tumVeriler = [];
     let _veriMap = new Map(); // trafoId → [veriler]
 
+    let _silinmisVeriler = new Set();
+    const STORAGE_KEY_SILINMIS = 'spark_silinmis_veriler';
+
+    function silinmisVerileriKaydet() {
+        try {
+            localStorage.setItem(STORAGE_KEY_SILINMIS, JSON.stringify(Array.from(_silinmisVeriler)));
+        } catch (e) {}
+    }
+
+    function silinmisVerileriYukle() {
+        try {
+            const kayitli = localStorage.getItem(STORAGE_KEY_SILINMIS);
+            if (kayitli) {
+                _silinmisVeriler = new Set(JSON.parse(kayitli));
+            }
+        } catch (e) {}
+    }
+
     function tumVerileriYukle() {
         _tumVeriler = [];
         _veriMap = new Map();
+        silinmisVerileriYukle();
 
         TRAFOLAR.forEach((trafo) => {
             _veriMap.set(trafo.id, []);
         });
 
         _RAW_DATA.forEach(([trafoId, tarih, aktifEnerji, enduktifEnerji, kapasitifEnerji]) => {
+            if (_silinmisVeriler.has(`${trafoId}_${tarih}`)) return;
             const d = parseDate(tarih);
             const gun = d.getDay();
             const dateStr = tarih.split(' ')[0];
@@ -19686,6 +19706,9 @@ const VeriModulu = (() => {
     }
 
     function veriSil(trafoId, tarih) {
+        _silinmisVeriler.add(`${trafoId}_${tarih}`);
+        silinmisVerileriKaydet();
+
         // Ana haritadan sil
         const trafoVerileri = _veriMap.get(trafoId);
         if (trafoVerileri) {
