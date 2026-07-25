@@ -6,6 +6,17 @@
 const TopolojiModulu = (() => {
     'use strict';
 
+    // ─── Güvenlik (XSS Koruması) ───
+    function escapeHTML(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     let isInit = false;
     let currentAy = 7;
     let currentYil = 2025;
@@ -195,7 +206,7 @@ const TopolojiModulu = (() => {
                         <div class="scada-trafo-card" data-trafo-id="${trafo.id}">
                             <div class="trafo-card-top">
                                 <div class="trafo-title-area">
-                                    <h4>${trafo.adi}</h4>
+                                    <h4>${escapeHTML(trafo.adi)}</h4>
                                     <span>${trafo.tip} • ${trafo.kapasite} MVA</span>
                                 </div>
                             </div>
@@ -212,7 +223,7 @@ const TopolojiModulu = (() => {
         if (!cardEl) return;
 
         if (!ozet) {
-            cardEl.innerHTML = `<div class="trafo-card-top"><h4>${trafo.adi}</h4><span>Veri Yok</span></div>`;
+            cardEl.innerHTML = `<div class="trafo-card-top"><h4>${escapeHTML(trafo.adi)}</h4><span>Veri Yok</span></div>`;
             return;
         }
 
@@ -226,7 +237,7 @@ const TopolojiModulu = (() => {
         cardEl.innerHTML = `
             <div class="trafo-card-top">
                 <div class="trafo-title-area">
-                    <h4>${trafo.adi}</h4>
+                    <h4>${escapeHTML(trafo.adi)}</h4>
                     <span>${trafo.tip} • ${trafo.kapasite} MVA</span>
                 </div>
                 <div class="trafo-badges">
@@ -283,7 +294,7 @@ const TopolojiModulu = (() => {
         const legalEvalEl = document.getElementById('modal-legal-eval');
         const compTextEl = document.getElementById('modal-compensation-text');
 
-        if (titleEl) titleEl.textContent = `${trafo.adi} (${trafo.kapasite} MVA) — Güç Üçgeni Analizi`;
+        if (titleEl) titleEl.textContent = `${escapeHTML(trafo.adi)} (${trafo.kapasite} MVA) — Güç Üçgeni Analizi`;
         if (badgeEl) {
             badgeEl.textContent = `${ozet.kapasitifRisk.ikon} ${ozet.kapasitifRisk.etiket}`;
             badgeEl.style.background = ozet.kapasitifRisk.bg;

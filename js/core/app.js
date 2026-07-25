@@ -14,6 +14,17 @@ const App = (() => {
     const GUN_ADLARI = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
     const GUN_KISA = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
 
+    // ─── Güvenlik (XSS Koruması) ───
+    function escapeHTML(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     // ─── Uygulama Durumu ───
     let state = {
         currentScreen: 'dashboard',
@@ -23,6 +34,8 @@ const App = (() => {
         selectedYontem: 'ensemble',
         lastOzetler: null,
         lastOzetlerKey: null,
+        tablePage: 1,
+        tablePerPage: 50
     };
 
     // ═══════════════════════════════════════════
@@ -147,8 +160,12 @@ const App = (() => {
             state.selectedAy = newAy;
             const detayAy = document.getElementById('detay-ay-select');
             const topolojiAy = document.getElementById('topoloji-ay-select');
+            const dashAy = document.getElementById('dashboard-ay-select');
+            const tahminAy = document.getElementById('tahmin-ay-select');
             if (detayAy && parseInt(detayAy.value, 10) !== newAy) detayAy.value = newAy;
             if (topolojiAy && parseInt(topolojiAy.value, 10) !== newAy) topolojiAy.value = newAy;
+            if (dashAy && parseInt(dashAy.value, 10) !== newAy) dashAy.value = newAy;
+            if (tahminAy && parseInt(tahminAy.value, 10) !== newAy) tahminAy.value = newAy;
         };
 
         document.getElementById('detay-ay-select')?.addEventListener('change', (e) => {
@@ -162,6 +179,16 @@ const App = (() => {
             if (typeof TopolojiModulu !== 'undefined') {
                 TopolojiModulu.render();
             }
+        });
+        document.getElementById('dashboard-ay-select')?.addEventListener('change', (e) => {
+            const newAy = parseInt(e.target.value, 10);
+            syncAySelects(newAy);
+            renderDashboard();
+        });
+        document.getElementById('tahmin-ay-select')?.addEventListener('change', (e) => {
+            const newAy = parseInt(e.target.value, 10);
+            syncAySelects(newAy);
+            renderTahmin();
         });
         document.getElementById('tahmin-trafo-select')?.addEventListener('change', (e) => {
             state.selectedTrafoId = e.target.value;
@@ -190,6 +217,30 @@ const App = (() => {
             }
         });
         document.getElementById('table-trafo-filter')?.addEventListener('change', () => {
+            state.tablePage = 1;
+            renderVeriTablosu();
+        });
+        document.getElementById('table-date-start')?.addEventListener('change', () => {
+            state.tablePage = 1;
+            renderVeriTablosu();
+        });
+        document.getElementById('table-date-end')?.addEventListener('change', () => {
+            state.tablePage = 1;
+            renderVeriTablosu();
+        });
+        document.getElementById('table-per-page')?.addEventListener('change', (e) => {
+            state.tablePerPage = e.target.value === 'all' ? 'all' : parseInt(e.target.value);
+            state.tablePage = 1;
+            renderVeriTablosu();
+        });
+        document.getElementById('table-prev-page')?.addEventListener('click', () => {
+            if (state.tablePage > 1) {
+                state.tablePage--;
+                renderVeriTablosu();
+            }
+        });
+        document.getElementById('table-next-page')?.addEventListener('click', () => {
+            state.tablePage++;
             renderVeriTablosu();
         });
     }
@@ -267,7 +318,7 @@ const App = (() => {
                             <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-tehlikeli" style="margin-left:8px;">Ceza Sınırı Aşım Riski!</span></h3>
                             <p>
                                 Mevcut kullanım trendi devam ederse ay sonunda tesis geneli kapasitif oranı <strong>%${HesaplamaModulu.formatSayi(genelTahminOran)}</strong> seviyesine ulaşacaktır (Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
-                                <br><strong>${riskliTahminTrafolar.length} adet trafoda (${riskliTahminTrafolar.map(t => `${t.trafo.adi}: <b>%${HesaplamaModulu.formatSayi(t.tahminOzet.kapasitifOran)}</b>`).join(', ')})</strong> ay sonuna kadar %15 yasal ceza sınırının aşılması beklenmektedir! Acil şönt reaktör devreye alma veya yük transferi önerilir.
+                                <br><strong>${riskliTahminTrafolar.length} adet trafoda (${riskliTahminTrafolar.map(t => `${escapeHTML(t.trafo.adi)}: <b>%${HesaplamaModulu.formatSayi(t.tahminOzet.kapasitifOran)}</b>`).join(', ')})</strong> ay sonuna kadar %15 yasal ceza sınırının aşılması beklenmektedir! Acil şönt reaktör devreye alma veya yük transferi önerilir.
                             </p>
                         </div>
                     </div>
@@ -291,7 +342,7 @@ const App = (() => {
                             <h3>AY SONU PROJEKSİYONU & DİKKAT BİLDİRİMİ <span class="badge badge-dikkat" style="margin-left:8px;">Uyarı Eşiği</span></h3>
                             <p>
                                 Mevcut kullanım trendi devam ederse ay sonunda tesis geneli kapasitif oranı <strong>%${HesaplamaModulu.formatSayi(genelTahminOran)}</strong> seviyesine ulaşacaktır (Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
-                                <br>Hiçbir trafo %15 ceza sınırını aşmayacak olsa da, <strong>${dikkatTahminTrafolar.length} adet trafoda (${dikkatTahminTrafolar.map(t => `${t.trafo.adi}: <b>%${HesaplamaModulu.formatSayi(t.tahminOzet.kapasitifOran)}</b>`).join(', ')})</strong> %12 uyarı sınırının üzerinde seyredilecektir.
+                                <br>Hiçbir trafo %15 ceza sınırını aşmayacak olsa da, <strong>${dikkatTahminTrafolar.length} adet trafoda (${dikkatTahminTrafolar.map(t => `${escapeHTML(t.trafo.adi)}: <b>%${HesaplamaModulu.formatSayi(t.tahminOzet.kapasitifOran)}</b>`).join(', ')})</strong> %12 uyarı sınırının üzerinde seyredilecektir.
                             </p>
                         </div>
                     </div>
@@ -442,7 +493,7 @@ const App = (() => {
                      onclick="App.navigateToTrafo('${trafo.id}')">
                     <div class="trafo-card-header">
                         <div>
-                            <h3>${trafo.adi}</h3>
+                            <h3>${escapeHTML(trafo.adi)}</h3>
                             <div class="trafo-tip">${trafo.tip} · ${trafo.bolge}</div>
                         </div>
                         <span class="badge badge-${risk.seviye}">${risk.ikon} ${risk.etiket}</span>
@@ -751,16 +802,51 @@ const App = (() => {
 
     function renderVeriTablosu() {
         const filterTrafo = document.getElementById('table-trafo-filter')?.value || '';
+        const startDateStr = document.getElementById('table-date-start')?.value;
+        const endDateStr = document.getElementById('table-date-end')?.value;
         let veriler;
 
         if (filterTrafo) {
             veriler = VeriModulu.getAylikVeriler(filterTrafo, state.selectedYil, state.selectedAy);
         } else {
-            // Tüm trafoların en güncel/son 50 kaydı (ay kısıtı olmaksızın)
             veriler = [...VeriModulu.getTumVeriler()];
-            veriler.sort((a, b) => b.tarih.localeCompare(a.tarih));
-            veriler = veriler.slice(0, 50);
         }
+
+        // Apply Date Filters
+        if (startDateStr) {
+            veriler = veriler.filter(v => v.tarih.substring(0, 10) >= startDateStr);
+        }
+        if (endDateStr) {
+            veriler = veriler.filter(v => v.tarih.substring(0, 10) <= endDateStr);
+        }
+
+        // Sort by date descending
+        veriler.sort((a, b) => b.tarih.localeCompare(a.tarih));
+
+        // Pagination calculations
+        const totalRows = veriler.length;
+        const totalRowsEl = document.getElementById('table-total-rows');
+        if (totalRowsEl) totalRowsEl.textContent = totalRows;
+
+        let totalPages = 1;
+        if (state.tablePerPage !== 'all') {
+            totalPages = Math.ceil(totalRows / state.tablePerPage) || 1;
+            if (state.tablePage > totalPages) state.tablePage = totalPages;
+            
+            const startIndex = (state.tablePage - 1) * state.tablePerPage;
+            const endIndex = startIndex + state.tablePerPage;
+            veriler = veriler.slice(startIndex, endIndex);
+        } else {
+            state.tablePage = 1;
+        }
+
+        const pageInfoEl = document.getElementById('table-page-info');
+        if (pageInfoEl) pageInfoEl.textContent = `${state.tablePage} / ${totalPages}`;
+
+        const prevBtn = document.getElementById('table-prev-page');
+        const nextBtn = document.getElementById('table-next-page');
+        if (prevBtn) prevBtn.disabled = state.tablePage <= 1;
+        if (nextBtn) nextBtn.disabled = state.tablePage >= totalPages;
 
         const tbody = document.getElementById('veri-table-body');
         if (!tbody) return;
@@ -774,7 +860,7 @@ const App = (() => {
             return `
                 <tr class="${rowClass}">
                     <td>${v.tarih}</td>
-                    <td>${trafo ? (trafo.adi.split(' – ').length > 1 ? trafo.adi.split(' – ')[0] + ' (' + trafo.adi.split(' – ')[1] + ')' : trafo.adi) : v.trafoId}</td>
+                    <td>${escapeHTML(trafo ? (trafo.adi.split(' – ').length > 1 ? trafo.adi.split(' – ')[0] + ' (' + trafo.adi.split(' – ')[1] + ')' : trafo.adi) : v.trafoId)}</td>
                     <td class="text-right">${HesaplamaModulu.formatEnerji(v.aktifEnerji)}</td>
                     <td class="text-right">${HesaplamaModulu.formatEnerji(v.enduktifEnerji)}</td>
                     <td class="text-right">${HesaplamaModulu.formatEnerji(v.kapasitifEnerji)}</td>
@@ -909,7 +995,7 @@ const App = (() => {
         // ── Uyarı Kutusu ──
         const uyariEl = document.getElementById('detay-uyari');
         const uyariMesaj = HesaplamaModulu.uyariMesajiUret(
-            trafo.adi,
+            escapeHTML(trafo.adi),
             ozet.kapasitifOran,
             tahminOzet ? tahminOzet.kapasitifOran : null
         );
@@ -929,7 +1015,7 @@ const App = (() => {
             return `
                 <tr class="${rowClass}">
                     <td>${v.tarih}</td>
-                    <td>${gunAdi}${v.tatil ? ' 🎌' : ''}</td>
+                    <td>${gunAdi}${v.tatil ? ' (Tatil)' : ''}</td>
                     <td class="text-right">${HesaplamaModulu.formatEnerji(v.aktifEnerji)}</td>
                     <td class="text-right">${HesaplamaModulu.formatEnerji(v.enduktifEnerji)}</td>
                     <td class="text-right">${HesaplamaModulu.formatEnerji(v.kapasitifEnerji)}</td>
@@ -980,7 +1066,7 @@ const App = (() => {
         const tahminRisk = tahminOzet.kapasitifRisk;
         const fark = tahminOzet.kapasitifOran - mevcutOzet.kapasitifOran;
         const farkStr = fark >= 0 ? `+${HesaplamaModulu.formatSayi(fark)}` : HesaplamaModulu.formatSayi(fark);
-        const bilgi = tahmin.modelBilgi || { adi: 'Seçilen Model', skor: 92.5, aciklama: 'Aylık tahmin projeksiyonu.' };
+        const bilgi = tahmin.modelBilgi || { adi: 'Seçilen Model', skor: null, aciklama: 'Aylık tahmin projeksiyonu.' };
 
         // ── Özet Kartlar & Model Bilgi Paneli ──
         document.getElementById('tahmin-summary').innerHTML = `
@@ -1002,12 +1088,12 @@ const App = (() => {
                 <div class="dc-unit">puan (${bilgi.adi.split(' ')[1] || 'Model'})</div>
             </div>
             <div class="detay-card" style="border-left: 3px solid #3b82f6; cursor: pointer;" onclick="App.toggleModelDetail()" title="Açıklama ve test detayları için tıklayın">
-                <div class="dc-label">🎯 Canlı Model Güven Skoru</div>
+                <div class="dc-label">Canlı Model Güven Skoru</div>
                 <div class="dc-value text-info">
-                    %${bilgi.skor}
+                    ${bilgi.skor !== null ? `%${bilgi.skor}` : 'Test Edilmedi'}
                 </div>
                 <div class="dc-unit" id="model-info-hint" style="font-size:11px; color:#3b82f6; font-weight:600; display:flex; align-items:center; gap:4px; margin-top:4px;">
-                    ℹ️ Detay ve Açıklamayı Göster ▼
+                    Detay ve Açıklamayı Göster ▼
                 </div>
                 <div id="model-info-detail" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(148,163,184,0.2); font-size:11px; white-space:normal; line-height:1.4; color:var(--text-secondary);" onclick="event.stopPropagation();">
                     <div style="margin-bottom:6px; color:var(--text-primary); font-weight:500;">${bilgi.aciklama}</div>
@@ -1204,7 +1290,7 @@ const App = (() => {
         const isHidden = el.style.display === 'none';
         el.style.display = isHidden ? 'block' : 'none';
         if (hint) {
-            hint.innerHTML = isHidden ? 'ℹ️ Detayı Gizle ▲' : 'ℹ️ Detay ve Açıklamayı Göster ▼';
+            hint.innerHTML = isHidden ? 'Detayı Gizle ▲' : 'Detay ve Açıklamayı Göster ▼';
         }
     }
 
@@ -1218,6 +1304,7 @@ const App = (() => {
         navigateToTrafo,
         silVeri,
         switchDashboardView,
+        escapeHTML,
         toggleModelDetail,
         renderForecastBanner,
         renderDashboard,

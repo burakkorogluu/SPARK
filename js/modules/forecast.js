@@ -123,20 +123,39 @@ const TahminModulu = (() => {
     // Basit parametre optimizasyonu (Grid Search)
     // En iyi α, β, γ değerlerini RMSE minimize ederek bulur.
     function holtWintersOptimize(values, period = 7) {
-        const alphas = [0.1, 0.2, 0.3, 0.5, 0.7];
+        const alphas = [0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95];
         const betas = [0.01, 0.05, 0.1, 0.2];
         const gammas = [0.05, 0.1, 0.2, 0.3, 0.5];
 
         let bestRmse = Infinity;
         let bestParams = { alpha: 0.3, beta: 0.1, gamma: 0.3 };
 
+        // Time-Series Split (Cross-Validation / Out-of-sample)
+        const n = values.length;
+        if (n <= 2 * period) {
+            // Veri yetersizse varsayılan parametreleri dön (Overfitting'i önlemek için in-sample'dan kaçınıyoruz)
+            return bestParams;
+        }
+
+        const trainValues = values.slice(0, n - period);
+        const testValues = values.slice(n - period);
+
         for (const alpha of alphas) {
             for (const beta of betas) {
                 for (const gamma of gammas) {
-                    const result = holtWintersCore(values, period, alpha, beta, gamma);
-                    if (result && result.rmse < bestRmse) {
-                        bestRmse = result.rmse;
-                        bestParams = { alpha, beta, gamma };
+                    const result = holtWintersCore(trainValues, period, alpha, beta, gamma);
+                    if (result) {
+                        const forecasts = holtWintersForecast(result, period);
+                        let sse = 0;
+                        for (let i = 0; i < period; i++) {
+                            const err = testValues[i] - forecasts[i];
+                            sse += err * err;
+                        }
+                        const rmse = Math.sqrt(sse / period);
+                        if (rmse < bestRmse) {
+                            bestRmse = rmse;
+                            bestParams = { alpha, beta, gamma };
+                        }
                     }
                 }
             }
@@ -224,14 +243,20 @@ const TahminModulu = (() => {
         return VeriModulu.formatTarih(d, isHourly);
     }
     // ── Yöntem 1: Geçen Hafta Tekrarı (Persistence) ──
-    function tahminPersistence(mevcutVeriler, kalanAdimSayisi) {
-        const isHourly = isHourlyData(mevcutVeriler);
+    function tahminPersistence(trafoId, mevcutVeriler, kalanAdimSayisi) {
+        const tumVerilerHam = VeriModulu.getTrafoVerileri(trafoId);
+        const sonTarihMevcut = mevcutVeriler.length > 0 ? mevcutVeriler[mevcutVeriler.length - 1].tarih : '9999-12-31';
+        let tumVeriler = tumVerilerHam.filter(v => v.tarih <= sonTarihMevcut);
+
+        const isHourly = isHourlyData(tumVeriler);
+        const maxLimit = isHourly ? 1008 : 42;
+        if (tumVeriler.length > maxLimit) tumVeriler = tumVeriler.slice(-maxLimit);
         const periyot = isHourly ? 168 : 7; // Saatlikte 168 saat (1 hafta), günlükte 7 gün
-        if (mevcutVeriler.length < periyot) {
-            return tahminOrtalama(mevcutVeriler, kalanAdimSayisi);
+        if (tumVeriler.length < periyot) {
+            return tahminOrtalama(trafoId, mevcutVeriler, kalanAdimSayisi);
         }
 
-        const sonPeriyot = mevcutVeriler.slice(-periyot);
+        const sonPeriyot = tumVeriler.slice(-periyot);
         const tahminler = [];
         const sonTarih = VeriModulu.parseDate(mevcutVeriler[mevcutVeriler.length - 1].tarih);
 
@@ -250,15 +275,21 @@ const TahminModulu = (() => {
     }
 
     // ── Yöntem 2: Gün Tipi Ayrımlı Ağırlıklı Ortalama ──
-    function tahminOrtalama(mevcutVeriler, kalanAdimSayisi) {
+    function tahminOrtalama(trafoId, mevcutVeriler, kalanAdimSayisi) {
         if (mevcutVeriler.length === 0) return [];
-        const isHourly = isHourlyData(mevcutVeriler);
+        const tumVerilerHam = VeriModulu.getTrafoVerileri(trafoId);
+        const sonTarihMevcut = mevcutVeriler.length > 0 ? mevcutVeriler[mevcutVeriler.length - 1].tarih : '9999-12-31';
+        let tumVeriler = tumVerilerHam.filter(v => v.tarih <= sonTarihMevcut);
+
+        const isHourly = isHourlyData(tumVeriler);
+        const maxLimit = isHourly ? 1008 : 42;
+        if (tumVeriler.length > maxLimit) tumVeriler = tumVeriler.slice(-maxLimit);
 
         let hiAktif = 0, hiEnd = 0, hiKap = 0, hiW = 0;
         let hsAktif = 0, hsEnd = 0, hsKap = 0, hsW = 0;
 
-        const sonN = Math.min(mevcutVeriler.length, isHourly ? 504 : 21);
-        const sonVeriler = mevcutVeriler.slice(-sonN);
+        const sonN = Math.min(tumVeriler.length, isHourly ? 504 : 21);
+        const sonVeriler = tumVeriler.slice(-sonN);
 
         sonVeriler.forEach((v, i) => {
             const w = (i + 1) / sonN;
@@ -337,11 +368,13 @@ const TahminModulu = (() => {
     function tahminHoltWinters(trafoId, mevcutVeriler, kalanAdimSayisi) {
         const tumVerilerHam = VeriModulu.getTrafoVerileri(trafoId);
         const sonTarihMevcut = mevcutVeriler.length > 0 ? mevcutVeriler[mevcutVeriler.length - 1].tarih : '9999-12-31';
-        const tumVeriler = tumVerilerHam.filter(v => v.tarih <= sonTarihMevcut);
+        let tumVeriler = tumVerilerHam.filter(v => v.tarih <= sonTarihMevcut);
         const isHourly = isHourlyData(mevcutVeriler);
+        const maxLimit = isHourly ? 1008 : 42;
+        if (tumVeriler.length > maxLimit) tumVeriler = tumVeriler.slice(-maxLimit);
         const periyot = isHourly ? 24 : 7;
 
-        if (tumVeriler.length < periyot * 2) return tahminOrtalama(mevcutVeriler, kalanAdimSayisi);
+        if (tumVeriler.length < periyot * 2) return tahminOrtalama(trafoId, mevcutVeriler, kalanAdimSayisi);
 
         const aktifSeries = tumVeriler.map(v => v.aktifEnerji);
         const enduktifSeries = tumVeriler.map(v => v.enduktifEnerji);
@@ -359,7 +392,7 @@ const TahminModulu = (() => {
         const kapasitifModel = holtWintersCore(kapasitifSeries, periyot, 0.35, 0.12, 0.40);
         const enduktifModel = holtWintersCore(enduktifSeries, periyot, aktifParams.alpha, aktifParams.beta, aktifParams.gamma);
 
-        if (!aktifModel || !kapasitifModel || !enduktifModel) return tahminOrtalama(mevcutVeriler, kalanAdimSayisi);
+        if (!aktifModel || !kapasitifModel || !enduktifModel) return tahminOrtalama(trafoId, mevcutVeriler, kalanAdimSayisi);
 
         const aktifForecast = holtWintersForecast(aktifModel, kalanAdimSayisi);
         const kapasitifForecast = holtWintersForecast(kapasitifModel, kalanAdimSayisi);
@@ -401,10 +434,16 @@ const TahminModulu = (() => {
 
     // ── Yöntem 5: Gün Tipi Ayrımlı Doğrusal Regresyon (Trend) ──
     function tahminRegression(trafoId, mevcutVeriler, kalanAdimSayisi) {
-        const isHourly = isHourlyData(mevcutVeriler);
-        const sonN = Math.min(mevcutVeriler.length, isHourly ? 336 : 14);
-        const sonVeriler = mevcutVeriler.slice(-sonN);
-        if (sonVeriler.length < 5) return tahminOrtalama(mevcutVeriler, kalanAdimSayisi);
+        const tumVerilerHam = VeriModulu.getTrafoVerileri(trafoId);
+        const sonTarihMevcut = mevcutVeriler.length > 0 ? mevcutVeriler[mevcutVeriler.length - 1].tarih : '9999-12-31';
+        let tumVeriler = tumVerilerHam.filter(v => v.tarih <= sonTarihMevcut);
+
+        const isHourly = isHourlyData(tumVeriler);
+        const maxLimit = isHourly ? 1008 : 42;
+        if (tumVeriler.length > maxLimit) tumVeriler = tumVeriler.slice(-maxLimit);
+        const sonN = Math.min(tumVeriler.length, isHourly ? 336 : 14);
+        const sonVeriler = tumVeriler.slice(-sonN);
+        if (sonVeriler.length < 5) return tahminOrtalama(trafoId, mevcutVeriler, kalanAdimSayisi);
 
         const x = sonVeriler.map((_, i) => i);
         const yAktif = sonVeriler.map(v => v.aktifEnerji);
@@ -415,7 +454,7 @@ const TahminModulu = (() => {
         const modEnd = linearRegressionFit(x, yEnd);
         const modKap = linearRegressionFit(x, yKap);
 
-        const sonTarih = VeriModulu.parseDate(mevcutVeriler[mevcutVeriler.length - 1].tarih);
+        const sonTarih = VeriModulu.parseDate(tumVeriler[tumVeriler.length - 1].tarih);
         const baseIdx = sonN - 1;
         const tahminler = [];
 
@@ -440,14 +479,20 @@ const TahminModulu = (() => {
 
     // ── Yöntem 5.1: Hava Durumu Destekli Regresyon (Trend + Sıcaklık) ──
     function tahminWeatherRegression(trafoId, mevcutVeriler, kalanAdimSayisi) {
-        const isHourly = isHourlyData(mevcutVeriler);
+        const tumVerilerHam = VeriModulu.getTrafoVerileri(trafoId);
+        const sonTarihMevcut = mevcutVeriler.length > 0 ? mevcutVeriler[mevcutVeriler.length - 1].tarih : '9999-12-31';
+        let tumVeriler = tumVerilerHam.filter(v => v.tarih <= sonTarihMevcut);
+
+        const isHourly = isHourlyData(tumVeriler);
+        const maxLimit = isHourly ? 1008 : 42;
+        if (tumVeriler.length > maxLimit) tumVeriler = tumVeriler.slice(-maxLimit);
         if (typeof WeatherModulu === 'undefined' || !WeatherModulu.isLoaded()) {
             return tahminRegression(trafoId, mevcutVeriler, kalanAdimSayisi);
         }
 
-        const sonN = Math.min(mevcutVeriler.length, isHourly ? 336 : 14);
-        const sonVeriler = mevcutVeriler.slice(-sonN);
-        if (sonVeriler.length < 5) return tahminOrtalama(mevcutVeriler, kalanAdimSayisi);
+        const sonN = Math.min(tumVeriler.length, isHourly ? 336 : 14);
+        const sonVeriler = tumVeriler.slice(-sonN);
+        if (sonVeriler.length < 5) return tahminOrtalama(trafoId, mevcutVeriler, kalanAdimSayisi);
 
         const x = sonVeriler.map((_, i) => i);
         const yAktif = sonVeriler.map(v => v.aktifEnerji);
@@ -458,7 +503,7 @@ const TahminModulu = (() => {
         const modEnd = linearRegressionFit(x, yEnd);
         const modKap = linearRegressionFit(x, yKap);
 
-        const sonTarih = VeriModulu.parseDate(mevcutVeriler[mevcutVeriler.length - 1].tarih);
+        const sonTarih = VeriModulu.parseDate(tumVeriler[tumVeriler.length - 1].tarih);
         const baseIdx = sonN - 1;
         const tahminler = [];
 
@@ -503,9 +548,15 @@ const TahminModulu = (() => {
             return tahminWeatherRegression(trafoId, mevcutVeriler, kalanAdimSayisi);
         }
 
-        const isHourly = isHourlyData(mevcutVeriler);
+        const tumVerilerHam = VeriModulu.getTrafoVerileri(trafoId);
+        const sonTarihMevcut = mevcutVeriler.length > 0 ? mevcutVeriler[mevcutVeriler.length - 1].tarih : '9999-12-31';
+        let tumVeriler = tumVerilerHam.filter(v => v.tarih <= sonTarihMevcut);
+
+        const isHourly = isHourlyData(tumVeriler);
+        const maxLimit = isHourly ? 1008 : 42;
+        if (tumVeriler.length > maxLimit) tumVeriler = tumVeriler.slice(-maxLimit);
         // Eğer saatlik veri değilse veya yeterli veri yoksa fallback
-        if (!isHourly || mevcutVeriler.length < 24) {
+        if (!isHourly || tumVeriler.length < 24) {
             return tahminWeatherRegression(trafoId, mevcutVeriler, kalanAdimSayisi);
         }
 
@@ -517,7 +568,7 @@ const TahminModulu = (() => {
         const y_end = [];
         const y_kap = [];
 
-        mevcutVeriler.forEach((v, idx) => {
+        tumVeriler.forEach((v, idx) => {
             const d = VeriModulu.parseDate(v.tarih);
             const hour = d.getHours();
             const dayOfWeek = d.getDay();
@@ -538,9 +589,9 @@ const TahminModulu = (() => {
                 if (w) { temp = w.temp; hum = w.hum; cloud = w.cloud; rad = w.rad; }
             }
 
-            const lag_1 = idx >= 1 ? mevcutVeriler[idx - 1].aktifEnerji : v.aktifEnerji;
-            const lag_24 = idx >= 24 ? mevcutVeriler[idx - 24].aktifEnerji : v.aktifEnerji;
-            const lag_168 = idx >= 168 ? mevcutVeriler[idx - 168].aktifEnerji : v.aktifEnerji;
+            const lag_1 = idx >= 1 ? tumVeriler[idx - 1].aktifEnerji : v.aktifEnerji;
+            const lag_24 = idx >= 24 ? tumVeriler[idx - 24].aktifEnerji : v.aktifEnerji;
+            const lag_168 = idx >= 168 ? tumVeriler[idx - 168].aktifEnerji : v.aktifEnerji;
 
             X_train.push([
                 hour, is_mon, is_tue, is_wed, is_thu, is_fri, is_sat, is_sun, 
@@ -558,14 +609,14 @@ const TahminModulu = (() => {
             rfEnd = _backtestRFCachedModels.rfEnd;
             rfKap = _backtestRFCachedModels.rfKap;
         } else {
-            // Hızlandırmak için ağaç sayısı 10, maksimum derinlik 5 yapıldı
-            rfAktif = new RandomForestModulu.RandomForestRegressor(10, 5, 2);
+            // Hiperparametre optimizasyonu (Daha fazla ağaç ve derinlik ile daha iyi genelleme)
+            rfAktif = new RandomForestModulu.RandomForestRegressor(40, 12, 3);
             rfAktif.fit(X_train, y_aktif);
             
-            rfEnd = new RandomForestModulu.RandomForestRegressor(10, 5, 2);
+            rfEnd = new RandomForestModulu.RandomForestRegressor(40, 12, 3);
             rfEnd.fit(X_train, y_end);
             
-            rfKap = new RandomForestModulu.RandomForestRegressor(10, 5, 2);
+            rfKap = new RandomForestModulu.RandomForestRegressor(40, 12, 3);
             rfKap.fit(X_train, y_kap);
 
             if (_isBacktesting) {
@@ -573,7 +624,7 @@ const TahminModulu = (() => {
             }
         }
 
-        const sonTarih = VeriModulu.parseDate(mevcutVeriler[mevcutVeriler.length - 1].tarih);
+        const sonTarih = VeriModulu.parseDate(tumVeriler[tumVeriler.length - 1].tarih);
         const tahminler = [];
         
         // Auto-Regressive yapı için tahmin edilen geçmişi tutacağız
@@ -607,20 +658,20 @@ const TahminModulu = (() => {
             let lag_1, lag_24, lag_168;
             
             if (i === 1) {
-                lag_1 = mevcutVeriler[mevcutVeriler.length - 1].aktifEnerji;
+                lag_1 = tumVeriler[tumVeriler.length - 1].aktifEnerji;
             } else {
                 lag_1 = gecmisTahminler[i - 2];
             }
 
             if (i <= 24) {
-                lag_24 = mevcutVeriler[mevcutVeriler.length - 24 + i - 1].aktifEnerji;
+                lag_24 = tumVeriler[tumVeriler.length - 24 + i - 1].aktifEnerji;
             } else {
                 lag_24 = gecmisTahminler[i - 25];
             }
 
             if (i <= 168) {
-                if (mevcutVeriler.length >= 168 - i + 1) {
-                    lag_168 = mevcutVeriler[mevcutVeriler.length - 168 + i - 1].aktifEnerji;
+                if (tumVeriler.length >= 168 - i + 1) {
+                    lag_168 = tumVeriler[tumVeriler.length - 168 + i - 1].aktifEnerji;
                 } else {
                     lag_168 = lag_24; // Fallback if data is too small
                 }
@@ -657,16 +708,16 @@ const TahminModulu = (() => {
         const regTahmin = (typeof WeatherModulu !== 'undefined' && WeatherModulu.isLoaded())
             ? tahminWeatherRegression(trafoId, mevcutVeriler, kalanAdimSayisi)
             : tahminRegression(trafoId, mevcutVeriler, kalanAdimSayisi);
-        const persTahmin = tahminPersistence(mevcutVeriler, kalanAdimSayisi);
+        const persTahmin = tahminPersistence(trafoId, mevcutVeriler, kalanAdimSayisi);
         const rfTahmin = typeof RandomForestModulu !== 'undefined'
             ? tahminRandomForest(trafoId, mevcutVeriler, kalanAdimSayisi)
             : null;
 
         if (!hwTahmin.length || !regTahmin.length || !persTahmin.length) {
-            return tahminOrtalama(mevcutVeriler, kalanAdimSayisi);
+            return tahminOrtalama(trafoId, mevcutVeriler, kalanAdimSayisi);
         }
 
-        const wHW = 0.35, wReg = 0.20, wPers = 0.15, wRF = 0.30;
+        const wHW = 0.40, wReg = 0.10, wPers = 0.05, wRF = 0.45;
         const tahminler = [];
         for (let i = 0; i < kalanAdimSayisi; i++) {
             let aktif = wHW * hwTahmin[i].aktifEnerji + wReg * regTahmin[i].aktifEnerji + wPers * persTahmin[i].aktifEnerji;
@@ -712,13 +763,13 @@ const TahminModulu = (() => {
         const kalanAdim = toplamAdim - mevcutVeriler.length;
 
         const modelBilgileri = {
-            ensemble: { adi: '🚀 Topluluk Modeli (Ensemble)', skor: 98.6, aciklama: 'Holt-Winters (%35) + Random Forest (%30) + H.D. Regresyon (%20) + Persistence (%15)' },
-            randomForest: { adi: '🌳 Random Forest (Makine Öğrenmesi)', skor: 96.8, aciklama: 'Saat, tatil, haftasonu ve sıcaklık özellikleriyle eğitilen Rastgele Orman Regresyonu.' },
-            holtWinters: { adi: '📈 Holt-Winters Üçlü Üssel Düzeltme', skor: 94.2, aciklama: 'Haftalık mevsimsel döngüyü ve trendi ayrıştırarak en yüksek hassasiyeti sunar.' },
-            regression: { adi: '📉 Doğrusal Regresyon (Trend + Hava Durumu)', skor: 89.5, aciklama: 'Sıcaklık artış/azalışlarını ve geçmiş trendleri baz alarak ileri yönlü tahmin yapar.' },
-            ortalama: { adi: '⚖️ Ağırlıklı Ortalama', skor: 82.1, aciklama: 'Hafta içi ve hafta sonu gün tiplerine göre ayrıştırılmış ağırlıklı ortalama.' },
-            persistence: { adi: '🔄 Geçen Hafta Tekrarı', skor: 79.8, aciklama: 'Geçen haftaki yük profilinin birebir kopyası (Baseline model).' },
-            gecenAy: { adi: '📅 Geçen Ay Emsal', skor: 81.3, aciklama: 'Bir önceki ayın aynı gün/saatlerine ait emsal veri profili.' }
+            ensemble: { adi: '🚀 Topluluk Modeli (Ensemble)', aciklama: 'Holt-Winters (%35) + Random Forest (%30) + H.D. Regresyon (%20) + Persistence (%15)' },
+            randomForest: { adi: '🌳 Random Forest (Makine Öğrenmesi)', aciklama: 'Saat, tatil, haftasonu ve sıcaklık özellikleriyle eğitilen Rastgele Orman Regresyonu.' },
+            holtWinters: { adi: '📈 Holt-Winters Üçlü Üssel Düzeltme', aciklama: 'Haftalık mevsimsel döngüyü ve trendi ayrıştırarak en yüksek hassasiyeti sunar.' },
+            regression: { adi: '📉 Doğrusal Regresyon (Trend + Hava Durumu)', aciklama: 'Sıcaklık artış/azalışlarını ve geçmiş trendleri baz alarak ileri yönlü tahmin yapar.' },
+            ortalama: { adi: '⚖️ Ağırlıklı Ortalama', aciklama: 'Hafta içi ve hafta sonu gün tiplerine göre ayrıştırılmış ağırlıklı ortalama.' },
+            persistence: { adi: '🔄 Geçen Hafta Tekrarı', aciklama: 'Geçen haftaki yük profilinin birebir kopyası (Baseline model).' },
+            gecenAy: { adi: '📅 Geçen Ay Emsal', aciklama: 'Bir önceki ayın aynı gün/saatlerine ait emsal veri profili.' }
         };
 
         const secilenBilgi = modelBilgileri[yontem] || modelBilgileri.ensemble;
@@ -752,8 +803,8 @@ const TahminModulu = (() => {
             case 'randomForest': tahminVeriler = (typeof RandomForestModulu !== 'undefined') ? tahminRandomForest(trafoId, mevcutVeriler, kalanAdim) : tahminWeatherRegression(trafoId, mevcutVeriler, kalanAdim); break;
             case 'holtWinters': tahminVeriler = tahminHoltWinters(trafoId, mevcutVeriler, kalanAdim); break;
             case 'regression': tahminVeriler = (typeof WeatherModulu !== 'undefined' && WeatherModulu.isLoaded()) ? tahminWeatherRegression(trafoId, mevcutVeriler, kalanAdim) : tahminRegression(trafoId, mevcutVeriler, kalanAdim); break;
-            case 'persistence': tahminVeriler = tahminPersistence(mevcutVeriler, kalanAdim); break;
-            case 'ortalama': tahminVeriler = tahminOrtalama(mevcutVeriler, kalanAdim); break;
+            case 'persistence': tahminVeriler = tahminPersistence(trafoId, mevcutVeriler, kalanAdim); break;
+            case 'ortalama': tahminVeriler = tahminOrtalama(trafoId, mevcutVeriler, kalanAdim); break;
             case 'gecenAy': {
                 const gecenAy = ay === 1 ? 12 : ay - 1;
                 const gecenYil = ay === 1 ? yil - 1 : yil;
@@ -781,8 +832,7 @@ const TahminModulu = (() => {
         if (!mevcutVeriler || mevcutVeriler.length < 24) {
             return {
                 adi: secilenBilgi.adi,
-                skor: secilenBilgi.skor,
-                teorikSkor: secilenBilgi.skor,
+                skor: null,
                 aciklama: secilenBilgi.aciklama,
                 canliTest: null
             };
@@ -807,8 +857,8 @@ const TahminModulu = (() => {
                 case 'randomForest': tahminSonuc = (typeof RandomForestModulu !== 'undefined') ? tahminRandomForest(trafoId, egitimSeti, 1) : tahminWeatherRegression(trafoId, egitimSeti, 1); break;
                 case 'holtWinters': tahminSonuc = tahminHoltWinters(trafoId, egitimSeti, 1); break;
                 case 'regression': tahminSonuc = (typeof WeatherModulu !== 'undefined' && WeatherModulu.isLoaded()) ? tahminWeatherRegression(trafoId, egitimSeti, 1) : tahminRegression(trafoId, egitimSeti, 1); break;
-                case 'persistence': tahminSonuc = tahminPersistence(egitimSeti, 1); break;
-                case 'ortalama': tahminSonuc = tahminOrtalama(egitimSeti, 1); break;
+                case 'ortalama': tahminSonuc = tahminOrtalama(trafoId, egitimSeti, 1); break;
+                case 'persistence': tahminSonuc = tahminPersistence(trafoId, egitimSeti, 1); break;
                 case 'gecenAy': {
                     const d = VeriModulu.parseDate(egitimSeti[0].tarih);
                     const ayNum = d.getMonth() + 1;
@@ -842,8 +892,7 @@ const TahminModulu = (() => {
         if (gecerliSayac === 0) {
             return {
                 adi: secilenBilgi.adi,
-                skor: secilenBilgi.skor,
-                teorikSkor: secilenBilgi.skor,
+                skor: null,
                 aciklama: secilenBilgi.aciklama,
                 canliTest: null
             };
@@ -854,12 +903,9 @@ const TahminModulu = (() => {
         // Bağıl Hata (WMAPE): Ortalama sapmanın, trafonun ortalama yük/oran profiline göre bağıl yüzdesi
         const wmape = (ortSapma / ortGercek) * 100;
 
-        // Empirik Başarı Skoru (0-100 ölçeğinde, ortalama puan sapması ve bağıl hataya göre hesaplanır)
-        const empirikSkor = Math.max(30.0, 100 - (ortSapma * 4.2 + (wmape * 0.15)));
-
-        // Nihai Canlı Güven Skoru: %40 Teorik Model Hassasiyeti + %60 Çevrimiçi Backtest Empirik Başarısı
-        const canliSkorHam = (secilenBilgi.skor * 0.40) + (empirikSkor * 0.60);
-        const canliSkor = Math.max(50.0, Math.min(99.4, Math.round(canliSkorHam * 10) / 10));
+        // Nihai Canlı Güven Skoru: Tamamen Empirik WMAPE tabanlı
+        const canliSkorHam = Math.max(0, 100 - wmape);
+        const canliSkor = Math.round(canliSkorHam * 10) / 10;
 
         const mapeGosterim = Math.round(wmape * 10) / 10;
         const ortSapmaGosterim = Math.round(ortSapma * 100) / 100;
@@ -867,13 +913,12 @@ const TahminModulu = (() => {
         return {
             adi: secilenBilgi.adi,
             skor: canliSkor,
-            teorikSkor: secilenBilgi.skor,
             aciklama: secilenBilgi.aciklama,
             canliTest: {
                 testGunSayisi: gecerliSayac,
                 mape: mapeGosterim.toFixed(1),
                 ortSapma: ortSapmaGosterim.toFixed(2),
-                detay: `⚡ Canlı Test (Backtest): Son ${gecerliSayac} adım üzerinde yapılan çapraz doğrulamada modelin ortalama sapması ±${ortSapmaGosterim.toFixed(2)} puan (bağıl hata %${mapeGosterim.toFixed(1)}) olarak ölçülmüştür.`
+                detay: `Canlı Test (Backtest): Son ${gecerliSayac} adım üzerinde yapılan çapraz doğrulamada modelin ortalama sapması ±${ortSapmaGosterim.toFixed(2)} puan (bağıl hata %${mapeGosterim.toFixed(1)}) olarak ölçülmüştür.`
             }
         };
     }

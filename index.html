@@ -52,7 +52,7 @@
         <div class="header-info">
             <span class="current-date" id="current-date"></span>
             <button class="theme-toggle-btn" id="btn-theme-toggle" title="Temayı Değiştir (Açık / Koyu)" aria-label="Tema Değiştir">
-                <svg id="theme-icon" class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                <span id="theme-icon" class="theme-icon">☀️</span>
                 <span class="theme-text" id="theme-text">Açık</span>
             </button>
         </div>
@@ -69,13 +69,24 @@
                     <h2>Kontrol Paneli & Şebeke Topolojisi</h2>
                     <p class="text-muted" style="font-size: 13px;">Tesis istatistiklerine, canlı SCADA akışına ve fazör vektör analizine tek ekrandan ulaşın.</p>
                 </div>
-                <div class="view-switcher-group">
-                    <button class="btn-view active" id="btn-view-charts" onclick="App.switchDashboardView('charts')">
-                        <span>Tablo & Grafikler</span>
-                    </button>
-                    <button class="btn-view" id="btn-view-scada" onclick="App.switchDashboardView('scada')">
-                        <span>SCADA Tek Hat Topolojisi</span>
-                    </button>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <select id="dashboard-ay-select" class="select-lg">
+                        <option value="1">Ocak 2025</option>
+                        <option value="2">Şubat 2025</option>
+                        <option value="3">Mart 2025</option>
+                        <option value="4">Nisan 2025</option>
+                        <option value="5">Mayıs 2025</option>
+                        <option value="6">Haziran 2025</option>
+                        <option value="7" selected>Temmuz 2025</option>
+                    </select>
+                    <div class="view-switcher-group">
+                        <button class="btn-view active" id="btn-view-charts" onclick="App.switchDashboardView('charts')">
+                            <span>Tablo & Grafikler</span>
+                        </button>
+                        <button class="btn-view" id="btn-view-scada" onclick="App.switchDashboardView('scada')">
+                            <span>SCADA Tek Hat Topolojisi</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -270,8 +281,13 @@
 
             <!-- Son Girilen Veriler Tablosu -->
             <div class="card mt-lg">
-                <div class="card-header">
-                    <h3>Son Girilen Veriler</h3>
+                <div class="card-header" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                    <h3 style="margin: 0; flex-grow: 1;">Son Girilen Veriler</h3>
+                    <div class="date-filter" style="display: flex; gap: 10px; align-items: center;">
+                        <input type="date" id="table-date-start" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;" title="Başlangıç Tarihi">
+                        <span>-</span>
+                        <input type="date" id="table-date-end" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;" title="Bitiş Tarihi">
+                    </div>
                     <select id="table-trafo-filter" class="select-sm"></select>
                 </div>
                 <div class="table-wrapper" style="max-height: 400px; overflow-y: auto;">
@@ -289,6 +305,23 @@
                         </thead>
                         <tbody id="veri-table-body"></tbody>
                     </table>
+                </div>
+                <div id="table-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: 0 0 8px 8px; font-size: 13px;">
+                    <div class="pagination-info" style="color: var(--text-secondary);">
+                        Toplam <span id="table-total-rows" style="font-weight: 600; color: var(--text-primary);">0</span> kayıt. 
+                        <span style="margin-left: 15px;">Sayfa başına:</span>
+                        <select id="table-per-page" class="select-sm" style="display: inline-block; width: auto; padding: 2px 5px; height: auto; margin-left: 5px;">
+                            <option value="20">20</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                            <option value="all">Tümü</option>
+                        </select>
+                    </div>
+                    <div class="pagination-controls" style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn btn-outline" id="table-prev-page" style="padding: 4px 10px; font-size: 12px;">Önceki</button>
+                        <span id="table-page-info" style="font-weight: 500; color: var(--text-primary);">1 / 1</span>
+                        <button class="btn btn-outline" id="table-next-page" style="padding: 4px 10px; font-size: 12px;">Sonraki</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -390,6 +423,15 @@
             <div class="screen-header">
                 <h2>Tahmin & Senaryo Simülasyonu</h2>
                 <div class="screen-controls">
+                    <select id="tahmin-ay-select" class="select-lg">
+                        <option value="1">Ocak 2025</option>
+                        <option value="2">Şubat 2025</option>
+                        <option value="3">Mart 2025</option>
+                        <option value="4">Nisan 2025</option>
+                        <option value="5">Mayıs 2025</option>
+                        <option value="6">Haziran 2025</option>
+                        <option value="7" selected>Temmuz 2025</option>
+                    </select>
                     <select id="tahmin-trafo-select" class="select-lg"></select>
                     <select id="tahmin-yontem-select" class="select-lg">
                         <option value="ensemble" selected>Topluluk Modeli (Ensemble)</option>

@@ -76,8 +76,6 @@ const HesaplamaModulu = (() => {
                 kumulatifAktif: toplamAktif,
                 kumulatifEnduktif: toplamEnduktif,
                 kumulatifKapasitif: toplamKapasitif,
-                saatlikKapasitifOran: oranHesapla(v.kapasitifEnerji, v.aktifEnerji),
-                saatlikEnduktifOran: oranHesapla(v.enduktifEnerji, v.aktifEnerji),
                 gunlukKapasitifOran: oranHesapla(v.kapasitifEnerji, v.aktifEnerji),
                 gunlukEnduktifOran: oranHesapla(v.enduktifEnerji, v.aktifEnerji),
                 kumulatifKapasitifOran: oranHesapla(toplamKapasitif, toplamAktif),

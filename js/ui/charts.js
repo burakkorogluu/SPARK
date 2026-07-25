@@ -63,6 +63,7 @@ const GrafikModulu = (() => {
         if (!ctx) return;
 
         // Özel Plugin: Chart.js bar grafiği borderDash desteklemediği için manuel Canvas çizimi
+        // Ayrıca bu plugin ile dış çerçeveye parıldama (glow) efekti de ekliyoruz.
         const dashedBarPlugin = {
             id: 'dashedBarPlugin',
             afterDatasetDraw(chart, args) {
@@ -73,6 +74,8 @@ const GrafikModulu = (() => {
                     const meta = chart.getDatasetMeta(args.index);
                     ctx.save();
                     meta.data.forEach((bar, index) => {
+                        if (dataset.data[index] === null) return;
+                        
                         const left = Math.min(bar.x, bar.base);
                         const right = Math.max(bar.x, bar.base);
                         const width = right - left;
@@ -81,14 +84,31 @@ const GrafikModulu = (() => {
                         ctx.beginPath();
                         ctx.setLineDash(dataset.customDashedBorder);
                         ctx.lineWidth = dataset.customBorderWidth || 2;
-                        ctx.strokeStyle = Array.isArray(dataset.borderColor) ? dataset.borderColor[index] : dataset.borderColor;
+                        
+                        const strokeColor = Array.isArray(dataset.borderColor) ? dataset.borderColor[index] : dataset.borderColor;
+                        ctx.strokeStyle = strokeColor;
+                        
+                        // Hafif dış parlama (neon glow) efekti
+                        ctx.shadowColor = strokeColor;
+                        ctx.shadowBlur = 8;
+                        ctx.shadowOffsetX = 0;
+                        ctx.shadowOffsetY = 0;
                         
                         if (typeof ctx.roundRect === 'function') {
-                            ctx.roundRect(left, top, width, bar.height, [0, 6, 6, 0]);
+                            ctx.roundRect(left, top, width, bar.height, [0, 8, 8, 0]);
                         } else {
                             ctx.rect(left, top, width, bar.height);
                         }
                         ctx.stroke();
+                        
+                        // Gölgeyi sıfırla ki diğer çizimlere etki etmesin
+                        ctx.shadowBlur = 0;
+                        
+                        // Şeffaf bir dolgu (sadece tahmin barının uç kısmı için hoş bir görünüm verebilir)
+                        ctx.fillStyle = chart.canvas.ownerDocument.body.getAttribute('data-theme') === 'light' 
+                            ? strokeColor + '0A' // %4 opaklık
+                            : strokeColor + '14'; // %8 opaklık
+                        ctx.fill();
                     });
                     ctx.restore();
                 }
@@ -113,15 +133,37 @@ const GrafikModulu = (() => {
             return risk.renk;
         });
 
+        // Gradient oluşturucu
+        const createGradient = (context, colorStr) => {
+            const chart = context.chart;
+            const {ctx, chartArea} = chart;
+            if (!chartArea) return colorStr + (isLight ? 'E6' : '30'); // fallback
+            
+            const gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
+            if (colorStr.startsWith('#')) {
+                gradient.addColorStop(0, colorStr + (isLight ? '20' : '10')); 
+                gradient.addColorStop(1, colorStr + (isLight ? 'E6' : 'CC')); 
+            } else {
+                gradient.addColorStop(0, colorStr);
+                gradient.addColorStop(1, colorStr);
+            }
+            return gradient;
+        };
+
         const datasets = [
             {
                 label: 'Mevcut Oran (%)',
                 data: values,
-                backgroundColor: colors.map((c) => isLight ? (c + 'E6') : (c + '30')),
-                borderColor: colors,
-                borderWidth: 2,
+                backgroundColor: (context) => {
+                    const color = colors[context.dataIndex] || '#1E88E5';
+                    return createGradient(context, color);
+                },
+                borderColor: colors.map(c => c + (isLight ? 'FF' : 'AA')),
+                borderWidth: 1,
                 borderRadius: 6,
                 barThickness: hasTahmin ? 16 : 28,
+                grouped: false, // Barların aynı hizada üst üste binmesi için
+                // Bar ucuna ufak bir parlama vermek için ekstra ayarlar eklenebilir
             }
         ];
 
@@ -133,27 +175,40 @@ const GrafikModulu = (() => {
             datasets.push({
                 label: 'Ay Sonu Tahmini (%)',
                 data: tahminValues,
-                backgroundColor: tColors.map(c => isLight ? (c + 'E6') : (c + '80')),
+                backgroundColor: 'transparent', // Custom plugin hallediyor
                 borderColor: tColors,
-                borderWidth: 0, // Chart.js'in kendi düz çizimini iptal ediyoruz
-                customBorderWidth: 2, // Plugin için
-                customDashedBorder: [6, 4], // Plugin için
-                borderRadius: 6,
-                barThickness: 16,
+                borderWidth: 0, 
+                customBorderWidth: 2, 
+                customDashedBorder: [6, 4], 
+                borderRadius: 8,
+                barThickness: 28, // Mevcut orandan daha kalın, onu içine alacak şekilde
+                grouped: false, // Üst üste binmesi için
             });
         }
+
+        // Z-Index düzenlemesi (Tahmin barı altta kalıp taşsın ki görsel bütünlük olsun)
+        // Chart.js'de dataset dizisindeki sıra çizim sırasıdır. 
+        // Ancak biz grouped: false kullandık. Mevcut barın (16px) tam olarak tahmin barının (28px) 
+        // üstünde çizilmesi için Mevcut barın en son (üstte) çizilmesi daha iyi olur.
+        // O yüzden datasets sırasını tersine çeviriyoruz, fakat legend sırasını korumak için 
+        // legend oluşturulurken ayar yapacağız.
+        const sortedDatasets = hasTahmin ? [datasets[1], datasets[0]] : datasets;
 
         _charts[canvasId] = new Chart(ctx, {
             type: 'bar',
             plugins: [dashedBarPlugin],
             data: {
                 labels,
-                datasets,
+                datasets: sortedDatasets,
             },
             options: {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'y', // Aynı kategoridekileri birlikte göster
+                    intersect: false
+                },
                 plugins: {
                     legend: {
                         display: hasTahmin,
@@ -164,16 +219,35 @@ const GrafikModulu = (() => {
                             padding: 16,
                             generateLabels: (chart) => {
                                 const isLt = document.body.getAttribute('data-theme') === 'light';
-                                return chart.data.datasets.map((dataset, i) => ({
-                                    text: dataset.label,
-                                    fillStyle: i === 1 ? 'transparent' : (isLt ? 'rgba(226, 232, 240, 0.5)' : 'rgba(30, 41, 59, 0.5)'),
-                                    strokeStyle: isLt ? '#64748b' : '#94a3b8',
-                                    lineWidth: 2,
-                                    lineDash: dataset.customDashedBorder || [],
-                                    hidden: !chart.isDatasetVisible(i),
-                                    datasetIndex: i,
-                                    fontColor: isLt ? '#1e293b' : '#cbd5e1'
-                                }));
+                                // Legend'ı orijinal düzende göstermek için datasetleri kendi sıramıza göre filtreliyoruz
+                                const datasetMevcut = chart.data.datasets.find(ds => ds.label.includes('Mevcut'));
+                                const datasetTahmin = chart.data.datasets.find(ds => ds.label.includes('Tahmin'));
+                                
+                                const labels = [];
+                                if (datasetMevcut) {
+                                    labels.push({
+                                        text: datasetMevcut.label,
+                                        fillStyle: isLt ? '#94a3b840' : '#47556940',
+                                        strokeStyle: isLt ? '#64748b' : '#94a3b8',
+                                        lineWidth: 1,
+                                        hidden: !chart.isDatasetVisible(chart.data.datasets.indexOf(datasetMevcut)),
+                                        datasetIndex: chart.data.datasets.indexOf(datasetMevcut),
+                                        fontColor: isLt ? '#1e293b' : '#cbd5e1'
+                                    });
+                                }
+                                if (datasetTahmin) {
+                                    labels.push({
+                                        text: datasetTahmin.label,
+                                        fillStyle: 'transparent',
+                                        strokeStyle: isLt ? '#64748b' : '#94a3b8',
+                                        lineWidth: 2,
+                                        lineDash: [6, 4],
+                                        hidden: !chart.isDatasetVisible(chart.data.datasets.indexOf(datasetTahmin)),
+                                        datasetIndex: chart.data.datasets.indexOf(datasetTahmin),
+                                        fontColor: isLt ? '#1e293b' : '#cbd5e1'
+                                    });
+                                }
+                                return labels;
                             }
                         }
                     },
@@ -636,6 +710,7 @@ const GrafikModulu = (() => {
                 },
                 scales: {
                     x: {
+                        stacked: true,
                         grid: { color: 'rgba(148, 163, 184, 0.06)' },
                         title: {
                             display: true,
@@ -645,6 +720,7 @@ const GrafikModulu = (() => {
                         },
                     },
                     y: {
+                        stacked: true,
                         beginAtZero: true,
                         grid: { color: 'rgba(148, 163, 184, 0.06)' },
                         suggestedMax: Math.max(Math.ceil((maxV + pad) * 10) / 10, sinir + 3),

@@ -12,8 +12,8 @@ Türkiye'de **EPDK (Enerji Piyasası Düzenleme Kurumu)** mevzuatına göre ayl�
 
 ## ⚡ Gerçek TEİAŞ Veri Seti
 
-Sistem, 2025 yılına ait **19.452 saatlik gerçek TEİAŞ yük kaydı** (`data/raw_data.json`) ile çalışır.
-Veri dosyasının boyutu (1.1 MB) nedeniyle uygulama açılırken Asenkron (async/await) yapı ile `fetch` üzerinden RAM'e yüklenir.
+Sistem, 2025 yılına ait **19.452 saatlik gerçek TEİAŞ yük kaydı** (`data/raw_data.js`) ile çalışır.
+Veri dosyasının boyutu (yaklaşık 1 MB) nedeniyle statik olarak tarayıcı belleğine (RAM) yüklenir.
 
 **Tanımlı Trafolar:**
 * 🏙️ **Ümraniye TM – TRA (`UMR-TRA`)**: `100 MVA` 
@@ -55,23 +55,30 @@ Sistem ayrıca **⚡ Canlı Backtesting** ile modellerin o anki verideki hata pa
 ```text
 SPARK/
 ├── index.html                  # Ana uygulama iskeleti ve arayüz
-├── audit.html                  # Ajan (Otonom Denetçi) Görsel Paneli
+├── tools/
+│   ├── audit.html              # Ajan (Otonom Denetçi) Görsel Paneli
+│   └── verify-project.js       # Node.js tabanlı terminal denetçisi
 ├── data/
-│   └── raw_data.json           # 19.452 satırlık TEİAŞ veri seti
+│   └── raw_data.js             # 19.452 satırlık TEİAŞ veri seti (Global değişken)
 ├── css/
 │   └── style.css               # Tasarım sistemi
 └── js/
-    ├── app.js                  # Uygulama denetleyicisi (Controller)
-    ├── data.js                 # Veri modülü (Async Fetch işlemleri)
-    ├── calculations.js         # Reaktif ceza ve matematiksel formüller
-    ├── weather.js              # Open-Meteo Canlı Hava Durumu entegrasyonu
-    ├── forecast.js             # İstatistiksel modeller ve Feature Engineering
-    ├── randomForest.js         # JavaScript tabanlı Random Forest Regressor
-    ├── scenarios.js            # Reaktör/Yük simülasyonları
-    ├── charts.js               # Chart.js yapılandırmaları
-    ├── topology.js             # SCADA ve Canvas çizimleri
-    └── agent.js                # Otonom Proje & Dosya Denetçi Ajanı
+    ├── core/
+    │   ├── app.js              # Uygulama denetleyicisi (Controller)
+    │   ├── data.js             # Veri yönetimi ve localStorage entegrasyonu
+    │   └── agent.js            # Otonom Proje & Dosya Denetçi Ajanı
+    ├── modules/
+    │   ├── calculations.js     # Reaktif ceza ve matematiksel formüller
+    │   ├── forecast.js         # İstatistiksel modeller ve Feature Engineering
+    │   ├── randomForest.js     # JavaScript tabanlı Random Forest Regressor
+    │   ├── scenarios.js        # Reaktör/Yük simülasyonları
+    │   └── weather.js          # Open-Meteo Canlı Hava Durumu entegrasyonu
+    └── ui/
+        ├── charts.js           # Chart.js ve chartjs-plugin-annotation yapılandırmaları
+        └── topology.js         # SCADA ve Canvas çizimleri
 ```
+
+*Not: Sistem görselleştirmeleri için `Chart.js` ve sınır çizgilerini çizmek için `chartjs-plugin-annotation` eklentisi kullanılmaktadır (CDN üzerinden projeye dâhildir).*
 
 ---
 

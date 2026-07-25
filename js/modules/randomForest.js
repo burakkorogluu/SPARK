@@ -44,8 +44,19 @@ const RandomForestModulu = (() => {
             const nFeatures = X[0].length;
             const currentVar = this.variance(y);
 
-            // Daha hızlı çalışması için her özelliğin eşsiz (unique) değerlerini bulalım
-            for (let featIdx = 0; featIdx < nFeatures; featIdx++) {
+            // ─── MTRY (Feature Subsetting) ───
+            // Gerçek Random Forest için her düğümde sadece rastgele bir özellik alt kümesi seçilir.
+            const mtry = Math.max(1, Math.floor(Math.sqrt(nFeatures)));
+            const featureIndices = Array.from({ length: nFeatures }, (_, i) => i);
+            
+            for (let i = featureIndices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [featureIndices[i], featureIndices[j]] = [featureIndices[j], featureIndices[i]];
+            }
+            const selectedFeatures = featureIndices.slice(0, mtry);
+
+            // Sadece rastgele seçilen özellikler (selectedFeatures) üzerinden en iyi bölünmeyi ara
+            for (const featIdx of selectedFeatures) {
                 // Hızlı bir threshold seçimi için sadece belirli çeyreklikleri (veya uniq listeyi) alabiliriz
                 // Veri setimiz küçük olduğu için tüm unique değerleri test etmek yeterince hızlıdır
                 const values = X.map(row => row[featIdx]);

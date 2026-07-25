@@ -118,16 +118,15 @@ const AjanModulu = (function () {
             if (window.location.pathname.includes('audit.html')) return;
 
             const kritikElementler = [
-                { id: 'app-container', aciklama: 'Ana Uygulama Kapsayıcısı' },
                 { id: 'summary-cards', aciklama: 'KPI Özet Kart Alanı' },
                 { id: 'trafo-grid', aciklama: 'Trafo Kartları Izgarası' },
                 { id: 'chart-dashboard-bar', aciklama: 'Çift Barlı Karşılaştırma Grafiği Canvas' },
                 { id: 'chart-dashboard-doughnut', aciklama: 'Enerji Dağılımı Halka Grafiği Canvas' },
                 { id: 'dashboard-forecast-banner', aciklama: 'Dashboard Ay Sonu Tahmin & Risk Bildirim Alanı' },
                 { id: 'scada-forecast-banner', aciklama: 'SCADA Ay Sonu Tahmin & Risk Bildirim Alanı' },
-                { id: 'scada-container', aciklama: 'SCADA Tek Hat Vektör Alanı' },
+                { id: 'scada-board', aciklama: 'SCADA Tek Hat Vektör Alanı' },
                 { id: 'power-triangle-modal', aciklama: 'Güç Üçgeni & Fazör Analizi Modal Ekranı' },
-                { id: 'canvas-power-triangle', aciklama: 'Güç Üçgeni Çizim Canvas' },
+                { id: 'power-triangle-canvas', aciklama: 'Güç Üçgeni Çizim Canvas' },
                 { id: 'btn-view-charts', aciklama: 'Tablo/Grafik Görünüm Geçiş Butonu' },
                 { id: 'btn-view-scada', aciklama: 'SCADA Görünüm Geçiş Butonu' }
             ];
@@ -167,12 +166,22 @@ const AjanModulu = (function () {
             const tm = typeof TahminModulu !== 'undefined' ? TahminModulu : null;
             const vm = typeof VeriModulu !== 'undefined' ? VeriModulu : null;
             if (tm && vm) {
-                const testTrafoId = 'UMR-TRB';
-                const sonuc = tm.aySonuTahminiYap(testTrafoId, 2025, 7, 'ensemble');
-                if (sonuc && sonuc.tahminVeriler && sonuc.tahminVeriler.length > 0) {
-                    logBasarili('Algoritma Testi', `TahminModulu (${testTrafoId}) için ${sonuc.tahminVeriler.length} saatlik gelecek simülasyonunu başarıyla üretti.`);
-                } else {
-                    logUyari('Algoritma Testi', `${testTrafoId} için Temmuz 2025 tahmin motoru boş sonuç döndürdü.`);
+                const trafolar = vm.getTrafolar();
+                if (trafolar && trafolar.length > 0) {
+                    const testTrafoId = trafolar[0].id;
+                    const tumVeriler = vm.getTrafoVerileri(testTrafoId);
+                    if (tumVeriler && tumVeriler.length > 0) {
+                        const sonVeriTarih = vm.parseDate(tumVeriler[tumVeriler.length - 1].tarih);
+                        const testYil = sonVeriTarih.getFullYear();
+                        const testAy = sonVeriTarih.getMonth() + 1;
+                        
+                        const sonuc = tm.aySonuTahminiYap(testTrafoId, testYil, testAy, 'ensemble');
+                        if (sonuc && sonuc.tahminVeriler && sonuc.tahminVeriler.length > 0) {
+                            logBasarili('Algoritma Testi', `TahminModulu (${testTrafoId}) için ${sonuc.tahminVeriler.length} adım (saat/gün) gelecek simülasyonunu başarıyla üretti.`);
+                        } else {
+                            logUyari('Algoritma Testi', `${testTrafoId} için ${testAy}/${testYil} dönemi tahmin motoru boş sonuç döndürdü.`);
+                        }
+                    }
                 }
             }
         } catch (e) {
