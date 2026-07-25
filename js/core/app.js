@@ -262,12 +262,12 @@ const App = (() => {
             bannerHTML = `
                 <div class="forecast-alert-card alert-card-riskli">
                     <div class="forecast-alert-left">
-                        <div class="forecast-alert-icon">🔴</div>
+                        <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                         <div class="forecast-alert-text">
-                            <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-tehlikeli" style="margin-left:8px;">🚨 Ceza Sınırı Aşım Riski!</span></h3>
+                            <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-tehlikeli" style="margin-left:8px;">Ceza Sınırı Aşım Riski!</span></h3>
                             <p>
                                 Mevcut kullanım trendi devam ederse ay sonunda tesis geneli kapasitif oranı <strong>%${HesaplamaModulu.formatSayi(genelTahminOran)}</strong> seviyesine ulaşacaktır (Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
-                                <br>⚠️ <strong>${riskliTahminTrafolar.length} adet trafoda (${riskliTahminTrafolar.map(t => `${t.trafo.adi}: <b>%${HesaplamaModulu.formatSayi(t.tahminOzet.kapasitifOran)}</b>`).join(', ')})</strong> ay sonuna kadar %15 yasal ceza sınırının aşılması beklenmektedir! Acil şönt reaktör devreye alma veya yük transferi önerilir.
+                                <br><strong>${riskliTahminTrafolar.length} adet trafoda (${riskliTahminTrafolar.map(t => `${t.trafo.adi}: <b>%${HesaplamaModulu.formatSayi(t.tahminOzet.kapasitifOran)}</b>`).join(', ')})</strong> ay sonuna kadar %15 yasal ceza sınırının aşılması beklenmektedir! Acil şönt reaktör devreye alma veya yük transferi önerilir.
                             </p>
                         </div>
                     </div>
@@ -277,7 +277,7 @@ const App = (() => {
                             <div class="forecast-alert-metric-val" style="color: var(--color-danger)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
                         </div>
                         <button class="forecast-alert-btn btn btn-primary" onclick="App.navigateToTrafo('${riskliTahminTrafolar[0].trafo.id}')" style="background: var(--color-danger); border: none;">
-                            ⚡ Riskli Trafoyu İncele
+                            Riskli Trafoyu İncele
                         </button>
                     </div>
                 </div>
@@ -286,12 +286,12 @@ const App = (() => {
             bannerHTML = `
                 <div class="forecast-alert-card alert-card-dikkat">
                     <div class="forecast-alert-left">
-                        <div class="forecast-alert-icon">🟡</div>
+                        <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                         <div class="forecast-alert-text">
-                            <h3>AY SONU PROJEKSİYONU & DİKKAT BİLDİRİMİ <span class="badge badge-dikkat" style="margin-left:8px;">⚠️ Uyarı Eşiği</span></h3>
+                            <h3>AY SONU PROJEKSİYONU & DİKKAT BİLDİRİMİ <span class="badge badge-dikkat" style="margin-left:8px;">Uyarı Eşiği</span></h3>
                             <p>
                                 Mevcut kullanım trendi devam ederse ay sonunda tesis geneli kapasitif oranı <strong>%${HesaplamaModulu.formatSayi(genelTahminOran)}</strong> seviyesine ulaşacaktır (Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
-                                <br>🟡 Hiçbir trafo %15 ceza sınırını aşmayacak olsa da, <strong>${dikkatTahminTrafolar.length} adet trafoda (${dikkatTahminTrafolar.map(t => `${t.trafo.adi}: <b>%${HesaplamaModulu.formatSayi(t.tahminOzet.kapasitifOran)}</b>`).join(', ')})</strong> %12 uyarı sınırının üzerinde seyredilecektir.
+                                <br>Hiçbir trafo %15 ceza sınırını aşmayacak olsa da, <strong>${dikkatTahminTrafolar.length} adet trafoda (${dikkatTahminTrafolar.map(t => `${t.trafo.adi}: <b>%${HesaplamaModulu.formatSayi(t.tahminOzet.kapasitifOran)}</b>`).join(', ')})</strong> %12 uyarı sınırının üzerinde seyredilecektir.
                             </p>
                         </div>
                     </div>
@@ -301,7 +301,7 @@ const App = (() => {
                             <div class="forecast-alert-metric-val" style="color: var(--color-warning)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
                         </div>
                         <button class="forecast-alert-btn btn btn-outline" onclick="App.navigateToTrafo('${dikkatTahminTrafolar[0].trafo.id}')">
-                            🔍 Detayları Gör
+                            Detayları Gör
                         </button>
                     </div>
                 </div>
@@ -310,9 +310,9 @@ const App = (() => {
             bannerHTML = `
                 <div class="forecast-alert-card alert-card-guvenli">
                     <div class="forecast-alert-left">
-                        <div class="forecast-alert-icon">🟢</div>
+                        <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
                         <div class="forecast-alert-text">
-                            <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-guvenli" style="margin-left:8px;">✅ Tamamen Güvenli</span></h3>
+                            <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-guvenli" style="margin-left:8px;">Tamamen Güvenli</span></h3>
                             <p>
                                 Harika! Tesis geneli ay sonu tahmini kapasitif oranı <strong>%${HesaplamaModulu.formatSayi(genelTahminOran)}</strong> ile güvenli yeşil bölgede öngörülmektedir (Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
                                 <br>🎉 Tüm trafoların ay sonuna kadar hem %15 yasal ceza sınırının hem de %12 uyarı eşiğinin çok altında kalarak konforlu bir şekilde ayı tamamlaması bekleniyor.
@@ -325,7 +325,7 @@ const App = (() => {
                             <div class="forecast-alert-metric-val" style="color: var(--color-success)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
                         </div>
                         <button class="forecast-alert-btn btn btn-outline" onclick="App.navigate('tahmin')">
-                            📈 Tahmin Detayları
+                            Tahmin Detayları
                         </button>
                     </div>
                 </div>
@@ -338,23 +338,32 @@ const App = (() => {
         if (bannerScada) bannerScada.innerHTML = bannerHTML;
     }
 
+    const _dashboardCache = new Map();
     function renderDashboard() {
-        const hamOzetler = HesaplamaModulu.tumTrafoOzetleri(state.selectedYil, state.selectedAy);
-        const ozetler = hamOzetler.map(({ trafo, ozet }) => {
-            if (!ozet) return { trafo, ozet: null, tahminOzet: null };
-            let tahminOzet = null;
-            try {
-                if (typeof TahminModulu !== 'undefined') {
-                    const tSonuc = TahminModulu.aySonuTahminiYap(trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
-                    if (tSonuc && tSonuc.tumVeriler) {
-                        tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
+        const cacheKey = `${state.selectedYil}_${state.selectedAy}_${state.selectedYontem}`;
+        let ozetler;
+        
+        if (_dashboardCache.has(cacheKey)) {
+            ozetler = _dashboardCache.get(cacheKey);
+        } else {
+            const hamOzetler = HesaplamaModulu.tumTrafoOzetleri(state.selectedYil, state.selectedAy);
+            ozetler = hamOzetler.map(({ trafo, ozet }) => {
+                if (!ozet) return { trafo, ozet: null, tahminOzet: null };
+                let tahminOzet = null;
+                try {
+                    if (typeof TahminModulu !== 'undefined') {
+                        const tSonuc = TahminModulu.aySonuTahminiYap(trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
+                        if (tSonuc && tSonuc.tumVeriler) {
+                            tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
+                        }
                     }
+                } catch (e) {
+                    console.warn('Tahmin hatası:', e);
                 }
-            } catch (e) {
-                console.warn('Tahmin hatası:', e);
-            }
-            return { trafo, ozet, tahminOzet };
-        });
+                return { trafo, ozet, tahminOzet };
+            });
+            _dashboardCache.set(cacheKey, ozetler);
+        }
 
         // ── Ay Sonu Tahmin Barını Göster ──
         renderForecastBanner(ozetler);
@@ -378,21 +387,21 @@ const App = (() => {
 
         document.getElementById('summary-cards').innerHTML = `
             <div class="summary-card card-total">
-                <div class="card-icon">⚡</div>
+                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg></div>
                 <div class="card-content">
                     <div class="card-value">${ozetler.length}</div>
                     <div class="card-label">Toplam Trafo</div>
                 </div>
             </div>
             <div class="summary-card card-safe">
-                <div class="card-icon">✅</div>
+                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
                 <div class="card-content">
                     <div class="card-value">${guvenliSayisi}</div>
                     <div class="card-label">Güvenli / Normal</div>
                 </div>
             </div>
             <div class="summary-card card-warning">
-                <div class="card-icon">⚠️</div>
+                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>
                 <div class="card-content">
                     <div class="card-value">${dikkatSayisi + riskliSayisi}</div>
                     <div class="card-label">Dikkat / Riskli</div>
@@ -425,7 +434,7 @@ const App = (() => {
 
             const tOran = tahminOzet ? tahminOzet.kapasitifOran : ozet.kapasitifOran;
             const tRisk = tahminOzet ? tahminOzet.kapasitifRisk : risk;
-            const tahminIkon = tOran >= 15 ? '🚨' : (tOran >= 12 ? '⚠️' : '✅');
+            const tahminIkon = '';
             const tahminEtiket = tOran >= 15 ? 'Ceza Riski!' : (tOran >= 12 ? 'Dikkat' : 'Güvenli');
 
             return `
@@ -470,8 +479,8 @@ const App = (() => {
                         </div>
                     </div>
                     <div class="trafo-card-footer" style="margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px;" onclick="event.stopPropagation();">
-                        <button class="btn btn-sm btn-outline" onclick="App.navigateToTrafo('${trafo.id}')" style="font-size: 11px; padding: 4px 10px;">🔍 Detaylar</button>
-                        <button class="btn btn-sm btn-primary" onclick="if(typeof TopolojiModulu !== 'undefined') TopolojiModulu.openPowerTriangleModal('${trafo.id}')" style="font-size: 11px; padding: 4px 10px;">📐 Güç Üçgeni & Fazör Analizi</button>
+                        <button class="btn btn-sm btn-outline" onclick="App.navigateToTrafo('${trafo.id}')" style="font-size: 11px; padding: 4px 10px;">Detaylar</button>
+                        <button class="btn btn-sm btn-primary" onclick="if(typeof TopolojiModulu !== 'undefined') TopolojiModulu.openPowerTriangleModal('${trafo.id}')" style="font-size: 11px; padding: 4px 10px;">Güç Üçgeni Analizi</button>
                     </div>
                 </div>
             `;
@@ -537,7 +546,9 @@ const App = (() => {
             }
 
             const d = VeriModulu.parseDate(tarih);
-            VeriModulu.veriEkle({
+            if(typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
+                _dashboardCache.clear();
+                VeriModulu.veriEkle({
                 trafoId,
                 tarih,
                 aktifEnerji: aktif,
@@ -704,7 +715,9 @@ const App = (() => {
                         continue;
                     }
 
-                    VeriModulu.veriEkle({
+                    if(typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
+                _dashboardCache.clear();
+                VeriModulu.veriEkle({
                         trafoId,
                         tarih,
                         aktifEnerji: aktif,
@@ -848,35 +861,48 @@ const App = (() => {
         // ── Grafik ──
         const tahminBadge = document.getElementById('detay-tahmin-badge');
         const barTahminBadge = document.getElementById('detay-bar-tahmin-badge');
+        // Sync Toggle UI state
+        document.querySelectorAll('.chart-res-toggle button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.res === state.chartResolution);
+        });
+        const barTitle = document.getElementById('detay-bar-title');
+        if (barTitle) {
+            barTitle.textContent = state.chartResolution === 'hourly' ? 'Saatlik Kapasitif Oran Dağılımı (Ayrık)' : 'Günlük Kapasitif Oran Dağılımı (Ayrık)';
+        }
+
         if (!tahminSonucu.tamamlanmis && tahminSonucu.tahminVeriler.length > 0) {
             tahminBadge.style.display = '';
             if (barTahminBadge) barTahminBadge.style.display = '';
             GrafikModulu.createCumulativeLineChart(
                 'chart-detay-line',
-                ozet.kumulatifGunluk,
+                state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
                 tahminSonucu.tahminVeriler,
-                HesaplamaModulu.SINIRLAR.kapasitif
+                HesaplamaModulu.SINIRLAR.kapasitif,
+                state.chartResolution
             );
             GrafikModulu.createDailyBarChart(
                 'chart-detay-bar',
-                ozet.kumulatifGunluk,
+                state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
                 tahminSonucu.tahminVeriler,
-                HesaplamaModulu.SINIRLAR.kapasitif
+                HesaplamaModulu.SINIRLAR.kapasitif,
+                state.chartResolution
             );
         } else {
             tahminBadge.style.display = 'none';
             if (barTahminBadge) barTahminBadge.style.display = 'none';
             GrafikModulu.createCumulativeLineChart(
                 'chart-detay-line',
-                ozet.kumulatifGunluk,
+                state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
                 null,
-                HesaplamaModulu.SINIRLAR.kapasitif
+                HesaplamaModulu.SINIRLAR.kapasitif,
+                state.chartResolution
             );
             GrafikModulu.createDailyBarChart(
                 'chart-detay-bar',
-                ozet.kumulatifGunluk,
+                state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
                 null,
-                HesaplamaModulu.SINIRLAR.kapasitif
+                HesaplamaModulu.SINIRLAR.kapasitif,
+                state.chartResolution
             );
         }
 
@@ -1074,11 +1100,11 @@ const App = (() => {
         if (karsilastirma.sinirAltinaIndi) {
             resultText = `🎉 Mükemmel! ${SenaryoModulu.SENARYO_TURLERI[senaryoTuru].adi} müdahalesi ile kapasitif oran %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} seviyesine düşürüldü ve %15 ceza sınırının altına inildi! (${tasarrufKap > 0 ? tasarrufKap + ' kVArh reaktif yük sönümlendi' : eklenenAktif + ' kWh aktif yük dengelendi'})`;
         } else if (karsilastirma.iyilesmeSaglandi && karsilastirma.kapasitifOranSenaryo < 12) {
-            resultText = `✅ Başarılı Müdahale! Oran %${HesaplamaModulu.formatSayi(Math.abs(karsilastirma.kapasitifFark))} puan düşürülerek %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} ile Güvenli Yeşil Bölgede konforlu bir seviyeye ulaştı.`;
+            resultText = `Başarılı Müdahale! Oran %${HesaplamaModulu.formatSayi(Math.abs(karsilastirma.kapasitifFark))} puan düşürülerek %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} ile Güvenli Yeşil Bölgede konforlu bir seviyeye ulaştı.`;
         } else if (karsilastirma.iyilesmeSaglandi) {
-            resultText = `⚡ Oran %${HesaplamaModulu.formatSayi(Math.abs(karsilastirma.kapasitifFark))} puan iyileştirildi (${tasarrufKap > 0 ? tasarrufKap + ' kVArh azaltıldı' : eklenenAktif + ' kWh eklendi'}). Ancak %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} seviyesi hâlâ ${karsilastirma.kapasitifOranSenaryo >= 15 ? '%15 ceza sınırının üzerinde. Ceza sınırının altına inmek için günlük müdahale miktarını (kVArh) artırmanız veya müdahaleye ayın daha erken bir gününde başlamanız önerilir!' : '%12 uyarı sınırına yakın. Daha güvenli bir seviye için müdahale miktarını bir miktar yükseltebilirsiniz.'}`;
+            resultText = `Oran %${HesaplamaModulu.formatSayi(Math.abs(karsilastirma.kapasitifFark))} puan iyileştirildi (${tasarrufKap > 0 ? tasarrufKap + ' kVArh azaltıldı' : eklenenAktif + ' kWh eklendi'}). Ancak %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} seviyesi hâlâ ${karsilastirma.kapasitifOranSenaryo >= 15 ? '%15 ceza sınırının üzerinde. Ceza sınırının altına inmek için günlük müdahale miktarını (kVArh) artırmanız veya müdahaleye ayın daha erken bir gününde başlamanız önerilir!' : '%12 uyarı sınırına yakın. Daha güvenli bir seviye için müdahale miktarını bir miktar yükseltebilirsiniz.'}`;
         } else {
-            resultText = `⚠️ Bu senaryo ile oranda iyileşme sağlanamadı. Lütfen günlük müdahale miktarını (kVArh) artırmayı veya müdahaleye ayın daha erken bir gününde başlamayı deneyin.`;
+            resultText = `Bu senaryo ile oranda iyileşme sağlanamadı. Lütfen günlük müdahale miktarını (kVArh) artırmayı veya müdahaleye ayın daha erken bir gününde başlamayı deneyin.`;
         }
 
         document.getElementById('senaryo-karsilastirma').innerHTML = `
@@ -1119,7 +1145,7 @@ const App = (() => {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
 
-        const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+        const icons = { success: '', error: '', warning: '', info: '' };
         toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> ${message}`;
 
         container.appendChild(toast);
@@ -1205,4 +1231,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         await VeriModulu.init();
     }
     App.init();
+
+    // Chart resolution toggle binding
+    document.querySelectorAll('.chart-res-toggle button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const res = e.target.dataset.res;
+            const state = App.getState();
+            state.chartResolution = res;
+            
+            // Re-render specifically the trafo-detay screen if it's the active one
+            if (state.currentScreen === 'trafo-detay') {
+                App.navigate('trafo-detay'); 
+                // Or we can just call renderTrafoDetay if it was exposed, 
+                // but navigate handles everything neatly.
+            }
+        });
+    });
 });

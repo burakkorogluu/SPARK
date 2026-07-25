@@ -29,7 +29,7 @@ const TopolojiModulu = (() => {
             hizBtn.addEventListener('click', () => {
                 scadaBoard.classList.toggle('fast-flow');
                 const isFast = scadaBoard.classList.contains('fast-flow');
-                hizBtn.textContent = isFast ? '⚡ Hızlı Akış: Açık (x2)' : '⚡ Hızlı Akış: Kapalı';
+                hizBtn.textContent = isFast ? 'Hızlı Akış: Açık (x2)' : 'Hızlı Akış: Kapalı';
                 hizBtn.classList.toggle('btn-primary', isFast);
                 hizBtn.classList.toggle('btn-outline', !isFast);
             });
@@ -185,7 +185,7 @@ const TopolojiModulu = (() => {
             const subEl = document.createElement('div');
             subEl.className = `scada-substation col-${bolge.toLowerCase()}`;
             
-            const ikon = bolgeIkonlari[bolge] || '⚡';
+            const ikon = bolgeIkonlari[bolge] || '';
             subEl.innerHTML = `
                 <div class="substation-bus-bar">
                     <span>${ikon} ${bolge} TM (154 / 33.1 kV Dağıtım Barası)</span>
@@ -263,7 +263,7 @@ const TopolojiModulu = (() => {
             </div>
 
             <button class="btn-trafo-action" onclick="TopolojiModulu.openPowerTriangleModal('${trafo.id}')">
-                <span>📐 Güç Üçgeni & Fazör Analizi</span>
+                <span>Güç Üçgeni Analizi</span>
             </button>
         `;
     }
@@ -310,11 +310,11 @@ const TopolojiModulu = (() => {
 
         if (legalEvalEl) {
             if (ozet.kapasitifOran > 15.0) {
-                legalEvalEl.innerHTML = `<p style="color: #ef4444; font-size: 13px; font-weight: 600;">⚠️ Trafo %15.0 yasal kapasitif ceza sınırını aşmıştır! Faturalandırma ceza tarifesi üzerinden işlemektedir.</p>`;
+                legalEvalEl.innerHTML = `<p style="color: #ef4444; font-size: 13px; font-weight: 600;">Trafo %15.0 yasal kapasitif ceza sınırını aşmıştır! Faturalandırma ceza tarifesi üzerinden işlemektedir.</p>`;
             } else if (ozet.kapasitifOran > 12.0) {
                 legalEvalEl.innerHTML = `<p style="color: #f59e0b; font-size: 13px; font-weight: 600;">🔶 Trafo %15.0 ceza sınırına çok yaklaşmıştır (Sınır:%15, Mevcut:%${ozet.kapasitifOran.toFixed(2)}). Acil müdahale önerilir.</p>`;
             } else {
-                legalEvalEl.innerHTML = `<p style="color: #10b981; font-size: 13px; font-weight: 600;">✅ Trafo yasal sınırlar altındadır (Sınır:%15, Mevcut:%${ozet.kapasitifOran.toFixed(2)}). Kompanzasyon kademeleri stabil çalışıyor.</p>`;
+                legalEvalEl.innerHTML = `<p style="color: #10b981; font-size: 13px; font-weight: 600;">Trafo yasal sınırlar altındadır (Sınır:%15, Mevcut:%${ozet.kapasitifOran.toFixed(2)}). Kompanzasyon kademeleri stabil çalışıyor.</p>`;
             }
         }
 
@@ -393,7 +393,7 @@ const TopolojiModulu = (() => {
 
         ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
         ctx.font = '11px Inter, sans-serif';
-        ctx.fillText('⚡ Yasal %15 Ceza Sınırı', X0 + P_px - 80, Y0 + limitY_px + 18);
+        ctx.fillText('Yasal %15 Ceza Sınırı', X0 + P_px - 80, Y0 + limitY_px + 18);
 
         // 2. Aktif Güç Vektörü P (Mavi - Yatay)
         drawArrow(ctx, X0, Y0, X0 + P_px, Y0, '#3b82f6', 3.5);

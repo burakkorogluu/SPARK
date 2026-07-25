@@ -17,18 +17,18 @@ const HesaplamaModulu = (() => {
     // Her seviye: üst sınır, etiket, renk kodu ve ikon içerir.
     const RISK_SEVIYELERI = {
         kapasitif: [
-            { sinir: 10, seviye: 'guvenli', etiket: 'Güvenli', renk: '#10b981', bg: 'rgba(16,185,129,0.12)', ikon: '✅' },
-            { sinir: 12, seviye: 'normal', etiket: 'Normal', renk: '#3b82f6', bg: 'rgba(59,130,246,0.12)', ikon: 'ℹ️' },
-            { sinir: 14, seviye: 'dikkat', etiket: 'Dikkat', renk: '#f59e0b', bg: 'rgba(245,158,11,0.12)', ikon: '⚠️' },
-            { sinir: 15, seviye: 'riskli', etiket: 'Riskli', renk: '#f97316', bg: 'rgba(249,115,22,0.12)', ikon: '🔶' },
-            { sinir: Infinity, seviye: 'tehlikeli', etiket: 'Tehlikeli', renk: '#ef4444', bg: 'rgba(239,68,68,0.12)', ikon: '🔴' },
+            { sinir: 10, seviye: 'guvenli', etiket: 'Güvenli', renk: '#43A047', bg: 'rgba(46, 125, 50, 0.1)', ikon: '' },
+            { sinir: 12, seviye: 'normal', etiket: 'Normal', renk: '#1E88E5', bg: 'rgba(25, 118, 210, 0.1)', ikon: '' },
+            { sinir: 14, seviye: 'dikkat', etiket: 'Dikkat', renk: '#FB8C00', bg: 'rgba(245, 124, 0, 0.1)', ikon: '' },
+            { sinir: 15, seviye: 'riskli', etiket: 'Riskli', renk: '#F4511E', bg: 'rgba(230, 81, 0, 0.1)', ikon: '' },
+            { sinir: Infinity, seviye: 'tehlikeli', etiket: 'Tehlikeli', renk: '#E53935', bg: 'rgba(198, 40, 40, 0.1)', ikon: '' },
         ],
         enduktif: [
-            { sinir: 12, seviye: 'guvenli', etiket: 'Güvenli', renk: '#10b981', bg: 'rgba(16,185,129,0.12)', ikon: '✅' },
-            { sinir: 16, seviye: 'normal', etiket: 'Normal', renk: '#3b82f6', bg: 'rgba(59,130,246,0.12)', ikon: 'ℹ️' },
-            { sinir: 18, seviye: 'dikkat', etiket: 'Dikkat', renk: '#f59e0b', bg: 'rgba(245,158,11,0.12)', ikon: '⚠️' },
-            { sinir: 20, seviye: 'riskli', etiket: 'Riskli', renk: '#f97316', bg: 'rgba(249,115,22,0.12)', ikon: '🔶' },
-            { sinir: Infinity, seviye: 'tehlikeli', etiket: 'Tehlikeli', renk: '#ef4444', bg: 'rgba(239,68,68,0.12)', ikon: '🔴' },
+            { sinir: 12, seviye: 'guvenli', etiket: 'Güvenli', renk: '#43A047', bg: 'rgba(46, 125, 50, 0.1)', ikon: '' },
+            { sinir: 16, seviye: 'normal', etiket: 'Normal', renk: '#1E88E5', bg: 'rgba(25, 118, 210, 0.1)', ikon: '' },
+            { sinir: 18, seviye: 'dikkat', etiket: 'Dikkat', renk: '#FB8C00', bg: 'rgba(245, 124, 0, 0.1)', ikon: '' },
+            { sinir: 20, seviye: 'riskli', etiket: 'Riskli', renk: '#F4511E', bg: 'rgba(230, 81, 0, 0.1)', ikon: '' },
+            { sinir: Infinity, seviye: 'tehlikeli', etiket: 'Tehlikeli', renk: '#E53935', bg: 'rgba(198, 40, 40, 0.1)', ikon: '' },
         ],
     };
 

@@ -34,7 +34,7 @@ const GrafikModulu = (() => {
                 display: true,
                 content: label,
                 position: 'end',
-                backgroundColor: 'rgba(239, 68, 68, 0.85)',
+                backgroundColor: 'rgba(229, 57, 53, 0.85)',
                 color: '#fff',
                 font: { size: 11, weight: '600' },
                 padding: { x: 6, y: 3 },
@@ -82,7 +82,12 @@ const GrafikModulu = (() => {
                         ctx.setLineDash(dataset.customDashedBorder);
                         ctx.lineWidth = dataset.customBorderWidth || 2;
                         ctx.strokeStyle = Array.isArray(dataset.borderColor) ? dataset.borderColor[index] : dataset.borderColor;
-                        ctx.rect(left, top, width, bar.height);
+                        
+                        if (typeof ctx.roundRect === 'function') {
+                            ctx.roundRect(left, top, width, bar.height, [0, 6, 6, 0]);
+                        } else {
+                            ctx.rect(left, top, width, bar.height);
+                        }
                         ctx.stroke();
                     });
                     ctx.restore();
@@ -112,7 +117,7 @@ const GrafikModulu = (() => {
             {
                 label: 'Mevcut Oran (%)',
                 data: values,
-                backgroundColor: colors.map((c) => isLight ? (c + 'CC') : (c + '30')),
+                backgroundColor: colors.map((c) => isLight ? (c + 'E6') : (c + '30')),
                 borderColor: colors,
                 borderWidth: 2,
                 borderRadius: 6,
@@ -128,11 +133,12 @@ const GrafikModulu = (() => {
             datasets.push({
                 label: 'Ay Sonu Tahmini (%)',
                 data: tahminValues,
-                backgroundColor: tColors.map(c => isLight ? (c + 'E6') : (c + '50')),
+                backgroundColor: tColors.map(c => isLight ? (c + 'E6') : (c + '80')),
                 borderColor: tColors,
                 borderWidth: 0, // Chart.js'in kendi düz çizimini iptal ediyoruz
                 customBorderWidth: 2, // Plugin için
                 customDashedBorder: [6, 4], // Plugin için
+                borderRadius: 6,
                 barThickness: 16,
             });
         }
@@ -216,8 +222,8 @@ const GrafikModulu = (() => {
         const isLight = document.body.getAttribute('data-theme') === 'light';
         const sliceBorder = isLight ? '#ffffff' : '#111827';
         const sliceColors = isLight
-            ? ['rgba(37, 99, 235, 0.88)', 'rgba(124, 58, 237, 0.88)', 'rgba(8, 145, 178, 0.88)']
-            : ['rgba(59, 130, 246, 0.7)', 'rgba(139, 92, 246, 0.7)', 'rgba(6, 182, 212, 0.7)'];
+            ? ['rgba(30, 136, 229, 0.85)', 'rgba(142, 36, 170, 0.85)', 'rgba(67, 160, 71, 0.85)']
+            : ['rgba(30, 136, 229, 0.65)', 'rgba(142, 36, 170, 0.65)', 'rgba(67, 160, 71, 0.65)'];
 
         _charts[canvasId] = new Chart(ctx, {
             type: 'doughnut',
@@ -329,26 +335,46 @@ const GrafikModulu = (() => {
     // ═══════════════════════════════════════════
     // 3. Trafo Detay / Tahmin — Kümülatif & Günlük Oran Çizgi Grafik
     // ═══════════════════════════════════════════
-    function createCumulativeLineChart(canvasId, kumulatifData, tahminData, sinir) {
+    function createCumulativeLineChart(canvasId, inputData, tahminData, sinir, resolution = 'daily') {
         destroyChart(canvasId);
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return;
 
-        const mevcutDaily = toDailyChartData(kumulatifData);
-        const mevcutLabels = mevcutDaily.map((d) => d.label);
-        const mevcutValues = mevcutDaily.map((d) => d.kumulatifKapasitifOran);
+        const isHourly = resolution === 'hourly';
+        let mevcutLabels = [];
+        let mevcutValues = [];
+        let mevcutDaily = [];
+        
+        if (isHourly) {
+            // inputData is raw hourly 'veriler'
+            let totalAktif = 0;
+            let totalKap = 0;
+            inputData.forEach(v => {
+                totalAktif += v.aktifEnerji || 0;
+                totalKap += v.kapasitifEnerji || 0;
+                mevcutValues.push(totalAktif > 0 ? (totalKap / totalAktif) * 100 : 0);
+                const day = v.tarih.split(' ')[0].split('-')[2];
+                const hour = v.tarih.split(' ')[1].substring(0, 5);
+                mevcutLabels.push(`${day} ${hour}`);
+            });
+            mevcutDaily = inputData; // Just to get length for loop below
+        } else {
+            mevcutDaily = toDailyChartData(inputData);
+            mevcutLabels = mevcutDaily.map((d) => d.label);
+            mevcutValues = mevcutDaily.map((d) => d.kumulatifKapasitifOran);
+        }
 
         const datasets = [
             {
                 label: 'Kümülatif Kapasitif Oran (%)',
                 data: mevcutValues,
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                borderColor: '#1E88E5',
+                backgroundColor: 'rgba(30, 136, 229, 0.1)',
                 fill: true,
                 tension: 0.35,
                 pointRadius: 3,
                 pointHoverRadius: 6,
-                pointBackgroundColor: '#3b82f6',
+                pointBackgroundColor: '#1E88E5',
                 pointBorderColor: '#1e293b',
                 pointBorderWidth: 2,
                 borderWidth: 2.5,
@@ -382,14 +408,14 @@ const GrafikModulu = (() => {
             datasets.push({
                 label: 'Tahmin Edilen Kümülatif (%)',
                 data: bridgeKumData,
-                borderColor: '#f59e0b',
-                backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                borderColor: '#FB8C00',
+                backgroundColor: 'rgba(251, 140, 0, 0.1)',
                 fill: true,
                 borderDash: [6, 4],
                 tension: 0.35,
                 pointRadius: 4,
                 pointHoverRadius: 7,
-                pointBackgroundColor: '#f59e0b',
+                pointBackgroundColor: '#FB8C00',
                 pointBorderColor: '#1e293b',
                 pointBorderWidth: 2,
                 borderWidth: 2.8,
@@ -419,7 +445,12 @@ const GrafikModulu = (() => {
                         callbacks: {
                             title: (items) => {
                                 if (!items.length) return '';
-                                return `${items[0].label}. Gün (Kümülatif Oran Değişimi)`;
+                                const lbl = items[0].label;
+                                if (lbl.includes(' ')) {
+                                    const [day, hour] = lbl.split(' ');
+                                    return `${day}. Gün, ${hour} (Kümülatif Oran Değişimi)`;
+                                }
+                                return `${lbl}. Gün (Kümülatif Oran Değişimi)`;
                             },
                             label: (item) =>
                                 item.parsed.y !== null
@@ -463,47 +494,70 @@ const GrafikModulu = (() => {
     // ═══════════════════════════════════════════
     // 3.1. Günlük Ayrık Kapasitif Oran — Sütun (Bar) Chart
     // ═══════════════════════════════════════════
-    function createDailyBarChart(canvasId, kumulatifData, tahminData, sinir) {
+    function createDailyBarChart(canvasId, inputData, tahminData, sinir, resolution = 'daily') {
         destroyChart(canvasId);
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return;
 
-        const mevcutDaily = toDailyChartData(kumulatifData);
-        const mevcutLabels = mevcutDaily.map((d) => d.label);
-        const mevcutValues = mevcutDaily.map((d) => d.gunlukKapasitifOran);
+        const isHourly = resolution === 'hourly';
+        let allLabels = [];
+        let allValuesForScale = [];
+        let mevcutValues = [];
+        let tahminValues = [];
+        
+        let mevcutDaily = [];
+        
+        if (isHourly) {
+            inputData.forEach(v => {
+                const val = v.aktifEnerji > 0 ? (v.kapasitifEnerji / v.aktifEnerji) * 100 : 0;
+                mevcutValues.push(val);
+                const day = v.tarih.split(' ')[0].split('-')[2];
+                const hour = v.tarih.split(' ')[1].substring(0, 5);
+                allLabels.push(`${day} ${hour}`);
+            });
+            mevcutDaily = inputData;
+        } else {
+            mevcutDaily = toDailyChartData(inputData);
+            allLabels = mevcutDaily.map((d) => d.label);
+            mevcutValues = mevcutDaily.map((d) => d.gunlukKapasitifOran || (d.aktifEnerji > 0 ? (d.kapasitifEnerji / d.aktifEnerji) * 100 : 0));
+        }
 
+        allValuesForScale = [...mevcutValues];
         const isLight = document.body.getAttribute('data-theme') === 'light';
-        const colors = mevcutValues.map((v) => HesaplamaModulu.riskSeviyesiBelirle(v, 'kapasitif').renk);
-        const bgColors = colors.map((c) => isLight ? (c + 'CC') : (c + '50'));
-
-        let allLabels = [...mevcutLabels];
-        let allValuesForScale = [...mevcutValues];
+        const colors = mevcutValues.map((v) => typeof v === 'number' && !isNaN(v) ? HesaplamaModulu.riskSeviyesiBelirle(v, 'kapasitif').renk : '#000');
+        const bgColors = colors.map((c) => isLight ? (c + 'E6') : (c + '80'));
         const datasets = [];
 
         if (tahminData && tahminData.length > 0) {
-            const sonMevcut = mevcutDaily[mevcutDaily.length - 1];
-            const tahminDaily = toDailyChartData(
-                tahminData,
-                0,
-                0,
-                0,
-                sonMevcut ? sonMevcut.tarih : null
-            );
+            let tLabels = [];
+            if (isHourly) {
+                tahminData.forEach(v => {
+                    tahminValues.push(v.aktifEnerji > 0 ? (v.kapasitifEnerji / v.aktifEnerji) * 100 : 0);
+                    const day = v.tarih.split(' ')[0].split('-')[2];
+                    const hour = v.tarih.split(' ')[1].substring(0, 5);
+                    tLabels.push(`${day} ${hour}`);
+                });
+            } else {
+                const sonMevcut = mevcutDaily[mevcutDaily.length - 1];
+                const tahminDaily = toDailyChartData(
+                    tahminData,
+                    0, 0, 0,
+                    sonMevcut ? sonMevcut.tarih : null
+                );
+                tLabels = tahminDaily.map((d) => d.label);
+                tahminValues = tahminDaily.map((d) => d.gunlukKapasitifOran || (d.aktifEnerji > 0 ? (d.kapasitifEnerji / d.aktifEnerji) * 100 : 0));
+            }
 
-            const tahminLabels = tahminDaily.map((d) => d.label);
-            const tahminValues = tahminDaily.map((d) => d.gunlukKapasitifOran);
-
-            allLabels = [...mevcutLabels, ...tahminLabels];
+            allLabels = [...allLabels, ...tLabels];
             allValuesForScale.push(...tahminValues);
 
             const dataset1Data = [...mevcutValues, ...new Array(tahminValues.length).fill(null)];
             const dataset1Colors = [...colors, ...new Array(tahminValues.length).fill('transparent')];
             const dataset1BgColors = [...bgColors, ...new Array(tahminValues.length).fill('transparent')];
-
             const dataset2Data = [...new Array(mevcutValues.length).fill(null), ...tahminValues];
 
             datasets.push({
-                label: 'Gerçekleşen Günlük Oran (%)',
+                label: isHourly ? 'Gerçekleşen Saatlik Oran (%)' : 'Gerçekleşen Günlük Oran (%)',
                 data: dataset1Data,
                 backgroundColor: dataset1BgColors,
                 borderColor: dataset1Colors,
@@ -514,10 +568,10 @@ const GrafikModulu = (() => {
             });
 
             datasets.push({
-                label: 'Tahmin Edilen Günlük Oran (%)',
+                label: isHourly ? 'Tahmin Edilen Saatlik Oran (%)' : 'Tahmin Edilen Günlük Oran (%)',
                 data: dataset2Data,
-                backgroundColor: isLight ? 'rgba(217, 119, 6, 0.85)' : 'rgba(245, 158, 11, 0.25)',
-                borderColor: '#f59e0b',
+                backgroundColor: isLight ? 'rgba(251, 140, 0, 0.85)' : 'rgba(251, 140, 0, 0.25)',
+                borderColor: '#FB8C00',
                 borderWidth: 2,
                 borderRadius: 6,
                 barThickness: 'flex',
@@ -525,7 +579,7 @@ const GrafikModulu = (() => {
             });
         } else {
             datasets.push({
-                label: 'Gerçekleşen Günlük Oran (%)',
+                label: isHourly ? 'Gerçekleşen Saatlik Oran (%)' : 'Gerçekleşen Günlük Oran (%)',
                 data: mevcutValues,
                 backgroundColor: bgColors,
                 borderColor: colors,
@@ -559,7 +613,12 @@ const GrafikModulu = (() => {
                         callbacks: {
                             title: (items) => {
                                 if (!items.length) return '';
-                                return `${items[0].label}. Gün (Günlük Ayrık Oran)`;
+                                const lbl = items[0].label;
+                                if (lbl.includes(' ')) {
+                                    const [day, hour] = lbl.split(' ');
+                                    return `${day}. Gün, ${hour} (Ayrık Oran)`;
+                                }
+                                return `${lbl}. Gün (Günlük Ayrık Oran)`;
                             },
                             label: (item) => {
                                 if (item.parsed.y === null || isNaN(item.parsed.y)) return '';
@@ -724,13 +783,13 @@ const GrafikModulu = (() => {
             if (chart.config.type === 'doughnut' && chart.data.datasets && chart.data.datasets[0]) {
                 chart.data.datasets[0].borderColor = isLight ? '#ffffff' : '#111827';
                 chart.data.datasets[0].backgroundColor = isLight
-                    ? ['rgba(37, 99, 235, 0.88)', 'rgba(124, 58, 237, 0.88)', 'rgba(8, 145, 178, 0.88)']
-                    : ['rgba(59, 130, 246, 0.7)', 'rgba(139, 92, 246, 0.7)', 'rgba(6, 182, 212, 0.7)'];
+                    ? ['rgba(30, 136, 229, 0.85)', 'rgba(142, 36, 170, 0.85)', 'rgba(67, 160, 71, 0.85)']
+                    : ['rgba(30, 136, 229, 0.65)', 'rgba(142, 36, 170, 0.65)', 'rgba(67, 160, 71, 0.65)'];
             } else if (chart.config.type === 'bar' && chart.data.datasets && chart.data.datasets[0]) {
                 if (chart.canvas.id === 'chart-dashboard-bar' && Array.isArray(chart.data.datasets[0].borderColor)) {
-                    chart.data.datasets[0].backgroundColor = chart.data.datasets[0].borderColor.map(c => isLight ? (c + 'CC') : (c + '30'));
+                    chart.data.datasets[0].backgroundColor = chart.data.datasets[0].borderColor.map(c => isLight ? (c + 'E6') : (c + '30'));
                 } else if (Array.isArray(chart.data.datasets[0].borderColor)) {
-                    chart.data.datasets[0].backgroundColor = chart.data.datasets[0].borderColor.map(c => isLight ? (c + 'CC') : (c + '50'));
+                    chart.data.datasets[0].backgroundColor = chart.data.datasets[0].borderColor.map(c => isLight ? (c + 'E6') : (c + '80'));
                 }
             }
 

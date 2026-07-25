@@ -12,6 +12,12 @@
 // ============================================
 
 const TahminModulu = (() => {
+    const _tahminCache = new Map();
+
+    function clearCache() {
+        _tahminCache.clear();
+    }
+
     'use strict';
 
     let _isBacktesting = false;
@@ -696,6 +702,9 @@ const TahminModulu = (() => {
     // ═══════════════════════════════════════════
 
     function aySonuTahminiYap(trafoId, yil, ay, yontem = 'ensemble') {
+        const cacheKey = `${trafoId}_${yil}_${ay}_${yontem}`;
+        if (_tahminCache.has(cacheKey)) return _tahminCache.get(cacheKey);
+
         const mevcutVeriler = VeriModulu.getAylikVeriler(trafoId, yil, ay);
         const toplamGun = aydakiGunSayisi(yil, ay);
         const isHourly = isHourlyData(mevcutVeriler);
@@ -882,6 +891,7 @@ const TahminModulu = (() => {
 
     // ─── Public API ───
     return {
+        clearCache,
         aySonuTahminiYap,
         topluTahmin,
         aydakiGunSayisi,
