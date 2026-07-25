@@ -166,12 +166,14 @@ const VeriModulu = (() => {
 
     async function init() {
         try {
-            const response = await fetch('data/raw_data.json');
-            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-            _RAW_DATA = await response.json();
-            console.log(`VeriModulu: ${_RAW_DATA.length} satır ham veri yüklendi.`);
+            if (typeof SPARK_RAW_DATA !== 'undefined') {
+                _RAW_DATA = SPARK_RAW_DATA;
+                console.log(`VeriModulu: ${_RAW_DATA.length} satır ham veri yüklendi.`);
+            } else {
+                throw new Error("SPARK_RAW_DATA bulunamadı");
+            }
         } catch (e) {
-            console.error('VeriModulu: raw_data.json yüklenemedi:', e);
+            console.error('VeriModulu: raw_data.js yüklenemedi:', e);
             _RAW_DATA = [];
         }
         
