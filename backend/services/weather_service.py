@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-source-for-stubs]
 import requests
 import datetime
 # pyrefly: ignore [missing-import]
