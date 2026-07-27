@@ -12,7 +12,7 @@ const ApiClient = (() => {
         if (transformerId) {
             url += `&transformer_id=${transformerId}`;
         }
-        const response = await fetch(url);
+        const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
         return await response.json();
     }
@@ -57,6 +57,23 @@ const ApiClient = (() => {
         return await response.json();
     }
 
+    async function addMeasurement(data) {
+        const response = await fetch(`${API_BASE_URL}/osos/measurements`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
+        return await response.json();
+    }
+
+    async function deleteMeasurement(transformerId, timestamp) {
+        const url = `${API_BASE_URL}/osos/measurements?transformer_id=${encodeURIComponent(transformerId)}&timestamp=${encodeURIComponent(timestamp)}`;
+        const response = await fetch(url, { method: 'DELETE' });
+        if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
+        return await response.json();
+    }
+
     return {
         fetchMeasurements,
         fetchTransformers,
@@ -64,7 +81,9 @@ const ApiClient = (() => {
         fetchForecast,
         fetchManeuverAssets,
         fetchManeuverSuggestions,
-        applyManeuver
+        applyManeuver,
+        addMeasurement,
+        deleteMeasurement
     };
 })();
 

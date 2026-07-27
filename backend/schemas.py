@@ -8,6 +8,9 @@ class MeasurementBase(BaseModel):
     inductive_kvarh: int
     capacitive_kvarh: int
 
+class MeasurementCreate(MeasurementBase):
+    transformer_id: str
+
 class Measurement(MeasurementBase):
     id: int
     transformer_id: str

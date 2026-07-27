@@ -288,7 +288,6 @@
                         <h3>TEİAŞ OSOS Veri Çekme</h3>
                     </div>
                     <div class="form-group" style="padding: 15px;">
-                        <p class="text-muted" style="margin-bottom: 10px; font-size: 14px;">Simülasyon sunucusundan belirtilen tarih aralığı için verileri çeker.</p>
                         <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
                             <input type="date" id="osos-date-start" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px;" title="Başlangıç">
                             <span>-</span>
@@ -304,14 +303,16 @@
 
             <!-- Son Girilen Veriler Tablosu -->
             <div class="card mt-lg">
-                <div class="card-header" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                    <h3 style="margin: 0; flex-grow: 1;">Son Girilen Veriler</h3>
-                    <div class="date-filter" style="display: flex; gap: 10px; align-items: center;">
-                        <input type="date" id="table-date-start" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;" title="Başlangıç Tarihi">
-                        <span>-</span>
-                        <input type="date" id="table-date-end" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;" title="Bitiş Tarihi">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <h3 style="margin: 0;">Son Girilen Veriler</h3>
+                    <div class="table-filters" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <div class="date-filter" style="display: flex; gap: 6px; align-items: center;">
+                            <input type="date" id="table-date-start" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;" title="Başlangıç Tarihi">
+                            <span style="color: var(--text-muted);">-</span>
+                            <input type="date" id="table-date-end" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;" title="Bitiş Tarihi">
+                        </div>
+                        <select id="table-trafo-filter" class="select-sm" style="width: auto; min-width: 160px;"></select>
                     </div>
-                    <select id="table-trafo-filter" class="select-sm"></select>
                 </div>
                 <div class="table-wrapper" style="max-height: 400px; overflow-y: auto;">
                     <table class="data-table" id="veri-table">
@@ -331,7 +332,7 @@
                 </div>
                 <div id="table-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: 0 0 8px 8px; font-size: 13px;">
                     <div class="pagination-info" style="color: var(--text-secondary);">
-                        Toplam <span id="table-total-rows" style="font-weight: 600; color: var(--text-primary);">0</span> kayıt. 
+                        Bu ay yüklenen toplam <span id="table-total-records" style="font-weight: 600; color: var(--text-primary);">0</span> kayıt içinden <span id="table-total-rows" style="font-weight: 600; color: var(--text-primary);">0</span> gösteriliyor. 
                         <span style="margin-left: 15px;">Sayfa başına:</span>
                         <select id="table-per-page" class="select-sm" style="display: inline-block; width: auto; padding: 2px 5px; height: auto; margin-left: 5px;">
                             <option value="20">20</option>
@@ -539,7 +540,7 @@
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <h3>Saha Varlıkları (Fiderler ve Reaktörler)</h3>
                     <button class="btn btn-primary" id="btn-manevra-onerisi-al">
-                        ⚡ Akıllı Manevra Önerisi Al
+                        Akıllı Manevra Önerisi Al
                     </button>
                 </div>
                 <div class="grid grid-2 mt-md" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">

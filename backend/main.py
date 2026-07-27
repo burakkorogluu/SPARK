@@ -90,6 +90,65 @@ def fetch_osos_measurements(
     measurements = query.order_by(models.Measurement.timestamp.asc()).all()
     return measurements
 
+@app.post("/api/osos/measurements", response_model=schemas.Measurement)
+def add_osos_measurement(
+    measurement: schemas.MeasurementCreate,
+    db: Session = Depends(get_db)
+):
+    existing = db.query(models.Measurement).filter(
+        models.Measurement.transformer_id == measurement.transformer_id,
+        models.Measurement.timestamp == measurement.timestamp
+    ).first()
+
+    if existing:
+        existing.active_kwh = measurement.active_kwh
+        existing.inductive_kvarh = measurement.inductive_kvarh
+        existing.capacitive_kvarh = measurement.capacitive_kvarh
+        db.commit()
+        db.refresh(existing)
+        return existing
+    else:
+        new_m = models.Measurement(
+            transformer_id=measurement.transformer_id,
+            timestamp=measurement.timestamp,
+            active_kwh=measurement.active_kwh,
+            inductive_kvarh=measurement.inductive_kvarh,
+            capacitive_kvarh=measurement.capacitive_kvarh
+        )
+        db.add(new_m)
+        db.commit()
+        db.refresh(new_m)
+        return new_m
+
+@app.delete("/api/osos/measurements")
+def delete_osos_measurement(
+    transformer_id: str = Query(..., description="Transformer ID"),
+    timestamp: str = Query(..., description="Timestamp YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM:SS"),
+    db: Session = Depends(get_db)
+):
+    try:
+        if 'T' in timestamp:
+            dt = datetime.fromisoformat(timestamp)
+        elif len(timestamp) == 10:
+            dt = datetime.strptime(timestamp, "%Y-%m-%d")
+        else:
+            dt = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD HH:MM:SS")
+
+    # Match exact timestamp or any timestamp starting on that date/hour if needed
+    query = db.query(models.Measurement).filter(
+        models.Measurement.transformer_id == transformer_id,
+        models.Measurement.timestamp == dt
+    )
+    deleted_count = query.delete(synchronize_session=False)
+    db.commit()
+
+    if deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Measurement record not found")
+
+    return {"status": "success", "message": f"{deleted_count} record(s) deleted."}
+
 @app.get("/api/analysis/summary")
 def get_analysis_summary(
     year: int = Query(..., description="Year"),

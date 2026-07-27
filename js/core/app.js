@@ -8,11 +8,11 @@ const App = (() => {
 
     // ─── Sabitler ───
     const AY_ADLARI = [
-        'Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
-        'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'
+        'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+        'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
     ];
-    const GUN_ADLARI = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
-    const GUN_KISA = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+    const GUN_ADLARI = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+    const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 
     // ─── Güvenlik (XSS Koruması) ───
     function escapeHTML(str) {
@@ -53,11 +53,11 @@ const App = (() => {
             loader.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(18,18,18,0.9); z-index:9999; display:flex; justify-content:center; align-items:center; color:white; font-size:20px; font-weight: 500; backdrop-filter: blur(4px);';
             loader.innerHTML = 'Sistem Başlatılıyor, Veriler Yükleniyor... <div class="loading-spinner" style="margin-left: 12px; width: 24px; height: 24px; border-width: 3px;"></div>';
             document.body.appendChild(loader);
-            
+
             // VeriModulu'nü temizle (eski local data varsa diye)
             localStorage.removeItem('spark_trafolar');
             localStorage.removeItem('spark_veriler');
-            
+
             // 1. Trafoları Çek
             const trafolar = await ApiClient.fetchTransformers();
             trafolar.forEach(t => VeriModulu.trafoEkle({
@@ -68,10 +68,10 @@ const App = (() => {
                 tip: 'Bilinmiyor',
                 aciklama: `${t.name}, ${t.power_mva} MVA`
             }));
-            
+
             // 2. Bu ayın verilerini çek
             await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);
-            
+
         } catch (e) {
             console.error("Başlangıç veri çekme hatası:", e);
             document.getElementById('global-loader').innerHTML = 'Sunucuya bağlanılamadı. Python backend çalışıyor mu?';
@@ -109,7 +109,7 @@ const App = (() => {
 
         // İlk ekranı çiz
         await renderDashboard();
-        
+
         // Yükleme ekranını tüm veriler ve dashboard geldikten sonra kaldır
         document.getElementById('global-loader')?.remove();
     }
@@ -146,8 +146,8 @@ const App = (() => {
 
         // Ekran içeriğini çiz
         switch (screen) {
-            case 'dashboard': 
-                renderDashboard(); 
+            case 'dashboard':
+                renderDashboard();
                 if (state.dashboardView === 'scada' && typeof TopolojiModulu !== 'undefined') {
                     TopolojiModulu.render();
                 }
@@ -169,11 +169,11 @@ const App = (() => {
         const now = new Date();
         const options = [];
         let cur = new Date(now.getFullYear(), now.getMonth(), 1);
-        
-        while(cur.getFullYear() > 2025 || (cur.getFullYear() === 2025 && cur.getMonth() >= 0)) {
-            const val = `${cur.getFullYear()}-${(cur.getMonth()+1).toString().padStart(2, '0')}`;
+
+        while (cur.getFullYear() > 2025 || (cur.getFullYear() === 2025 && cur.getMonth() >= 0)) {
+            const val = `${cur.getFullYear()}-${(cur.getMonth() + 1).toString().padStart(2, '0')}`;
             const text = `${AY_ADLARI[cur.getMonth()]} ${cur.getFullYear()}`;
-            options.push({val, text});
+            options.push({ val, text });
             cur.setMonth(cur.getMonth() - 1);
         }
         selects.forEach(id => {
@@ -185,7 +185,7 @@ const App = (() => {
 
     function populateTrafoSelects() {
         populateAySelects();
-        
+
         const trafolar = Array.from(VeriModulu.getTrafolar().values());
         const selectIds = ['input-trafo', 'table-trafo-filter', 'detay-trafo-select', 'tahmin-trafo-select'];
 
@@ -212,17 +212,17 @@ const App = (() => {
             state.selectedTrafoId = e.target.value;
             renderTrafoDetay();
         });
-        
+
         const syncAySelects = (newVal) => {
             const [y, m] = newVal.split('-');
             state.selectedYil = parseInt(y, 10);
             state.selectedAy = parseInt(m, 10);
-            
+
             const detayAy = document.getElementById('detay-ay-select');
             const topolojiAy = document.getElementById('topoloji-ay-select');
             const dashAy = document.getElementById('dashboard-ay-select');
             const tahminAy = document.getElementById('tahmin-ay-select');
-            
+
             if (detayAy && detayAy.value !== newVal) detayAy.value = newVal;
             if (topolojiAy && topolojiAy.value !== newVal) topolojiAy.value = newVal;
             if (dashAy && dashAy.value !== newVal) dashAy.value = newVal;
@@ -312,7 +312,7 @@ const App = (() => {
 
     function renderForecastBanner(ozetler) {
         const currentKey = `${state.selectedYil}-${state.selectedAy}-${state.selectedYontem}`;
-        
+
         if (!ozetler) {
             if (state.lastOzetler && state.lastOzetlerKey === currentKey) {
                 ozetler = state.lastOzetler;
@@ -427,7 +427,7 @@ const App = (() => {
                             <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-guvenli" style="margin-left:8px;">Tamamen Güvenli</span></h3>
                             <p>
                                 Harika! Tesis geneli ay sonu tahmini kapasitif oranı <strong>%${HesaplamaModulu.formatSayi(genelTahminOran)}</strong> ile güvenli yeşil bölgede öngörülmektedir (Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
-                                <br>🎉 Tüm trafoların ay sonuna kadar hem %15 yasal ceza sınırının hem de %12 uyarı eşiğinin çok altında kalarak konforlu bir şekilde ayı tamamlaması bekleniyor.
+                                <br>Tüm trafoların ay sonuna kadar hem %15 yasal ceza sınırının hem de %12 uyarı eşiğinin çok altında kalarak konforlu bir şekilde ayı tamamlaması bekleniyor.
                             </p>
                         </div>
                     </div>
@@ -454,19 +454,19 @@ const App = (() => {
     async function renderDashboard() {
         const cacheKey = `${state.selectedYil}_${state.selectedAy}_${state.selectedYontem}`;
         let ozetler;
-        
+
         // Show loading state
         document.getElementById('summary-cards').innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">Sunucudan analizler ve projeksiyonlar çekiliyor... <span class="loading-spinner"></span></div>';
         const bannerCharts = document.getElementById('dashboard-forecast-banner');
         if (bannerCharts) bannerCharts.innerHTML = '';
-        
+
         if (_dashboardCache.has(cacheKey)) {
             ozetler = _dashboardCache.get(cacheKey);
         } else {
             try {
                 // Backend'den gerçek veri özetlerini al
                 const hamOzetler = await ApiClient.fetchAnalysisSummary(state.selectedYil, state.selectedAy);
-                
+
                 // Tahminleri de bekle (Artık backend milisaniyeler içinde cevap veriyor)
                 ozetler = await Promise.all(hamOzetler.map(async (item) => {
                     let tahminOzet = null;
@@ -478,16 +478,16 @@ const App = (() => {
                     } catch (e) {
                         console.error(`Tahmin hatası (${item.trafo.id}):`, e);
                     }
-                    
+
                     const enrichedOzet = {
                         ...item.ozet,
                         kapasitifRisk: HesaplamaModulu.riskSeviyesiBelirle(item.ozet.kapasitifOran || 0, 'kapasitif'),
                         enduktifRisk: HesaplamaModulu.riskSeviyesiBelirle(item.ozet.enduktifOran || 0, 'enduktif')
                     };
-                    
+
                     return { trafo: item.trafo, ozet: enrichedOzet, tahminOzet };
                 }));
-                
+
                 _dashboardCache.set(cacheKey, ozetler);
             } catch (error) {
                 document.getElementById('summary-cards').innerHTML = `<div style="padding: 20px; color: var(--color-danger);">Bağlantı hatası: ${error.message}</div>`;
@@ -559,21 +559,26 @@ const App = (() => {
             }
 
             const d = VeriModulu.parseDate(tarih);
-            if(typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
-                _dashboardCache.clear();
-                VeriModulu.veriEkle({
-                trafoId,
-                tarih,
-                aktifEnerji: aktif,
-                enduktifEnerji: enduktif,
-                kapasitifEnerji: kapasitif,
-                haftaSonu: d.getDay() === 0 || d.getDay() === 6,
-                tatil: false,
-            });
-
-            showToast('Veri başarıyla kaydedildi!', 'success');
-            form.reset();
-            renderVeriTablosu();
+            if (typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
+            _dashboardCache.clear();
+            
+            try {
+                await VeriModulu.veriEkle({
+                    trafoId,
+                    tarih,
+                    aktifEnerji: aktif,
+                    enduktifEnerji: enduktif,
+                    kapasitifEnerji: kapasitif,
+                    haftaSonu: d.getDay() === 0 || d.getDay() === 6,
+                    tatil: false,
+                });
+                showToast('Veri veritabanına başarıyla kaydedildi!', 'success');
+                form.reset();
+                renderVeriTablosu();
+            } catch (err) {
+                console.error("Veri eklenirken hata oluştu:", err);
+                showToast('Veri kaydedilirken hata oluştu!', 'error');
+            }
         });
 
         // CSV dosya seçimi
@@ -646,11 +651,11 @@ const App = (() => {
                         kapasite: isNaN(guc) ? 100 : guc,
                         aciklama: 'Manuel eklendi.'
                     });
-                    
+
                     showToast('Yeni trafo başarıyla eklendi.', 'success');
                     modalYeniTrafo.style.display = 'none';
                     formYeniTrafo.reset();
-                    
+
                     populateTrafoSelects();
                     const select = document.getElementById('input-trafo');
                     if (select) select.value = id;
@@ -664,21 +669,21 @@ const App = (() => {
             btnOsosFetch.addEventListener('click', async () => {
                 const start = document.getElementById('osos-date-start').value;
                 const end = document.getElementById('osos-date-end').value;
-                
+
                 if (!start || !end) {
                     showToast('Lütfen başlangıç ve bitiş tarihlerini seçin.', 'error');
                     return;
                 }
-                
+
                 try {
                     btnOsosFetch.disabled = true;
                     btnOsosFetch.innerHTML = 'Çekiliyor...';
-                    
+
                     const data = await ApiClient.fetchMeasurements(start, end);
                     if (data && data.length > 0) {
-                        data.forEach(m => {
+                        for (const m of data) {
                             const d = new Date(m.timestamp);
-                            VeriModulu.veriEkle({
+                            await VeriModulu.veriEkle({
                                 trafoId: m.transformer_id,
                                 tarih: m.timestamp.replace('T', ' '),
                                 aktifEnerji: m.active_kwh,
@@ -687,9 +692,9 @@ const App = (() => {
                                 haftaSonu: d.getDay() === 0 || d.getDay() === 6,
                                 tatil: false,
                             });
-                        });
-                        
-                        if(typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
+                        }
+
+                        if (typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
                         _dashboardCache.clear();
                         showToast(`${data.length} ölçüm başarıyla OSOS'tan çekildi!`, 'success');
                         renderVeriTablosu();
@@ -793,7 +798,7 @@ const App = (() => {
             }
 
             if (yeniVeriler.length > 0) {
-                if(typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
+                if (typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
                 _dashboardCache.clear();
                 VeriModulu.veriEkleToplu(yeniVeriler);
             }
@@ -816,38 +821,46 @@ const App = (() => {
     }
 
     function renderVeriTablosu() {
-        const filterTrafo = document.getElementById('table-trafo-filter')?.value || '';
-        const startDateStr = document.getElementById('table-date-start')?.value;
-        const endDateStr = document.getElementById('table-date-end')?.value;
-        let veriler;
+        try {
+            const filterTrafo = document.getElementById('table-trafo-filter')?.value || '';
+            const startDateStr = document.getElementById('table-date-start')?.value;
+            const endDateStr = document.getElementById('table-date-end')?.value;
+            let veriler;
 
-        if (filterTrafo) {
-            veriler = VeriModulu.getAylikVeriler(filterTrafo, state.selectedYil, state.selectedAy);
-        } else {
-            veriler = [...VeriModulu.getTumVeriler()];
-        }
+            if (filterTrafo) {
+                veriler = [...VeriModulu.getTrafoVerileri(filterTrafo)];
+            } else {
+                veriler = [...VeriModulu.getTumVeriler()];
+            }
 
-        // Apply Date Filters
-        if (startDateStr) {
-            veriler = veriler.filter(v => v.tarih.substring(0, 10) >= startDateStr);
-        }
-        if (endDateStr) {
-            veriler = veriler.filter(v => v.tarih.substring(0, 10) <= endDateStr);
-        }
+            // Apply Date Filters safely
+            if (startDateStr) {
+                veriler = veriler.filter(v => v && v.tarih && v.tarih.substring(0, 10) >= startDateStr);
+            }
+            if (endDateStr) {
+                veriler = veriler.filter(v => v && v.tarih && v.tarih.substring(0, 10) <= endDateStr);
+            }
 
-        // Sort by date descending
-        veriler.sort((a, b) => b.tarih.localeCompare(a.tarih));
+            // Sort by date descending safely
+            veriler.sort((a, b) => {
+                const ta = (a && a.tarih) ? a.tarih : '';
+                const tb = (b && b.tarih) ? b.tarih : '';
+                return tb.localeCompare(ta);
+            });
 
-        // Pagination calculations
-        const totalRows = veriler.length;
-        const totalRowsEl = document.getElementById('table-total-rows');
-        if (totalRowsEl) totalRowsEl.textContent = totalRows;
+            // Pagination calculations
+            const totalRows = veriler.length;
+            const totalRecords = VeriModulu.getTumVeriler().length;
+            const totalRowsEl = document.getElementById('table-total-rows');
+            const totalRecordsEl = document.getElementById('table-total-records');
+            if (totalRowsEl) totalRowsEl.textContent = totalRows;
+            if (totalRecordsEl) totalRecordsEl.textContent = totalRecords;
 
-        let totalPages = 1;
-        if (state.tablePerPage !== 'all') {
-            totalPages = Math.ceil(totalRows / state.tablePerPage) || 1;
-            if (state.tablePage > totalPages) state.tablePage = totalPages;
-            
+            let totalPages = 1;
+            if (state.tablePerPage !== 'all') {
+                totalPages = Math.ceil(totalRows / state.tablePerPage) || 1;
+                if (state.tablePage > totalPages) state.tablePage = totalPages;
+
             const startIndex = (state.tablePage - 1) * state.tablePerPage;
             const endIndex = startIndex + state.tablePerPage;
             veriler = veriler.slice(startIndex, endIndex);
@@ -866,6 +879,11 @@ const App = (() => {
         const tbody = document.getElementById('veri-table-body');
         if (!tbody) return;
 
+        if (veriler.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted" style="padding: 25px 15px; font-size: 14px;">Gösterilecek kayıt bulunamadı.</td></tr>`;
+            return;
+        }
+
         tbody.innerHTML = veriler.map(v => {
             const oran = HesaplamaModulu.oranHesapla(v.kapasitifEnerji, v.aktifEnerji);
             const risk = HesaplamaModulu.riskSeviyesiBelirle(oran, 'kapasitif');
@@ -883,19 +901,33 @@ const App = (() => {
                         %${HesaplamaModulu.formatSayi(oran)}
                     </td>
                     <td class="text-center">
-                        <button class="btn btn-sm btn-ghost" onclick="App.silVeri('${v.trafoId}','${v.tarih}')">🗑️</button>
+                        <button class="btn btn-sm btn-ghost" onclick="App.silVeri('${v.trafoId}','${v.tarih}')">Sil</button>
                     </td>
                 </tr>
             `;
         }).join('');
+        
+        } catch (e) {
+            console.error("renderVeriTablosu ERROR:", e);
+            const totalRowsEl = document.getElementById('table-total-rows');
+            if (totalRowsEl) totalRowsEl.innerHTML = `<span style="color:red;">Error: ${e.message}</span>`;
+            
+            const tbody = document.getElementById('veri-table-body');
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted" style="padding: 25px 15px; font-size: 14px; color: red;">Error rendering table: ${e.message}</td></tr>`;
+        }
     }
 
-    function silVeri(trafoId, tarih) {
-        VeriModulu.veriSil(trafoId, tarih);
-        if(typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
-        _dashboardCache.clear();
-        showToast('Veri silindi.', 'info');
-        renderVeriTablosu();
+    async function silVeri(trafoId, tarih) {
+        try {
+            await VeriModulu.veriSil(trafoId, tarih);
+            if (typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
+            _dashboardCache.clear();
+            showToast('Veri veritabanından silindi.', 'info');
+            renderVeriTablosu();
+        } catch (err) {
+            console.error("Veri silinirken hata oluştu:", err);
+            showToast('Veri silinirken hata oluştu!', 'error');
+        }
     }
 
     // ═══════════════════════════════════════════
@@ -924,15 +956,15 @@ const App = (() => {
         if (selYontem && selYontem.value !== yontem) selYontem.value = yontem;
 
         document.getElementById('detay-summary').innerHTML = '<p class="text-muted">Hesaplanıyor... <span class="loading-spinner"></span></p>';
-        
+
         try {
             const tahminSonucu = await TahminModulu.aySonuTahminiYap(trafoId, yil, ay, yontem);
             const tahminOzet = HesaplamaModulu.aylikOzetHesapla(tahminSonucu.tumVeriler);
             const tahminOranStr = tahminOzet ? HesaplamaModulu.formatSayi(tahminOzet.kapasitifOran) : '—';
             const tahminRisk = tahminOzet ? HesaplamaModulu.riskSeviyesiBelirle(tahminOzet.kapasitifOran, 'kapasitif') : null;
 
-        // ── Özet Kartlar ──
-        document.getElementById('detay-summary').innerHTML = `
+            // ── Özet Kartlar ──
+            document.getElementById('detay-summary').innerHTML = `
             <div class="detay-card">
                 <div class="dc-label">Kapasitif Oran</div>
                 <div class="dc-value" style="color:${ozet.kapasitifRisk.renk}">%${HesaplamaModulu.formatSayi(ozet.kapasitifOran)}</div>
@@ -964,75 +996,75 @@ const App = (() => {
             </div>
         `;
 
-        // ── Grafik ──
-        const tahminBadge = document.getElementById('detay-tahmin-badge');
-        const barTahminBadge = document.getElementById('detay-bar-tahmin-badge');
-        // Sync Toggle UI state
-        document.querySelectorAll('.chart-res-toggle button').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.res === state.chartResolution);
-        });
-        const barTitle = document.getElementById('detay-bar-title');
-        if (barTitle) {
-            barTitle.textContent = state.chartResolution === 'hourly' ? 'Saatlik Kapasitif Oran Dağılımı (Ayrık)' : 'Günlük Kapasitif Oran Dağılımı (Ayrık)';
-        }
+            // ── Grafik ──
+            const tahminBadge = document.getElementById('detay-tahmin-badge');
+            const barTahminBadge = document.getElementById('detay-bar-tahmin-badge');
+            // Sync Toggle UI state
+            document.querySelectorAll('.chart-res-toggle button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.res === state.chartResolution);
+            });
+            const barTitle = document.getElementById('detay-bar-title');
+            if (barTitle) {
+                barTitle.textContent = state.chartResolution === 'hourly' ? 'Saatlik Kapasitif Oran Dağılımı (Ayrık)' : 'Günlük Kapasitif Oran Dağılımı (Ayrık)';
+            }
 
-        if (!tahminSonucu.tamamlanmis && tahminSonucu.tahminVeriler.length > 0) {
-            tahminBadge.style.display = '';
-            if (barTahminBadge) barTahminBadge.style.display = '';
-            GrafikModulu.createCumulativeLineChart(
-                'chart-detay-line',
-                state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
-                tahminSonucu.tahminVeriler,
-                HesaplamaModulu.SINIRLAR.kapasitif,
-                state.chartResolution
-            );
-            GrafikModulu.createDailyBarChart(
-                'chart-detay-bar',
-                state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
-                tahminSonucu.tahminVeriler,
-                HesaplamaModulu.SINIRLAR.kapasitif,
-                state.chartResolution
-            );
-        } else {
-            tahminBadge.style.display = 'none';
-            if (barTahminBadge) barTahminBadge.style.display = 'none';
-            GrafikModulu.createCumulativeLineChart(
-                'chart-detay-line',
-                state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
-                null,
-                HesaplamaModulu.SINIRLAR.kapasitif,
-                state.chartResolution
-            );
-            GrafikModulu.createDailyBarChart(
-                'chart-detay-bar',
-                state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
-                null,
-                HesaplamaModulu.SINIRLAR.kapasitif,
-                state.chartResolution
-            );
-        }
+            if (!tahminSonucu.tamamlanmis && tahminSonucu.tahminVeriler.length > 0) {
+                tahminBadge.style.display = '';
+                if (barTahminBadge) barTahminBadge.style.display = '';
+                GrafikModulu.createCumulativeLineChart(
+                    'chart-detay-line',
+                    state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
+                    tahminSonucu.tahminVeriler,
+                    HesaplamaModulu.SINIRLAR.kapasitif,
+                    state.chartResolution
+                );
+                GrafikModulu.createDailyBarChart(
+                    'chart-detay-bar',
+                    state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
+                    tahminSonucu.tahminVeriler,
+                    HesaplamaModulu.SINIRLAR.kapasitif,
+                    state.chartResolution
+                );
+            } else {
+                tahminBadge.style.display = 'none';
+                if (barTahminBadge) barTahminBadge.style.display = 'none';
+                GrafikModulu.createCumulativeLineChart(
+                    'chart-detay-line',
+                    state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
+                    null,
+                    HesaplamaModulu.SINIRLAR.kapasitif,
+                    state.chartResolution
+                );
+                GrafikModulu.createDailyBarChart(
+                    'chart-detay-bar',
+                    state.chartResolution === 'hourly' ? veriler : ozet.kumulatifGunluk,
+                    null,
+                    HesaplamaModulu.SINIRLAR.kapasitif,
+                    state.chartResolution
+                );
+            }
 
-        // ── Uyarı Kutusu ──
-        const uyariEl = document.getElementById('detay-uyari');
-        const uyariMesaj = HesaplamaModulu.uyariMesajiUret(
-            escapeHTML(trafo.adi),
-            ozet.kapasitifOran,
-            tahminOzet ? tahminOzet.kapasitifOran : null
-        );
-        uyariEl.style.display = '';
-        uyariEl.className = `alert-box alert-${ozet.kapasitifRisk.seviye}`;
-        uyariEl.innerHTML = uyariMesaj;
+            // ── Uyarı Kutusu ──
+            const uyariEl = document.getElementById('detay-uyari');
+            const uyariMesaj = HesaplamaModulu.uyariMesajiUret(
+                escapeHTML(trafo.adi),
+                ozet.kapasitifOran,
+                tahminOzet ? tahminOzet.kapasitifOran : null
+            );
+            uyariEl.style.display = '';
+            uyariEl.className = `alert-box alert-${ozet.kapasitifRisk.seviye}`;
+            uyariEl.innerHTML = uyariMesaj;
 
-        // ── Günlük Tablo ──
-        const kumulatifler = ozet.kumulatifGunluk;
-        const tbody = document.getElementById('detay-table-body');
-        tbody.innerHTML = kumulatifler.map(v => {
-            const tarih = VeriModulu.parseDate(v.tarih);
-            const gunAdi = GUN_KISA[tarih.getDay()];
-            const risk = HesaplamaModulu.riskSeviyesiBelirle(v.kumulatifKapasitifOran, 'kapasitif');
-            const rowClass = v.haftaSonu ? 'row-weekend' : (v.tatil ? 'row-tatil' : '');
+            // ── Günlük Tablo ──
+            const kumulatifler = ozet.kumulatifGunluk;
+            const tbody = document.getElementById('detay-table-body');
+            tbody.innerHTML = kumulatifler.map(v => {
+                const tarih = VeriModulu.parseDate(v.tarih);
+                const gunAdi = GUN_KISA[tarih.getDay()];
+                const risk = HesaplamaModulu.riskSeviyesiBelirle(v.kumulatifKapasitifOran, 'kapasitif');
+                const rowClass = v.haftaSonu ? 'row-weekend' : (v.tatil ? 'row-tatil' : '');
 
-            return `
+                return `
                 <tr class="${rowClass}">
                     <td>${v.tarih}</td>
                     <td>${gunAdi}${v.tatil ? ' (Tatil)' : ''}</td>
@@ -1048,7 +1080,7 @@ const App = (() => {
                     </td>
                 </tr>
             `;
-        }).join('');
+            }).join('');
         } catch (e) {
             document.getElementById('detay-summary').innerHTML = `<p class="text-danger">Hata: ${e.message}</p>`;
         }
@@ -1083,19 +1115,19 @@ const App = (() => {
             const mevcutOzet = HesaplamaModulu.aylikOzetHesapla(tahmin.mevcutVeriler);
             const tahminOzet = HesaplamaModulu.aylikOzetHesapla(tahmin.tumVeriler);
 
-        if (!mevcutOzet || !tahminOzet) {
-            document.getElementById('tahmin-summary').innerHTML = '<p class="text-muted">Yeterli veri bulunamadı.</p>';
-            return;
-        }
+            if (!mevcutOzet || !tahminOzet) {
+                document.getElementById('tahmin-summary').innerHTML = '<p class="text-muted">Yeterli veri bulunamadı.</p>';
+                return;
+            }
 
-        const mevcutRisk = mevcutOzet.kapasitifRisk;
-        const tahminRisk = tahminOzet.kapasitifRisk;
-        const fark = tahminOzet.kapasitifOran - mevcutOzet.kapasitifOran;
-        const farkStr = fark >= 0 ? `+${HesaplamaModulu.formatSayi(fark)}` : HesaplamaModulu.formatSayi(fark);
-        const bilgi = tahmin.modelBilgi || { adi: 'Seçilen Model', skor: null, aciklama: 'Aylık tahmin projeksiyonu.' };
+            const mevcutRisk = mevcutOzet.kapasitifRisk;
+            const tahminRisk = tahminOzet.kapasitifRisk;
+            const fark = tahminOzet.kapasitifOran - mevcutOzet.kapasitifOran;
+            const farkStr = fark >= 0 ? `+${HesaplamaModulu.formatSayi(fark)}` : HesaplamaModulu.formatSayi(fark);
+            const bilgi = tahmin.modelBilgi || { adi: 'Seçilen Model', skor: null, aciklama: 'Aylık tahmin projeksiyonu.' };
 
-        // ── Özet Kartlar & Model Bilgi Paneli ──
-        document.getElementById('tahmin-summary').innerHTML = `
+            // ── Özet Kartlar & Model Bilgi Paneli ──
+            document.getElementById('tahmin-summary').innerHTML = `
             <div class="detay-card">
                 <div class="dc-label">Mevcut Oran (${mevcutOzet.gunSayisi} gün / ${mevcutOzet.saatSayisi} saat)</div>
                 <div class="dc-value" style="color:${mevcutRisk.renk}">%${HesaplamaModulu.formatSayi(mevcutOzet.kapasitifOran)}</div>
@@ -1128,13 +1160,13 @@ const App = (() => {
             </div>
         `;
 
-        const kumulatif = HesaplamaModulu.kumulatifOranlarHesapla(tahmin.mevcutVeriler);
-        GrafikModulu.createCumulativeLineChart(
-            'chart-tahmin-line',
-            kumulatif,
-            tahmin.tahminVeriler,
-            HesaplamaModulu.SINIRLAR.kapasitif
-        );
+            const kumulatif = HesaplamaModulu.kumulatifOranlarHesapla(tahmin.mevcutVeriler);
+            GrafikModulu.createCumulativeLineChart(
+                'chart-tahmin-line',
+                kumulatif,
+                tahmin.tahminVeriler,
+                HesaplamaModulu.SINIRLAR.kapasitif
+            );
         } catch (e) {
             document.getElementById('tahmin-summary').innerHTML = `<p class="text-danger">Hata: ${e.message}</p>`;
         }
@@ -1184,33 +1216,33 @@ const App = (() => {
             const senaryoluVeriler = SenaryoModulu.senaryoUygula(orijinalVeriler, senaryoTuru, baslangicTarihi, miktar);
             const karsilastirma = SenaryoModulu.senaryoKarsilastir(orijinalVeriler, senaryoluVeriler);
 
-        if (!karsilastirma) {
-            showToast('Karşılaştırma yapılamadı.', 'error');
-            return;
-        }
+            if (!karsilastirma) {
+                showToast('Karşılaştırma yapılamadı.', 'error');
+                return;
+            }
 
-        const sonucEl = document.getElementById('senaryo-sonuc');
-        sonucEl.style.display = '';
+            const sonucEl = document.getElementById('senaryo-sonuc');
+            sonucEl.style.display = '';
 
-        const orijRisk = karsilastirma.orijinal.kapasitifRisk;
-        const senRisk = karsilastirma.senaryo.kapasitifRisk;
+            const orijRisk = karsilastirma.orijinal.kapasitifRisk;
+            const senRisk = karsilastirma.senaryo.kapasitifRisk;
 
-        const tasarrufKap = Math.round(karsilastirma.orijinal.toplamKapasitif - karsilastirma.senaryo.toplamKapasitif);
-        const eklenenAktif = Math.round(karsilastirma.senaryo.toplamAktif - karsilastirma.orijinal.toplamAktif);
+            const tasarrufKap = Math.round(karsilastirma.orijinal.toplamKapasitif - karsilastirma.senaryo.toplamKapasitif);
+            const eklenenAktif = Math.round(karsilastirma.senaryo.toplamAktif - karsilastirma.orijinal.toplamAktif);
 
-        const resultClass = karsilastirma.iyilesmeSaglandi ? 'result-positive' : 'result-negative';
-        let resultText;
-        if (karsilastirma.sinirAltinaIndi) {
-            resultText = `🎉 Mükemmel! ${SenaryoModulu.SENARYO_TURLERI[senaryoTuru].adi} müdahalesi ile kapasitif oran %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} seviyesine düşürüldü ve %15 ceza sınırının altına inildi! (${tasarrufKap > 0 ? tasarrufKap + ' kVArh reaktif yük sönümlendi' : eklenenAktif + ' kWh aktif yük dengelendi'})`;
-        } else if (karsilastirma.iyilesmeSaglandi && karsilastirma.kapasitifOranSenaryo < 12) {
-            resultText = `Başarılı Müdahale! Oran %${HesaplamaModulu.formatSayi(Math.abs(karsilastirma.kapasitifFark))} puan düşürülerek %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} ile Güvenli Yeşil Bölgede konforlu bir seviyeye ulaştı.`;
-        } else if (karsilastirma.iyilesmeSaglandi) {
-            resultText = `Oran %${HesaplamaModulu.formatSayi(Math.abs(karsilastirma.kapasitifFark))} puan iyileştirildi (${tasarrufKap > 0 ? tasarrufKap + ' kVArh azaltıldı' : eklenenAktif + ' kWh eklendi'}). Ancak %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} seviyesi hâlâ ${karsilastirma.kapasitifOranSenaryo >= 15 ? '%15 ceza sınırının üzerinde. Ceza sınırının altına inmek için günlük müdahale miktarını (kVArh) artırmanız veya müdahaleye ayın daha erken bir gününde başlamanız önerilir!' : '%12 uyarı sınırına yakın. Daha güvenli bir seviye için müdahale miktarını bir miktar yükseltebilirsiniz.'}`;
-        } else {
-            resultText = `Bu senaryo ile oranda iyileşme sağlanamadı. Lütfen günlük müdahale miktarını (kVArh) artırmayı veya müdahaleye ayın daha erken bir gününde başlamayı deneyin.`;
-        }
+            const resultClass = karsilastirma.iyilesmeSaglandi ? 'result-positive' : 'result-negative';
+            let resultText;
+            if (karsilastirma.sinirAltinaIndi) {
+                resultText = `Mükemmel! ${SenaryoModulu.SENARYO_TURLERI[senaryoTuru].adi} müdahalesi ile kapasitif oran %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} seviyesine düşürüldü ve %15 ceza sınırının altına inildi! (${tasarrufKap > 0 ? tasarrufKap + ' kVArh reaktif yük sönümlendi' : eklenenAktif + ' kWh aktif yük dengelendi'})`;
+            } else if (karsilastirma.iyilesmeSaglandi && karsilastirma.kapasitifOranSenaryo < 12) {
+                resultText = `Başarılı Müdahale! Oran %${HesaplamaModulu.formatSayi(Math.abs(karsilastirma.kapasitifFark))} puan düşürülerek %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} ile Güvenli Yeşil Bölgede konforlu bir seviyeye ulaştı.`;
+            } else if (karsilastirma.iyilesmeSaglandi) {
+                resultText = `Oran %${HesaplamaModulu.formatSayi(Math.abs(karsilastirma.kapasitifFark))} puan iyileştirildi (${tasarrufKap > 0 ? tasarrufKap + ' kVArh azaltıldı' : eklenenAktif + ' kWh eklendi'}). Ancak %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} seviyesi hâlâ ${karsilastirma.kapasitifOranSenaryo >= 15 ? '%15 ceza sınırının üzerinde. Ceza sınırının altına inmek için günlük müdahale miktarını (kVArh) artırmanız veya müdahaleye ayın daha erken bir gününde başlamanız önerilir!' : '%12 uyarı sınırına yakın. Daha güvenli bir seviye için müdahale miktarını bir miktar yükseltebilirsiniz.'}`;
+            } else {
+                resultText = `Bu senaryo ile oranda iyileşme sağlanamadı. Lütfen günlük müdahale miktarını (kVArh) artırmayı veya müdahaleye ayın daha erken bir gününde başlamayı deneyin.`;
+            }
 
-        document.getElementById('senaryo-karsilastirma').innerHTML = `
+            document.getElementById('senaryo-karsilastirma').innerHTML = `
             <div class="senaryo-comparison">
                 <div class="senaryo-col">
                     <div class="sc-label">Müdahalesiz Orijinal</div>
@@ -1227,12 +1259,12 @@ const App = (() => {
             <div class="senaryo-result-text ${resultClass}" style="line-height:1.5; font-size:14px; margin-top:16px;">${resultText}</div>
         `;
 
-        GrafikModulu.createScenarioChart(
-            'chart-senaryo-line',
-            orijinalVeriler,
-            senaryoluVeriler,
-            HesaplamaModulu.SINIRLAR.kapasitif
-        );
+            GrafikModulu.createScenarioChart(
+                'chart-senaryo-line',
+                orijinalVeriler,
+                senaryoluVeriler,
+                HesaplamaModulu.SINIRLAR.kapasitif
+            );
 
         } catch (e) {
             showToast('Senaryo hatası: ' + e.message, 'error');
@@ -1257,8 +1289,8 @@ const App = (() => {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
 
-        const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-        toast.innerHTML = `<span>${icons[type] ?? 'ℹ️'}</span> ${message}`;
+        const icons = { success: '', error: '', warning: '', info: '' };
+        toast.innerHTML = `${message}`;
 
         container.appendChild(toast);
 
@@ -1417,7 +1449,6 @@ const App = (() => {
                             <span class="trafo-stat-label">Ay Sonu Tahmini</span>
                             <span class="trafo-stat-value highlight" style="color:${tRisk.renk || 'var(--text)'}">
                                 %${HesaplamaModulu.formatSayi(tOran)}
-                                <span style="font-size: 13px; margin-left: 2px;" title="${tahminEtiket}">${tahminIkon}</span>
                             </span>
                         </div>
                         <div class="trafo-stat">
@@ -1452,7 +1483,7 @@ const App = (() => {
 
     async function renderManevra() {
         await loadManevraAssets();
-        
+
         const btnOneri = document.getElementById('btn-manevra-onerisi-al');
         if (btnOneri && !btnOneri.dataset.bound) {
             btnOneri.dataset.bound = "true";
@@ -1469,7 +1500,7 @@ const App = (() => {
 
         try {
             const data = await ApiClient.fetchManeuverAssets();
-            
+
             // Render Feeders
             if (data.feeders && data.feeders.length > 0) {
                 feederBody.innerHTML = data.feeders.map(f => `
@@ -1506,7 +1537,7 @@ const App = (() => {
     async function fetchAndRenderManevraSuggestions() {
         const container = document.getElementById('manevra-onerileri-container');
         if (!container) return;
-        
+
         container.innerHTML = `
             <div style="padding: 20px; text-align: center;">
                 <div class="loading-spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto 10px auto;"></div>
@@ -1532,13 +1563,13 @@ const App = (() => {
                                 data-asset-type="${s.feeder_id ? 'feeder' : 'reactor'}"
                                 data-asset-id="${s.feeder_id || s.reactor_id}"
                                 data-target="${s.target_trafo_id}">
-                            ⚡ Manevrayı Uygula
+                            Manevrayı Uygula
                         </button>
                     </div>
                     <p style="margin: 0; color: var(--text-muted, #94a3b8); font-size: 14px; line-height: 1.5;">${escapeHTML(s.description)}</p>
                     <div style="display: flex; gap: 16px; font-size: 13px; margin-top: 4px;">
-                        <span>📍 <b>Mevcut Trafo:</b> ${escapeHTML(s.source_trafo_name)}</span>
-                        <span>➡️ <b>Hedef Trafo:</b> ${escapeHTML(s.target_trafo_name)}</span>
+                        <span><b>Mevcut Trafo:</b> ${escapeHTML(s.source_trafo_name)}</span>
+                        <span><b>Hedef Trafo:</b> ${escapeHTML(s.target_trafo_name)}</span>
                     </div>
                 </div>
             `).join('');
@@ -1599,10 +1630,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = e.target.dataset.res;
             const state = App.getState();
             state.chartResolution = res;
-            
+
             // Re-render specifically the trafo-detay screen if it's the active one
             if (state.currentScreen === 'trafo-detay') {
-                App.navigate('trafo-detay'); 
+                App.navigate('trafo-detay');
                 // Or we can just call renderTrafoDetay if it was exposed, 
                 // but navigate handles everything neatly.
             }

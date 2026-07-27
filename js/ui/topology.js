@@ -283,6 +283,12 @@ const TopolojiModulu = (() => {
         const trafo = VeriModulu.getTrafo(trafoId);
         if (!trafo) return;
 
+        if (typeof App !== 'undefined') {
+            const state = App.getState();
+            if (state.selectedYil) currentYil = state.selectedYil;
+            if (state.selectedAy) currentAy = parseInt(state.selectedAy, 10);
+        }
+
         const veriler = VeriModulu.getAylikVeriler(trafoId, currentYil, currentAy);
         const ozet = HesaplamaModulu.aylikOzetHesapla(veriler);
         if (!ozet) return;
@@ -467,3 +473,5 @@ const TopolojiModulu = (() => {
         closeModal,
     };
 })();
+
+window.TopolojiModulu = TopolojiModulu;

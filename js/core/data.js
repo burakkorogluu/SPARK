@@ -138,26 +138,6 @@ const VeriModulu = (() => {
     let _tumVeriler = [];
     let _veriMap = new Map(); // trafoId → [veriler]
 
-    let _silinmisVeriler = new Set();
-    const STORAGE_KEY_SILINMIS = 'spark_silinmis_veriler';
-
-    function silinmisVerileriKaydet() {
-        try {
-            localStorage.setItem(STORAGE_KEY_SILINMIS, JSON.stringify(Array.from(_silinmisVeriler)));
-        } catch (e) {}
-    }
-
-    function silinmisVerileriYukle() {
-        try {
-            const kayitli = localStorage.getItem(STORAGE_KEY_SILINMIS);
-            if (kayitli) {
-                _silinmisVeriler = new Set(JSON.parse(kayitli));
-            }
-        } catch (e) {}
-    }
-
-    let _loadedMonths = new Set(); // Hangi ayların yüklendiğini takip eder: "2025-07"
-
     async function loadAylikVeriler(yil, ay) {
         const monthKey = `${yil}-${String(ay).padStart(2, '0')}`;
         if (_loadedMonths.has(monthKey)) {
@@ -185,112 +165,56 @@ const VeriModulu = (() => {
                     haftaSonu: gun === 0 || gun === 6,
                     tatil: TATIL_SET.has(dateStr)
                 };
-            }).filter(v => !_silinmisVeriler.has(`${v.trafoId}_${v.tarih}`));
+            });
             
             veriEkleToplu(yeniVeriler);
             _loadedMonths.add(monthKey);
             console.log(`VeriModulu: ${monthKey} dönemi için ${yeniVeriler.length} ölçüm başarıyla yüklendi.`);
         } catch (e) {
             console.error(`VeriModulu: ${monthKey} verileri çekilemedi:`, e);
+            document.body.insertAdjacentHTML('afterbegin', `<div style="background:red;color:white;padding:10px;z-index:99999;position:fixed;top:0;left:0;width:100%;">API GET ERROR: ${e.message}</div>`);
         }
     }
 
     async function init() {
-        // Eski _RAW_DATA mantığı kaldırıldı, sadece state başlatılıyor
         _tumVeriler = [];
         _veriMap = new Map();
         TRAFOLAR.forEach((trafo) => {
             _veriMap.set(trafo.id, []);
         });
-        
-        silinmisVerileriYukle();
-        ekVerileriYukle();
+        localStorage.removeItem('spark_ek_veriler');
+        localStorage.removeItem('spark_silinmis_veriler');
     }
 
-    // ─── Kullanıcı Tarafından Eklenen Veriler ───
-    let _ekVeriler = []; // Manuel girilen veriler burada tutulur
+    async function veriEkle(veri) {
+        const payload = {
+            transformer_id: veri.trafoId,
+            timestamp: veri.tarih,
+            active_kwh: parseInt(veri.aktifEnerji, 10) || 0,
+            inductive_kvarh: parseInt(veri.enduktifEnerji, 10) || 0,
+            capacitive_kvarh: parseInt(veri.kapasitifEnerji, 10) || 0
+        };
 
-    // ─── localStorage Persistence ───
-    const STORAGE_KEY = 'spark_ek_veriler';
+        await ApiClient.addMeasurement(payload);
 
-    function ekVerileriKaydet() {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(_ekVeriler));
-        } catch (e) {
-            // localStorage dolu veya erişilemez — sessizce devam et
-        }
-    }
-
-    function ekVerileriYukle() {
-        try {
-            const kayitli = localStorage.getItem(STORAGE_KEY);
-            if (!kayitli) return;
-            const veriler = JSON.parse(kayitli);
-            if (!Array.isArray(veriler)) return;
-            veriler.forEach(v => {
-                // Doğrudan iç veri yapılarına ekle (tekrar kaydetmeye gerek yok)
-                _ekVeriler.push(v);
-                if (!_veriMap.has(v.trafoId)) {
-                    _veriMap.set(v.trafoId, []);
-                }
-                const trafoVerileri = _veriMap.get(v.trafoId);
-                const mevcutIdx = trafoVerileri.findIndex(mevcut => mevcut.tarih === v.tarih);
-                
-                if (mevcutIdx !== -1) {
-                    trafoVerileri[mevcutIdx] = v;
-                    const genelIdx = _tumVeriler.findIndex(genel => genel.trafoId === v.trafoId && genel.tarih === v.tarih);
-                    if (genelIdx !== -1) _tumVeriler[genelIdx] = v;
-                } else {
-                    trafoVerileri.push(v);
-                    _tumVeriler.push(v);
-                }
-            });
-            // Tüm trafoların verilerini tarihe göre sırala
-            _veriMap.forEach((veriler) => {
-                veriler.sort((a, b) => a.tarih.localeCompare(b.tarih));
-            });
-        } catch (e) {
-            // Parse hatası — sessizce devam et
-        }
-    }
-
-    // Modül yüklendiğinde kayıtlı ek verileri geri yükle
-    // ekVerileriYukle() artık init() içinden çağrılıyor
-
-    function veriEkle(veri) {
-        // ── Mükerrer Kontrol ──
-        // Aynı trafoId + tarih varsa üzerine yaz (çift sayımı önle)
+        // ── Mükerrer Kontrol & Yerel State Güncelleme ──
         const trafoVerileri = _veriMap.get(veri.trafoId);
         if (trafoVerileri) {
             const mevcutIdx = trafoVerileri.findIndex(v => v.tarih === veri.tarih);
             if (mevcutIdx !== -1) {
-                // Mevcut veriyi güncelle
                 trafoVerileri[mevcutIdx] = veri;
-                // _tumVeriler'den de güncelle
                 const genelIdx = _tumVeriler.findIndex(v => v.trafoId === veri.trafoId && v.tarih === veri.tarih);
                 if (genelIdx !== -1) _tumVeriler[genelIdx] = veri;
-                // _ekVeriler'den de güncelle
-                const ekIdx = _ekVeriler.findIndex(v => v.trafoId === veri.trafoId && v.tarih === veri.tarih);
-                if (ekIdx !== -1) {
-                    _ekVeriler[ekIdx] = veri;
-                } else {
-                    _ekVeriler.push(veri);
-                }
-                ekVerileriKaydet();
                 return;
             }
         }
 
-        // ── Yeni Veri Ekle ──
-        _ekVeriler.push(veri);
         _tumVeriler.push(veri);
         if (!_veriMap.has(veri.trafoId)) {
             _veriMap.set(veri.trafoId, []);
         }
         _veriMap.get(veri.trafoId).push(veri);
-        // Tarihe göre sırala
-        _veriMap.get(veri.trafoId).sort((a, b) => a.tarih.localeCompare(b.tarih));
-        ekVerileriKaydet();
+        _veriMap.get(veri.trafoId).sort((a, b) => (a.tarih || '').localeCompare(b.tarih || ''));
     }
 
     function veriEkleToplu(yeniVerilerDizisi) {
@@ -303,14 +227,10 @@ const VeriModulu = (() => {
                     trafoVerileri[mevcutIdx] = veri;
                     const genelIdx = _tumVeriler.findIndex(v => v.trafoId === veri.trafoId && v.tarih === veri.tarih);
                     if (genelIdx !== -1) _tumVeriler[genelIdx] = veri;
-                    const ekIdx = _ekVeriler.findIndex(v => v.trafoId === veri.trafoId && v.tarih === veri.tarih);
-                    if (ekIdx !== -1) _ekVeriler[ekIdx] = veri;
-                    else _ekVeriler.push(veri);
                     hasChanges = true;
                     return;
                 }
             }
-            _ekVeriler.push(veri);
             _tumVeriler.push(veri);
             if (!_veriMap.has(veri.trafoId)) _veriMap.set(veri.trafoId, []);
             _veriMap.get(veri.trafoId).push(veri);
@@ -318,14 +238,16 @@ const VeriModulu = (() => {
         });
 
         if (hasChanges) {
-            _veriMap.forEach(veriler => veriler.sort((a, b) => a.tarih.localeCompare(b.tarih)));
-            ekVerileriKaydet();
+            _veriMap.forEach(veriler => veriler.sort((a, b) => {
+                const ta = (a && a.tarih) ? a.tarih : '';
+                const tb = (b && b.tarih) ? b.tarih : '';
+                return ta.localeCompare(tb);
+            }));
         }
     }
 
-    function veriSil(trafoId, tarih) {
-        _silinmisVeriler.add(`${trafoId}_${tarih}`);
-        silinmisVerileriKaydet();
+    async function veriSil(trafoId, tarih) {
+        await ApiClient.deleteMeasurement(trafoId, tarih);
 
         // Ana haritadan sil
         const trafoVerileri = _veriMap.get(trafoId);
@@ -336,10 +258,6 @@ const VeriModulu = (() => {
         // Genel listeden sil
         const genelIdx = _tumVeriler.findIndex(v => v.trafoId === trafoId && v.tarih === tarih);
         if (genelIdx !== -1) _tumVeriler.splice(genelIdx, 1);
-        // Ek verilerden sil
-        const ekIdx = _ekVeriler.findIndex(v => v.trafoId === trafoId && v.tarih === tarih);
-        if (ekIdx !== -1) _ekVeriler.splice(ekIdx, 1);
-        ekVerileriKaydet();
     }
 
     // ─── Public API ───
