@@ -13,6 +13,9 @@ import models
 import time
 import calendar
 import warnings
+import holidays
+from services.weather_service import get_weather_data, get_temperature_for_timestamp
+
 
 FORECAST_CACHE = {}
 CACHE_TTL = 3600 # 1 hour
@@ -27,69 +30,63 @@ def calculate_confidence(y_true, y_pred):
     mape = np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
     return max(0, min(100, 100 - mape))
 
-def prepare_dataframe(measurements):
-    df = pd.DataFrame([{
-        "ds": m.timestamp,
-        "y_aktif": m.active_kwh,
-        "y_kapasitif": m.capacitive_kvarh,
-        "y_enduktif": m.inductive_kvarh,
-        "is_weekend": 1 if m.timestamp.weekday() >= 5 else 0,
-        "hour": m.timestamp.hour
-    } for m in measurements])
+def prepare_dataframe(measurements, weather_map=None, tr_holidays=None):
+    data = []
+    for m in measurements:
+        d = m.timestamp
+        is_holiday = 1 if tr_holidays and d in tr_holidays else 0
+        temp = get_temperature_for_timestamp(weather_map, d) if weather_map else 20.0
+        data.append({
+            "ds": d,
+            "y_aktif": m.active_kwh,
+            "y_kapasitif": m.capacitive_kvarh,
+            "y_enduktif": m.inductive_kvarh,
+            "is_weekend": 1 if d.weekday() >= 5 else 0,
+            "is_holiday": is_holiday,
+            "temp": temp,
+            "hour": d.hour
+        })
+    df = pd.DataFrame(data)
     df.sort_values(by="ds", inplace=True)
     df.set_index("ds", inplace=True)
     return df
 
-def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps, transformer_id, future_dates, method_name="regression"):
+def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps, transformer_id, future_dates, method_name="regression", weather_map=None, tr_holidays=None):
     predictions = []
-    last_24 = df[['y_aktif', 'y_kapasitif', 'y_enduktif']].tail(24).to_dict('records')
+    last_168 = df[['y_aktif', 'y_kapasitif', 'y_enduktif']].tail(168).to_dict('records')
     
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        for chunk_start in range(0, steps, 24):
-            chunk_end = min(chunk_start + 24, steps)
-            chunk_size = chunk_end - chunk_start
-            feats = []
-            for j in range(chunk_size):
-                d = future_dates[chunk_start + j]
-                lag = last_24[j]
-                feats.append([
-                    1 if d.weekday() >= 5 else 0,
-                    d.hour,
-                    lag['y_aktif'],
-                    lag['y_kapasitif'],
-                    lag['y_enduktif']
-                ])
-                
-            pred_aktif = model_aktif.predict(feats)
-            pred_kap = model_kap.predict(feats)
-            pred_end = model_end.predict(feats)
+        for i in range(steps):
+            d = future_dates[i]
             
-            new_last_24 = []
-            for j in range(chunk_size):
-                date = future_dates[chunk_start + j]
-                pa = max(0, pred_aktif[j])
-                pk = max(0, pred_kap[j])
-                pe = max(0, pred_end[j])
-                
-                predictions.append({
-                    "transformer_id": transformer_id,
-                    "timestamp": date.strftime("%Y-%m-%d %H:00:00"),
-                    "active_kwh": pa,
-                    "capacitive_kvarh": pk,
-                    "inductive_kvarh": pe,
-                    "is_forecast": True
-                })
-                new_last_24.append({
-                    'y_aktif': pa,
-                    'y_kapasitif': pk,
-                    'y_enduktif': pe
-                })
-                
-            if chunk_size == 24:
-                last_24 = new_last_24
-            else:
-                last_24 = last_24[chunk_size:] + new_last_24
+            lag_1 = last_168[-1]
+            lag_24 = last_168[-24]
+            lag_168 = last_168[-168]
+            
+            is_weekend = 1 if d.weekday() >= 5 else 0
+            is_holiday = 1 if tr_holidays and d in tr_holidays else 0
+            temp = get_temperature_for_timestamp(weather_map, d) if weather_map else 20.0
+            
+            feat_aktif = [[is_weekend, is_holiday, d.hour, temp, lag_1['y_aktif'], lag_24['y_aktif'], lag_168['y_aktif']]]
+            feat_kap = [[is_weekend, is_holiday, d.hour, temp, lag_1['y_kapasitif'], lag_24['y_kapasitif'], lag_168['y_kapasitif']]]
+            feat_end = [[is_weekend, is_holiday, d.hour, temp, lag_1['y_enduktif'], lag_24['y_enduktif'], lag_168['y_enduktif']]]
+            
+            pa = max(0, model_aktif.predict(feat_aktif)[0])
+            pk = max(0, model_kap.predict(feat_kap)[0])
+            pe = max(0, model_end.predict(feat_end)[0])
+            
+            predictions.append({
+                "transformer_id": transformer_id,
+                "timestamp": d.strftime("%Y-%m-%d %H:00:00"),
+                "active_kwh": pa,
+                "capacitive_kvarh": pk,
+                "inductive_kvarh": pe,
+                "is_forecast": True
+            })
+            
+            last_168.append({'y_aktif': pa, 'y_kapasitif': pk, 'y_enduktif': pe})
+            last_168.pop(0)
 
     return predictions
 
@@ -101,30 +98,48 @@ def forecast_random_forest(db: Session, transformer_id: str, steps: int = 168):
     ).order_by(models.Measurement.timestamp.desc()).limit(720).all()
     measurements.reverse()
     
-    if len(measurements) < 48: return [], 0
-    df = prepare_dataframe(measurements)
+    if len(measurements) < 168: return [], 0
+    
+    tr_holidays = holidays.TR(years=[measurements[0].timestamp.year, measurements[-1].timestamp.year, (measurements[-1].timestamp + datetime.timedelta(days=30)).year])
+    
+    start_str = measurements[0].timestamp.strftime("%Y-%m-%d")
+    end_date = measurements[-1].timestamp + datetime.timedelta(hours=steps)
+    end_str = end_date.strftime("%Y-%m-%d")
+    weather_map = get_weather_data(start_str, end_str, db)
+    
+    df = prepare_dataframe(measurements, weather_map, tr_holidays)
+    
+    df['aktif_lag_1'] = df['y_aktif'].shift(1)
+    df['kapasitif_lag_1'] = df['y_kapasitif'].shift(1)
+    df['enduktif_lag_1'] = df['y_enduktif'].shift(1)
     
     df['aktif_lag_24'] = df['y_aktif'].shift(24)
     df['kapasitif_lag_24'] = df['y_kapasitif'].shift(24)
     df['enduktif_lag_24'] = df['y_enduktif'].shift(24)
+    
+    df['aktif_lag_168'] = df['y_aktif'].shift(168)
+    df['kapasitif_lag_168'] = df['y_kapasitif'].shift(168)
+    df['enduktif_lag_168'] = df['y_enduktif'].shift(168)
+    
     df.dropna(inplace=True)
     
-    X = df[['is_weekend', 'hour', 'aktif_lag_24', 'kapasitif_lag_24', 'enduktif_lag_24']]
+    X_aktif = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168']]
+    X_kap = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168']]
+    X_end = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168']]
     
-    rf_aktif = RandomForestRegressor(n_estimators=15, max_depth=8, n_jobs=1, random_state=42).fit(X, df['y_aktif'])
-    rf_kap = RandomForestRegressor(n_estimators=15, max_depth=8, n_jobs=1, random_state=42).fit(X, df['y_kapasitif'])
-    rf_end = RandomForestRegressor(n_estimators=15, max_depth=8, n_jobs=1, random_state=42).fit(X, df['y_enduktif'])
+    rf_aktif = RandomForestRegressor(n_estimators=100, max_depth=15, n_jobs=1, random_state=42).fit(X_aktif, df['y_aktif'])
+    rf_kap = RandomForestRegressor(n_estimators=100, max_depth=15, n_jobs=1, random_state=42).fit(X_kap, df['y_kapasitif'])
+    rf_end = RandomForestRegressor(n_estimators=100, max_depth=15, n_jobs=1, random_state=42).fit(X_end, df['y_enduktif'])
     
-    # Calculate real confidence
-    conf_a = calculate_confidence(df['y_aktif'], rf_aktif.predict(X))
-    conf_k = calculate_confidence(df['y_kapasitif'], rf_kap.predict(X))
-    conf_e = calculate_confidence(df['y_enduktif'], rf_end.predict(X))
+    conf_a = calculate_confidence(df['y_aktif'], rf_aktif.predict(X_aktif))
+    conf_k = calculate_confidence(df['y_kapasitif'], rf_kap.predict(X_kap))
+    conf_e = calculate_confidence(df['y_enduktif'], rf_end.predict(X_end))
     confidence = round((conf_a + conf_k + conf_e) / 3, 1)
     
     last_date = df.index[-1]
     future_dates = [last_date + datetime.timedelta(hours=i) for i in range(1, steps + 1)]
     
-    preds = generate_predictions_from_model(rf_aktif, rf_kap, rf_end, df, steps, transformer_id, future_dates, "randomForest")
+    preds = generate_predictions_from_model(rf_aktif, rf_kap, rf_end, df, steps, transformer_id, future_dates, "randomForest", weather_map, tr_holidays)
     return preds, confidence
 
 
@@ -135,29 +150,48 @@ def forecast_regression(db: Session, transformer_id: str, steps: int = 168):
     ).order_by(models.Measurement.timestamp.desc()).limit(720).all()
     measurements.reverse()
     
-    if len(measurements) < 48: return [], 0
-    df = prepare_dataframe(measurements)
+    if len(measurements) < 168: return [], 0
+    
+    tr_holidays = holidays.TR(years=[measurements[0].timestamp.year, measurements[-1].timestamp.year, (measurements[-1].timestamp + datetime.timedelta(days=30)).year])
+    
+    start_str = measurements[0].timestamp.strftime("%Y-%m-%d")
+    end_date = measurements[-1].timestamp + datetime.timedelta(hours=steps)
+    end_str = end_date.strftime("%Y-%m-%d")
+    weather_map = get_weather_data(start_str, end_str, db)
+    
+    df = prepare_dataframe(measurements, weather_map, tr_holidays)
+    
+    df['aktif_lag_1'] = df['y_aktif'].shift(1)
+    df['kapasitif_lag_1'] = df['y_kapasitif'].shift(1)
+    df['enduktif_lag_1'] = df['y_enduktif'].shift(1)
     
     df['aktif_lag_24'] = df['y_aktif'].shift(24)
     df['kapasitif_lag_24'] = df['y_kapasitif'].shift(24)
     df['enduktif_lag_24'] = df['y_enduktif'].shift(24)
+    
+    df['aktif_lag_168'] = df['y_aktif'].shift(168)
+    df['kapasitif_lag_168'] = df['y_kapasitif'].shift(168)
+    df['enduktif_lag_168'] = df['y_enduktif'].shift(168)
+    
     df.dropna(inplace=True)
     
-    X = df[['is_weekend', 'hour', 'aktif_lag_24', 'kapasitif_lag_24', 'enduktif_lag_24']]
+    X_aktif = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168']]
+    X_kap = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168']]
+    X_end = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168']]
     
-    lr_aktif = LinearRegression().fit(X, df['y_aktif'])
-    lr_kap = LinearRegression().fit(X, df['y_kapasitif'])
-    lr_end = LinearRegression().fit(X, df['y_enduktif'])
+    lr_aktif = LinearRegression().fit(X_aktif, df['y_aktif'])
+    lr_kap = LinearRegression().fit(X_kap, df['y_kapasitif'])
+    lr_end = LinearRegression().fit(X_end, df['y_enduktif'])
     
-    conf_a = calculate_confidence(df['y_aktif'], lr_aktif.predict(X))
-    conf_k = calculate_confidence(df['y_kapasitif'], lr_kap.predict(X))
-    conf_e = calculate_confidence(df['y_enduktif'], lr_end.predict(X))
+    conf_a = calculate_confidence(df['y_aktif'], lr_aktif.predict(X_aktif))
+    conf_k = calculate_confidence(df['y_kapasitif'], lr_kap.predict(X_kap))
+    conf_e = calculate_confidence(df['y_enduktif'], lr_end.predict(X_end))
     confidence = round((conf_a + conf_k + conf_e) / 3, 1)
     
     last_date = df.index[-1]
     future_dates = [last_date + datetime.timedelta(hours=i) for i in range(1, steps + 1)]
     
-    preds = generate_predictions_from_model(lr_aktif, lr_kap, lr_end, df, steps, transformer_id, future_dates, "regression")
+    preds = generate_predictions_from_model(lr_aktif, lr_kap, lr_end, df, steps, transformer_id, future_dates, "regression", weather_map, tr_holidays)
     return preds, confidence
 
 

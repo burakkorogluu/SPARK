@@ -227,17 +227,6 @@ const App = (() => {
             if (tahminAy && tahminAy.value !== newVal) tahminAy.value = newVal;
         };
 
-        document.getElementById('month-select')?.addEventListener('change', async (e) => {
-            const [yil, ay] = e.target.value.split('-');
-            state.selectedYil = parseInt(yil, 10);
-            state.selectedAy = parseInt(ay, 10);
-            const newAy = parseInt(ay, 10);
-            syncAySelects(newAy);
-            
-            await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);
-            renderDashboard();
-        });
-
         document.getElementById('detay-ay-select')?.addEventListener('change', async (e) => {
             syncAySelects(e.target.value);
             await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);

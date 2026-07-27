@@ -1,4 +1,6 @@
+# pyrefly: ignore [missing-import]
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
@@ -25,3 +27,10 @@ class Measurement(Base):
     capacitive_kvarh = Column(Integer)
 
     transformer = relationship("Transformer", back_populates="measurements")
+
+class WeatherData(Base):
+    __tablename__ = "weather_data"
+
+    timestamp = Column(DateTime, primary_key=True, index=True)
+    temperature = Column(Float)
+
