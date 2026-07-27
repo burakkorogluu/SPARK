@@ -7,15 +7,7 @@ const TopolojiModulu = (() => {
     'use strict';
 
     // ─── Güvenlik (XSS Koruması) ───
-    function escapeHTML(str) {
-        if (str === null || str === undefined) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
+    const escapeHTML = typeof App !== 'undefined' ? App.escapeHTML : (str => str);
 
     let isInit = false;
     let currentAy = 7;
@@ -50,7 +42,15 @@ const TopolojiModulu = (() => {
         const analizAllBtn = document.getElementById('btn-topoloji-analiz-all');
         if (analizAllBtn) {
             analizAllBtn.addEventListener('click', () => {
-                openPowerTriangleModal('UMR-TRB'); // Varsayılan olarak en kritik trafo (Ümraniye TM – TRB) açılır
+                if(typeof HesaplamaModulu !== 'undefined') {
+                    const ozetler = HesaplamaModulu.tumTrafoOzetleri();
+                    if (ozetler && Object.keys(ozetler).length > 0) {
+                        const sorted = Object.entries(ozetler).sort((a,b) => b[1].kapasitifOran - a[1].kapasitifOran);
+                        openPowerTriangleModal(sorted[0][0]);
+                        return;
+                    }
+                }
+                openPowerTriangleModal('UMR-TRB'); // Veri yoksa varsayılan
             });
         }
 
@@ -199,7 +199,7 @@ const TopolojiModulu = (() => {
             const ikon = bolgeIkonlari[bolge] || '';
             subEl.innerHTML = `
                 <div class="substation-bus-bar">
-                    <span>${ikon} ${bolge} TM (154 / 33.1 kV Dağıtım Barası)</span>
+                    <span>${ikon} ${escapeHTML(bolge)} TM (154 / 33.1 kV Dağıtım Barası)</span>
                 </div>
                 <div class="transformers-container">
                     ${bolgeMap[bolge].map(trafo => `
@@ -207,7 +207,7 @@ const TopolojiModulu = (() => {
                             <div class="trafo-card-top">
                                 <div class="trafo-title-area">
                                     <h4>${escapeHTML(trafo.adi)}</h4>
-                                    <span>${trafo.tip} • ${trafo.kapasite} MVA</span>
+                                    <span>${escapeHTML(trafo.tip)} • ${trafo.kapasite} MVA</span>
                                 </div>
                             </div>
                         </div>

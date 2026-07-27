@@ -10,14 +10,14 @@ Türkiye'de **EPDK (Enerji Piyasası Düzenleme Kurumu)** mevzuatına göre ayl�
 
 ---
 
-## ⚡ Gerçek TEİAŞ Veri Seti
+## ⚡ Veri Seti ve Altyapı
 
-Sistem, 2025 yılına ait **19.452 saatlik gerçek TEİAŞ yük kaydı** (`data/raw_data.js`) ile çalışır.
-Veri dosyasının boyutu (yaklaşık 1 MB) nedeniyle statik olarak tarayıcı belleğine (RAM) yüklenir.
+Sistem, gerçek TEİAŞ yük kayıtları ve OSOS tabanlı saatlik okumalarla çalışır. Önceki "Sadece Tarayıcı (Client-Side)" mimarisinden ölçeklenebilir modern **Backend & Frontend** mimarisine geçiş yapılmıştır.
+Veriler SQLite veritabanı (`osos_sim.db`) üzerinde tutulmakta olup, SQLAlchemy ORM ile yönetilmektedir.
 
-**Tanımlı Trafolar:**
+**Tanımlı Örnek Trafolar:**
 * 🏙️ **Ümraniye TM – TRA (`UMR-TRA`)**: `100 MVA` 
-* 🏙️ **Ümraniye TM – TRB (`UMR-TRB`)**: `100 MVA` (Kapasitif riski en yüksek trafo)
+* 🏙️ **Ümraniye TM – TRB (`UMR-TRB`)**: `100 MVA` (Kapasitif riski yüksek)
 * ⚓ **Kartal TM – TRA (`KRT-TRA`)**: `80 MVA`
 * ⚓ **Kartal TM – TRB (`KRT-TRB`)**: `80 MVA`
 
@@ -35,71 +35,69 @@ Seçilen trafonun saat saat tüketim geçmişi, kümülatif ilerleyiş grafikler
 Trafolar arası enerji akışını animasyonlarla gösteren endüstriyel şema. Trafolara tıklandığında Canvas üzerinde çizilen **Anlık Fazör & Güç Üçgeni**.
 
 ### 4. 📈 Saatlik Ay Sonu Tahminci (Makine Öğrenmesi)
-Aydaki kalan tüm saatler için 7 farklı algoritma ile ileri yönlü projeksiyon üretilir.
-1. **🌳 Random Forest (Makine Öğrenmesi):** Sıfırdan Vanilla JS ile yazılmış Karar Ağaçları ormanıdır. **Gelişmiş Öznitelik Mühendisliği (Feature Engineering)** kullanır:
-   - Açık Hava Durumu API'si (Open-Meteo) üzerinden **Sıcaklık, Nem, Bulutluluk, Radyasyon**.
-   - One-Hot kodlanmış Günler, Tatil ve Hafta Sonu bilgisi.
-   - Zaman serisi gecikmeleri (Lags: `t-1`, `t-24`, `t-168`) ve Auto-Regressive yapı.
-2. **🚀 Topluluk Modeli (Ensemble):** Holt-Winters + Random Forest + Regresyon + Geçen Hafta kombinasyonu.
-3. **📈 Holt-Winters Üçlü Üssel Düzeltme:** Mevsimsellik ve trendi ayrıştıran istatistiksel zaman serisi.
-4. Diğerleri: Doğrusal Regresyon, Ağırlıklı Ortalama, Persistence.
+Python Backend'de (Scikit-Learn & Statsmodels) çalışan 7 farklı tahmin algoritması:
+1. **🌳 Random Forest (Makine Öğrenmesi):** Hafta sonu, saat ve 24 saatlik gecikme (lag) özniteliklerini kullanan Regresyon Ormanı.
+2. **🚀 Topluluk Modeli (Ensemble):** Random Forest ve Holt-Winters modellerinin birleştirilmiş daha stabil versiyonu.
+3. **📈 Holt-Winters Üçlü Üssel Düzeltme:** Mevsimsellik ve trendi ayrıştıran istatistiksel zaman serisi modeli (24 saatlik periyot).
+4. **Doğrusal Regresyon (Linear Regression):** Gecikmeli öznitelikler üzerinden lineer eğilim hesabı.
+5. **İstatistiksel Ortalama:** Son 7 günün aynı saatlerinin aritmetik ortalaması.
+6. **Geçen Hafta (Persistence):** Bir önceki haftanın birebir tekrarı kabulü.
+7. **Geçen Ay:** Geçen ayki hareketliliğin devam edeceği varsayımı.
 
-Sistem ayrıca **⚡ Canlı Backtesting** ile modellerin o anki verideki hata payını (WMAPE) canlı ölçer.
+*Not: Sistem tüm tahminlerde, veri üzerindeki modele özgü sapmaları hesaplayarak (MAPE üzerinden) **Gerçek Güven Skoru** üretir.*
 
 ---
 
 ## 🛠️ Mimari ve Klasör Yapısı
 
-Şu anki SPARK, tamamen **İstemci Tarafında (Client-Side Vanilla JS)**, sunucusuz (Serverless) olarak çalışmaktadır. 
+SPARK, **Python FastAPI** sunucusu ve **Vanilla JS** ön yüzünden (Frontend) oluşan modern ve ölçeklenebilir bir yapıdadır.
 
 ```text
 SPARK/
 ├── index.html                  # Ana uygulama iskeleti ve arayüz
-├── tools/
-│   ├── audit.html              # Ajan (Otonom Denetçi) Görsel Paneli
-│   └── verify-project.js       # Node.js tabanlı terminal denetçisi
-├── data/
-│   └── raw_data.js             # 19.452 satırlık TEİAŞ veri seti (Global değişken)
+├── backend/
+│   ├── main.py                 # FastAPI sunucu kökü
+│   ├── database.py             # SQLite veritabanı bağlantı ayarları
+│   ├── models.py               # SQLAlchemy ORM modelleri
+│   ├── schemas.py              # Pydantic veri doğrulama şemaları
+│   ├── init_db.py              # Veritabanı ilklendirme scripti
+│   ├── osos_sim.db             # Uygulama veritabanı
+│   └── services/
+│       ├── analysis_service.py # Veri analizi ve aylık oran hesaplamaları
+│       └── forecast_service.py # Scikit-Learn destekli tahmin ve ML motoru
 ├── css/
 │   └── style.css               # Tasarım sistemi
 └── js/
     ├── core/
-    │   ├── app.js              # Uygulama denetleyicisi (Controller)
-    │   ├── data.js             # Veri yönetimi ve localStorage entegrasyonu
-    │   └── agent.js            # Otonom Proje & Dosya Denetçi Ajanı
+    │   ├── app.js              # Uygulama denetleyicisi ve UI senkronizasyonu
+    │   ├── api_client.js       # Backend ile iletişim kuran Fetch katmanı
+    │   └── data.js             # İstemci tarafı veri yönetimi ve ön bellek
     ├── modules/
-    │   ├── calculations.js     # Reaktif ceza ve matematiksel formüller
-    │   ├── forecast.js         # İstatistiksel modeller ve Feature Engineering
-    │   ├── randomForest.js     # JavaScript tabanlı Random Forest Regressor
-    │   ├── scenarios.js        # Reaktör/Yük simülasyonları
-    │   └── weather.js          # Open-Meteo Canlı Hava Durumu entegrasyonu
+    │   ├── calculations.js     # İstemci taraflı oran hesaplamaları
+    │   ├── forecast.js         # API tahmin istekleri 
+    │   └── scenarios.js        # Reaktör/Yük simülasyonları
     └── ui/
-        ├── charts.js           # Chart.js ve chartjs-plugin-annotation yapılandırmaları
-        └── topology.js         # SCADA ve Canvas çizimleri
+        ├── charts.js           # Chart.js ve Plugin yapılandırmaları
+        └── topology.js         # SCADA, SVG ve Canvas çizimleri
 ```
-
-*Not: Sistem görselleştirmeleri için `Chart.js` ve sınır çizgilerini çizmek için `chartjs-plugin-annotation` eklentisi kullanılmaktadır (CDN üzerinden projeye dâhildir).*
-
----
-
-## ⚠️ Production (Canlı Ortam) & Ölçeklenebilirlik Notu
-
-SPARK'ın mevcut **sadece tarayıcı (Client-Side)** mimarisi, prototipleme ve düşük trafo sayılarında muazzam hızlı ve maliyetsizdir. Ancak projenin üretim (Production) ortamına alınıp yüzlerce trafoya ölçeklenmesi durumunda mevcut mimaride **darboğazlar (bottlenecks)** yaşanacaktır:
-
-1. **Bellek Sınırı (Out of Memory):** 100 trafoluk (milyonlarca satır) JSON dosyasının indirilip RAM'de JS objelerine çevrilmesi tarayıcıyı dondurur veya çökertir.
-2. **Main Thread (Donma):** Yüzlerce trafo için JS üzerinde Random Forest ve Backtest çalıştırılması tarayıcının kilitlenmesine sebep olur.
-3. **Network Yükü:** Devasa veri dosyalarının yüklenmesi açılış süresini (Load Time) uzatır.
-
-**Ölçeklenmiş (Enterprise) Mimaride Olması Gerekenler:**
-* **Veritabanı & API:** Veriler istemci yerine PostgreSQL / InfluxDB gibi veritabanlarında tutulmalı; tarayıcıya sadece sayfalama ile ihtiyaç olan (ekrandaki) küçük veri blokları gönderilmelidir.
-* **Server-side ML:** Makine Öğrenmesi (Random Forest, XGBoost) ve yoğun istatistik hesapları tarayıcıdan alınıp **Python (Backend)** sunucusunda hesaplatılmalı, tarayıcıya sadece sonuçlar iletilmelidir.
 
 ---
 
 ## 🚀 Kurulum ve Çalıştırma
-Hiçbir veritabanı veya Node.js/Python sunucusu kurmanıza gerek yoktur.
+
+Sistem hem Backend hem de Frontend'in eşzamanlı çalışmasını gerektirir.
+
+### 1. Backend (Sunucu) Başlatma
+Terminalinizde proje dizinine gidin ve aşağıdaki komutları çalıştırın:
 ```bash
-git clone https://github.com/kullaniciadi/SPARK.git
-cd SPARK
+# Python sanal ortamını (venv) aktifleştirin
+source backend/venv/bin/activate 
+
+# FastAPI sunucusunu başlatın
+cd backend
+uvicorn main:app --reload --port 8000
 ```
-**`index.html`** dosyasını herhangi bir web tarayıcısında açmanız yeterlidir.
+*(Sunucu `http://127.0.0.1:8000` adresinde ayağa kalkacaktır.)*
+
+### 2. Frontend (İstemci) Başlatma
+Sunucu ayaktayken, ana dizindeki **`index.html`** dosyasını herhangi bir modern web tarayıcısında (Chrome, Firefox, Safari) açmanız yeterlidir. Arayüz otomatik olarak yerel sunucuya bağlanarak çalışmaya başlayacaktır.

@@ -17,7 +17,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 
     <!-- App Styles -->
-    <!-- App Styles -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -275,6 +274,25 @@
                         <input type="file" id="csv-file-input" accept=".csv" hidden>
                         <button class="btn btn-outline" id="btn-csv-sec">Dosya Seçin</button>
                         <p class="text-muted" style="font-size: 12px;">Format: TrafoID, Tarih, Aktif, Endüktif, Kapasitif</p>
+                    </div>
+                </div>
+
+                <!-- TEİAŞ OSOS Entegrasyonu -->
+                <div class="card" style="margin-top: 15px;">
+                    <div class="card-header">
+                        <h3>TEİAŞ OSOS Veri Çekme</h3>
+                    </div>
+                    <div class="form-group" style="padding: 15px;">
+                        <p class="text-muted" style="margin-bottom: 10px; font-size: 14px;">Simülasyon sunucusundan belirtilen tarih aralığı için verileri çeker.</p>
+                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                            <input type="date" id="osos-date-start" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px;" title="Başlangıç">
+                            <span>-</span>
+                            <input type="date" id="osos-date-end" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px;" title="Bitiş">
+                        </div>
+                        <button class="btn btn-primary" id="btn-osos-fetch" style="width: 100%;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            Verileri Çek
+                        </button>
                     </div>
                 </div>
             </div>
@@ -569,19 +587,19 @@
                 <form id="yeni-trafo-form" style="display: flex; flex-direction: column; gap: 16px;">
                     <div class="form-group">
                         <label for="new-trafo-id">Trafo ID (Kısa Kod)</label>
-                        <input type="text" id="new-trafo-id" required placeholder="Ör: YENI-TR" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.5); color: #fff;">
+                        <input type="text" id="new-trafo-id" required placeholder="Ör: YENI-TR" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <div class="form-group">
                         <label for="new-trafo-adi">Trafo Adı</label>
-                        <input type="text" id="new-trafo-adi" required placeholder="Ör: Yeni Trafo Merkezi" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.5); color: #fff;">
+                        <input type="text" id="new-trafo-adi" required placeholder="Ör: Yeni Trafo Merkezi" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <div class="form-group">
                         <label for="new-trafo-bolge">Bölgesi</label>
-                        <input type="text" id="new-trafo-bolge" required placeholder="Ör: Kadıköy" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.5); color: #fff;">
+                        <input type="text" id="new-trafo-bolge" required placeholder="Ör: Kadıköy" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <div class="form-group">
                         <label for="new-trafo-guc">Gücü (MVA)</label>
-                        <input type="number" id="new-trafo-guc" value="100" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.5); color: #fff;">
+                        <input type="number" id="new-trafo-guc" value="100" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <button type="submit" class="btn btn-primary" style="margin-top: 8px;">KAYDET</button>
                 </form>
@@ -593,16 +611,13 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- ═══ Scripts (sıra önemli!) ═══ -->
-    <script src="data/raw_data.js"></script>
-    <script src="js/core/data.js"></script>
-    <script src="js/modules/calculations.js"></script>
-    <script src="js/modules/weather.js"></script>
-    <script src="js/modules/randomForest.js"></script>
-    <script src="js/modules/forecast.js"></script>
-    <script src="js/modules/scenarios.js"></script>
-    <script src="js/ui/charts.js"></script>
-    <script src="js/ui/topology.js"></script>
-    <script src="js/core/app.js"></script>
-    <script src="js/core/agent.js"></script>
+    <script src="js/core/data.js?v=4"></script>
+    <script src="js/core/api_client.js?v=4"></script>
+    <script src="js/modules/calculations.js?v=4"></script>
+    <script src="js/modules/forecast.js?v=4"></script>
+    <script src="js/modules/scenarios.js?v=4"></script>
+    <script src="js/ui/charts.js?v=4"></script>
+    <script src="js/ui/topology.js?v=4"></script>
+    <script src="js/core/app.js?v=4"></script>
 </body>
 </html>

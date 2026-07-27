@@ -29,8 +29,8 @@ const App = (() => {
     let state = {
         currentScreen: 'dashboard',
         selectedTrafoId: null,
-        selectedAy: 7,   // 1-12
-        selectedYil: 2025,
+        selectedAy: new Date().getMonth() + 1,
+        selectedYil: new Date().getFullYear(),
         selectedYontem: 'ensemble',
         lastOzetler: null,
         lastOzetlerKey: null,
@@ -42,9 +42,41 @@ const App = (() => {
     // INITIALIZATION
     // ═══════════════════════════════════════════
 
-    function init() {
+    async function init() {
         // Eğer sayfa ana index.html değilse (örneğin audit.html) DOM elementleri yoksa çık
         if (!document.getElementById('current-date')) return;
+
+        // Backend'den başlangıç verilerini çek
+        try {
+            const loader = document.createElement('div');
+            loader.id = 'global-loader';
+            loader.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(18,18,18,0.9); z-index:9999; display:flex; justify-content:center; align-items:center; color:white; font-size:20px; font-weight: 500; backdrop-filter: blur(4px);';
+            loader.innerHTML = 'Sistem Başlatılıyor, Veriler Yükleniyor... <div class="loading-spinner" style="margin-left: 12px; width: 24px; height: 24px; border-width: 3px;"></div>';
+            document.body.appendChild(loader);
+            
+            // VeriModulu'nü temizle (eski local data varsa diye)
+            localStorage.removeItem('spark_trafolar');
+            localStorage.removeItem('spark_veriler');
+            
+            // 1. Trafoları Çek
+            const trafolar = await ApiClient.fetchTransformers();
+            trafolar.forEach(t => VeriModulu.trafoEkle({
+                id: t.id,
+                adi: t.name,
+                bolge: t.region,
+                kapasite: t.power_mva,
+                tip: 'Bilinmiyor',
+                aciklama: `${t.name}, ${t.power_mva} MVA`
+            }));
+            
+            // 2. Bu ayın verilerini çek
+            await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);
+            
+        } catch (e) {
+            console.error("Başlangıç veri çekme hatası:", e);
+            document.getElementById('global-loader').innerHTML = 'Sunucuya bağlanılamadı. Python backend çalışıyor mu?';
+            return;
+        }
 
         // Tarih gösterimi
         document.getElementById('current-date').textContent = formatDisplayDate(VeriModulu.BUGUN);
@@ -53,7 +85,10 @@ const App = (() => {
         initTheme();
 
         // Varsayılan trafo
-        state.selectedTrafoId = VeriModulu.getTrafolar()[0].id;
+        const kayitliTrafolar = VeriModulu.getTrafolar();
+        if (kayitliTrafolar.length > 0) {
+            state.selectedTrafoId = kayitliTrafolar[0].id;
+        }
 
         // Select doldur
         populateTrafoSelects();
@@ -72,13 +107,11 @@ const App = (() => {
             TopolojiModulu.init();
         }
 
-        // Hava Durumu Modülünü Başlat (Asenkron)
-        if (typeof WeatherModulu !== 'undefined') {
-            WeatherModulu.init();
-        }
-
         // İlk ekranı çiz
-        renderDashboard();
+        await renderDashboard();
+        
+        // Yükleme ekranını tüm veriler ve dashboard geldikten sonra kaldır
+        document.getElementById('global-loader')?.remove();
     }
 
     // ─── Tarih Formatlama ───
@@ -129,8 +162,29 @@ const App = (() => {
     // SELECT POPULATE
     // ═══════════════════════════════════════════
 
+    function populateAySelects() {
+        const selects = ['dashboard-ay-select', 'detay-ay-select', 'topoloji-ay-select', 'tahmin-ay-select'];
+        const now = new Date();
+        const options = [];
+        let cur = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        while(cur.getFullYear() > 2025 || (cur.getFullYear() === 2025 && cur.getMonth() >= 0)) {
+            const val = `${cur.getFullYear()}-${(cur.getMonth()+1).toString().padStart(2, '0')}`;
+            const text = `${AY_ADLARI[cur.getMonth()]} ${cur.getFullYear()}`;
+            options.push({val, text});
+            cur.setMonth(cur.getMonth() - 1);
+        }
+        selects.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.innerHTML = options.map(o => `<option value="${o.val}">${o.text}</option>`).join('');
+        });
+    }
+
     function populateTrafoSelects() {
-        const trafolar = VeriModulu.getTrafolar();
+        populateAySelects();
+        
+        const trafolar = Array.from(VeriModulu.getTrafolar().values());
         const selectIds = ['input-trafo', 'table-trafo-filter', 'detay-trafo-select', 'tahmin-trafo-select'];
 
         selectIds.forEach(id => {
@@ -156,38 +210,54 @@ const App = (() => {
             state.selectedTrafoId = e.target.value;
             renderTrafoDetay();
         });
-        const syncAySelects = (newAy) => {
-            state.selectedAy = newAy;
+        
+        const syncAySelects = (newVal) => {
+            const [y, m] = newVal.split('-');
+            state.selectedYil = parseInt(y, 10);
+            state.selectedAy = parseInt(m, 10);
+            
             const detayAy = document.getElementById('detay-ay-select');
             const topolojiAy = document.getElementById('topoloji-ay-select');
             const dashAy = document.getElementById('dashboard-ay-select');
             const tahminAy = document.getElementById('tahmin-ay-select');
-            if (detayAy && parseInt(detayAy.value, 10) !== newAy) detayAy.value = newAy;
-            if (topolojiAy && parseInt(topolojiAy.value, 10) !== newAy) topolojiAy.value = newAy;
-            if (dashAy && parseInt(dashAy.value, 10) !== newAy) dashAy.value = newAy;
-            if (tahminAy && parseInt(tahminAy.value, 10) !== newAy) tahminAy.value = newAy;
+            
+            if (detayAy && detayAy.value !== newVal) detayAy.value = newVal;
+            if (topolojiAy && topolojiAy.value !== newVal) topolojiAy.value = newVal;
+            if (dashAy && dashAy.value !== newVal) dashAy.value = newVal;
+            if (tahminAy && tahminAy.value !== newVal) tahminAy.value = newVal;
         };
 
-        document.getElementById('detay-ay-select')?.addEventListener('change', (e) => {
-            const newAy = parseInt(e.target.value, 10);
+        document.getElementById('month-select')?.addEventListener('change', async (e) => {
+            const [yil, ay] = e.target.value.split('-');
+            state.selectedYil = parseInt(yil, 10);
+            state.selectedAy = parseInt(ay, 10);
+            const newAy = parseInt(ay, 10);
             syncAySelects(newAy);
+            
+            await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);
+            renderDashboard();
+        });
+
+        document.getElementById('detay-ay-select')?.addEventListener('change', async (e) => {
+            syncAySelects(e.target.value);
+            await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);
             renderTrafoDetay();
         });
-        document.getElementById('topoloji-ay-select')?.addEventListener('change', (e) => {
-            const newAy = parseInt(e.target.value, 10);
-            syncAySelects(newAy);
+        document.getElementById('topoloji-ay-select')?.addEventListener('change', async (e) => {
+            syncAySelects(e.target.value);
+            await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);
             if (typeof TopolojiModulu !== 'undefined') {
                 TopolojiModulu.render();
             }
         });
-        document.getElementById('dashboard-ay-select')?.addEventListener('change', (e) => {
-            const newAy = parseInt(e.target.value, 10);
-            syncAySelects(newAy);
+        document.getElementById('dashboard-ay-select')?.addEventListener('change', async (e) => {
+            syncAySelects(e.target.value);
+            await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);
             renderDashboard();
         });
-        document.getElementById('tahmin-ay-select')?.addEventListener('change', (e) => {
-            const newAy = parseInt(e.target.value, 10);
-            syncAySelects(newAy);
+        document.getElementById('tahmin-ay-select')?.addEventListener('change', async (e) => {
+            syncAySelects(e.target.value);
+            await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);
             renderTahmin();
         });
         document.getElementById('tahmin-trafo-select')?.addEventListener('change', (e) => {
@@ -390,153 +460,54 @@ const App = (() => {
     }
 
     const _dashboardCache = new Map();
-    function renderDashboard() {
+    async function renderDashboard() {
         const cacheKey = `${state.selectedYil}_${state.selectedAy}_${state.selectedYontem}`;
         let ozetler;
+        
+        // Show loading state
+        document.getElementById('summary-cards').innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">Sunucudan analizler ve projeksiyonlar çekiliyor... <span class="loading-spinner"></span></div>';
+        const bannerCharts = document.getElementById('dashboard-forecast-banner');
+        if (bannerCharts) bannerCharts.innerHTML = '';
         
         if (_dashboardCache.has(cacheKey)) {
             ozetler = _dashboardCache.get(cacheKey);
         } else {
-            const hamOzetler = HesaplamaModulu.tumTrafoOzetleri(state.selectedYil, state.selectedAy);
-            ozetler = hamOzetler.map(({ trafo, ozet }) => {
-                if (!ozet) return { trafo, ozet: null, tahminOzet: null };
-                let tahminOzet = null;
-                try {
-                    if (typeof TahminModulu !== 'undefined') {
-                        const tSonuc = TahminModulu.aySonuTahminiYap(trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
+            try {
+                // Backend'den gerçek veri özetlerini al
+                const hamOzetler = await ApiClient.fetchAnalysisSummary(state.selectedYil, state.selectedAy);
+                
+                // Tahminleri de bekle (Artık backend milisaniyeler içinde cevap veriyor)
+                ozetler = await Promise.all(hamOzetler.map(async (item) => {
+                    let tahminOzet = null;
+                    try {
+                        const tSonuc = await TahminModulu.aySonuTahminiYap(item.trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
                         if (tSonuc && tSonuc.tumVeriler) {
                             tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
                         }
+                    } catch (e) {
+                        console.error(`Tahmin hatası (${item.trafo.id}):`, e);
                     }
-                } catch (e) {
-                    console.warn('Tahmin hatası:', e);
-                }
-                return { trafo, ozet, tahminOzet };
-            });
-            _dashboardCache.set(cacheKey, ozetler);
+                    
+                    const enrichedOzet = {
+                        ...item.ozet,
+                        kapasitifRisk: HesaplamaModulu.riskSeviyesiBelirle(item.ozet.kapasitifOran || 0, 'kapasitif'),
+                        enduktifRisk: HesaplamaModulu.riskSeviyesiBelirle(item.ozet.enduktifOran || 0, 'enduktif')
+                    };
+                    
+                    return { trafo: item.trafo, ozet: enrichedOzet, tahminOzet };
+                }));
+                
+                _dashboardCache.set(cacheKey, ozetler);
+            } catch (error) {
+                document.getElementById('summary-cards').innerHTML = `<div style="padding: 20px; color: var(--color-danger);">Bağlantı hatası: ${error.message}</div>`;
+                return;
+            }
         }
 
-        // ── Ay Sonu Tahmin Barını Göster ──
         renderForecastBanner(ozetler);
-
-        // ── KPI Kartları ──
-        let guvenliSayisi = 0, dikkatSayisi = 0, riskliSayisi = 0, tehlikeliSayisi = 0;
-        let toplamAktif = 0, toplamEnduktif = 0, toplamKapasitif = 0;
-
-        ozetler.forEach(({ ozet }) => {
-            if (!ozet) return;
-            toplamAktif += ozet.toplamAktif;
-            toplamEnduktif += ozet.toplamEnduktif;
-            toplamKapasitif += ozet.toplamKapasitif;
-
-            const sev = ozet.kapasitifRisk.seviye;
-            if (sev === 'guvenli' || sev === 'normal') guvenliSayisi++;
-            else if (sev === 'dikkat') dikkatSayisi++;
-            else if (sev === 'riskli') riskliSayisi++;
-            else tehlikeliSayisi++;
-        });
-
-        document.getElementById('summary-cards').innerHTML = `
-            <div class="summary-card card-total">
-                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg></div>
-                <div class="card-content">
-                    <div class="card-value">${ozetler.length}</div>
-                    <div class="card-label">Toplam Trafo</div>
-                </div>
-            </div>
-            <div class="summary-card card-safe">
-                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
-                <div class="card-content">
-                    <div class="card-value">${guvenliSayisi}</div>
-                    <div class="card-label">Güvenli / Normal</div>
-                </div>
-            </div>
-            <div class="summary-card card-warning">
-                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>
-                <div class="card-content">
-                    <div class="card-value">${dikkatSayisi + riskliSayisi}</div>
-                    <div class="card-label">Dikkat / Riskli</div>
-                </div>
-            </div>
-            <div class="summary-card card-danger">
-                <div class="card-icon">🔴</div>
-                <div class="card-content">
-                    <div class="card-value">${tehlikeliSayisi}</div>
-                    <div class="card-label">Tehlikeli (Sınır Aşıldı)</div>
-                </div>
-            </div>
-        `;
-
-        // ── Grafikler ──
-        GrafikModulu.createDashboardBarChart('chart-dashboard-bar', ozetler);
-        GrafikModulu.createEnergyDoughnut('chart-dashboard-doughnut', toplamAktif, toplamEnduktif, toplamKapasitif);
-
-        // ── Dashboard Ay Badge Güncelle ──
-        const ayBadge = document.getElementById('dashboard-ay-badge');
-        if (ayBadge) ayBadge.textContent = `${AY_ADLARI[state.selectedAy - 1]} ${state.selectedYil}`;
-
-        // ── Trafo Kartları ──
-        const gridEl = document.getElementById('trafo-grid');
-        gridEl.innerHTML = ozetler.map(({ trafo, ozet, tahminOzet }, idx) => {
-            if (!ozet) return '';
-            const risk = ozet.kapasitifRisk;
-            const ratio = Math.min((ozet.kapasitifOran / 20) * 100, 100);
-            const limitPos = (15 / 20) * 100; // %15 sınırın bar üzerindeki pozisyonu
-
-            const tOran = tahminOzet ? tahminOzet.kapasitifOran : ozet.kapasitifOran;
-            const tRisk = tahminOzet ? tahminOzet.kapasitifRisk : risk;
-            const tahminIkon = '';
-            const tahminEtiket = tOran >= 15 ? 'Ceza Riski!' : (tOran >= 12 ? 'Dikkat' : 'Güvenli');
-
-            return `
-                <div class="trafo-card risk-${risk.seviye}" style="animation-delay: ${idx * 0.06}s"
-                     onclick="App.navigateToTrafo('${trafo.id}')">
-                    <div class="trafo-card-header">
-                        <div>
-                            <h3>${escapeHTML(trafo.adi)}</h3>
-                            <div class="trafo-tip">${trafo.tip} · ${trafo.bolge}</div>
-                        </div>
-                        <span class="badge badge-${risk.seviye}">${risk.ikon} ${risk.etiket}</span>
-                    </div>
-                    <div class="trafo-card-stats">
-                        <div class="trafo-stat">
-                            <span class="trafo-stat-label">Mevcut Oran</span>
-                            <span class="trafo-stat-value highlight" style="color:${risk.renk}">
-                                %${HesaplamaModulu.formatSayi(ozet.kapasitifOran)}
-                            </span>
-                        </div>
-                        <div class="trafo-stat">
-                            <span class="trafo-stat-label">Ay Sonu Tahmini</span>
-                            <span class="trafo-stat-value highlight" style="color:${tRisk.renk}">
-                                %${HesaplamaModulu.formatSayi(tOran)}
-                                <span style="font-size: 13px; margin-left: 2px;" title="${tahminEtiket}">${tahminIkon}</span>
-                            </span>
-                        </div>
-                        <div class="trafo-stat">
-                            <span class="trafo-stat-label">Endüktif Oran</span>
-                            <span class="trafo-stat-value">
-                                %${HesaplamaModulu.formatSayi(ozet.enduktifOran)}
-                            </span>
-                        </div>
-                        <div class="trafo-stat">
-                            <span class="trafo-stat-label">Aktif Enerji</span>
-                            <span class="trafo-stat-value">${HesaplamaModulu.formatEnerji(ozet.toplamAktif)}</span>
-                        </div>
-                    </div>
-                    <div class="ratio-meter">
-                        <div class="ratio-meter-bar">
-                            <div class="ratio-meter-fill" style="width:${ratio}%; background:${risk.renk}"></div>
-                            <div class="ratio-meter-limit" style="left:${limitPos}%" data-label="%15"></div>
-                        </div>
-                    </div>
-                    <div class="trafo-card-footer" style="margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px;" onclick="event.stopPropagation();">
-                        <button class="btn btn-sm btn-outline" onclick="App.navigateToTrafo('${trafo.id}')" style="font-size: 11px; padding: 4px 10px;">Detaylar</button>
-                        <button class="btn btn-sm btn-primary" onclick="if(typeof TopolojiModulu !== 'undefined') TopolojiModulu.openPowerTriangleModal('${trafo.id}')" style="font-size: 11px; padding: 4px 10px;">Güç Üçgeni Analizi</button>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        updateDashboardUI(ozetler);
     }
+
 
     function switchDashboardView(viewName) {
         state.dashboardView = viewName;
@@ -695,6 +666,53 @@ const App = (() => {
                 }
             });
         }
+
+        // OSOS Veri Çekme
+        const btnOsosFetch = document.getElementById('btn-osos-fetch');
+        if (btnOsosFetch) {
+            btnOsosFetch.addEventListener('click', async () => {
+                const start = document.getElementById('osos-date-start').value;
+                const end = document.getElementById('osos-date-end').value;
+                
+                if (!start || !end) {
+                    showToast('Lütfen başlangıç ve bitiş tarihlerini seçin.', 'error');
+                    return;
+                }
+                
+                try {
+                    btnOsosFetch.disabled = true;
+                    btnOsosFetch.innerHTML = 'Çekiliyor...';
+                    
+                    const data = await ApiClient.fetchMeasurements(start, end);
+                    if (data && data.length > 0) {
+                        data.forEach(m => {
+                            const d = new Date(m.timestamp);
+                            VeriModulu.veriEkle({
+                                trafoId: m.transformer_id,
+                                tarih: m.timestamp.replace('T', ' '),
+                                aktifEnerji: m.active_kwh,
+                                enduktifEnerji: m.inductive_kvarh,
+                                kapasitifEnerji: m.capacitive_kvarh,
+                                haftaSonu: d.getDay() === 0 || d.getDay() === 6,
+                                tatil: false,
+                            });
+                        });
+                        
+                        if(typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
+                        _dashboardCache.clear();
+                        showToast(`${data.length} ölçüm başarıyla OSOS'tan çekildi!`, 'success');
+                        renderVeriTablosu();
+                    } else {
+                        showToast('Belirtilen aralıkta veri bulunamadı.', 'warning');
+                    }
+                } catch (error) {
+                    showToast(error.message, 'error');
+                } finally {
+                    btnOsosFetch.disabled = false;
+                    btnOsosFetch.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Verileri Çek';
+                }
+            });
+        }
     }
 
     function handleCSVUpload(file) {
@@ -740,6 +758,8 @@ const App = (() => {
             let count = 0;
             let skipped = 0;
 
+            const yeniVeriler = [];
+
             // Başlık satırını atla
             for (let i = 1; i < lines.length; i++) {
                 const parts = lines[i].split(/[,;\t]/).map(s => s.trim());
@@ -748,7 +768,7 @@ const App = (() => {
                     const aktif = parseInt(aktifStr, 10);
                     const enduktif = parseInt(enduktifStr, 10);
                     const kapasitif = parseInt(kapasitifStr, 10);
-                    const dateMatch = /^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?$/.test(tarih);
+                    const dateMatch = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])( ([01]\d|2[0-3]):[0-5]\d)?$/.test(tarih);
 
                     if (!trafoMap.has(trafoId) || !dateMatch || isNaN(aktif) || isNaN(enduktif) || isNaN(kapasitif)) {
                         skipped++;
@@ -766,9 +786,7 @@ const App = (() => {
                         continue;
                     }
 
-                    if(typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
-                _dashboardCache.clear();
-                VeriModulu.veriEkle({
+                    yeniVeriler.push({
                         trafoId,
                         tarih,
                         aktifEnerji: aktif,
@@ -781,6 +799,12 @@ const App = (() => {
                 } else {
                     skipped++;
                 }
+            }
+
+            if (yeniVeriler.length > 0) {
+                if(typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
+                _dashboardCache.clear();
+                VeriModulu.veriEkleToplu(yeniVeriler);
             }
 
             if (count > 0) {
@@ -877,6 +901,8 @@ const App = (() => {
 
     function silVeri(trafoId, tarih) {
         VeriModulu.veriSil(trafoId, tarih);
+        if(typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
+        _dashboardCache.clear();
         showToast('Veri silindi.', 'info');
         renderVeriTablosu();
     }
@@ -885,7 +911,7 @@ const App = (() => {
     // SCREEN 3: TRAFO DETAY & RİSK ANALİZİ
     // ═══════════════════════════════════════════
 
-    function renderTrafoDetay() {
+    async function renderTrafoDetay() {
         const trafoId = state.selectedTrafoId;
         const ay = state.selectedAy;
         const yil = state.selectedYil;
@@ -906,10 +932,13 @@ const App = (() => {
         const selYontem = document.getElementById('detay-yontem-select');
         if (selYontem && selYontem.value !== yontem) selYontem.value = yontem;
 
-        const tahminSonucu = TahminModulu.aySonuTahminiYap(trafoId, yil, ay, yontem);
-        const tahminOzet = HesaplamaModulu.aylikOzetHesapla(tahminSonucu.tumVeriler);
-        const tahminOranStr = tahminOzet ? HesaplamaModulu.formatSayi(tahminOzet.kapasitifOran) : '—';
-        const tahminRisk = tahminOzet ? HesaplamaModulu.riskSeviyesiBelirle(tahminOzet.kapasitifOran, 'kapasitif') : null;
+        document.getElementById('detay-summary').innerHTML = '<p class="text-muted">Hesaplanıyor... <span class="loading-spinner"></span></p>';
+        
+        try {
+            const tahminSonucu = await TahminModulu.aySonuTahminiYap(trafoId, yil, ay, yontem);
+            const tahminOzet = HesaplamaModulu.aylikOzetHesapla(tahminSonucu.tumVeriler);
+            const tahminOranStr = tahminOzet ? HesaplamaModulu.formatSayi(tahminOzet.kapasitifOran) : '—';
+            const tahminRisk = tahminOzet ? HesaplamaModulu.riskSeviyesiBelirle(tahminOzet.kapasitifOran, 'kapasitif') : null;
 
         // ── Özet Kartlar ──
         document.getElementById('detay-summary').innerHTML = `
@@ -1029,13 +1058,16 @@ const App = (() => {
                 </tr>
             `;
         }).join('');
+        } catch (e) {
+            document.getElementById('detay-summary').innerHTML = `<p class="text-danger">Hata: ${e.message}</p>`;
+        }
     }
 
     // ═══════════════════════════════════════════
     // SCREEN 4: TAHMİN & SENARYO
     // ═══════════════════════════════════════════
 
-    function renderTahmin() {
+    async function renderTahmin() {
         if (!state.selectedTrafoId) {
             const trafolar = VeriModulu.getTrafolar();
             if (trafolar.length) state.selectedTrafoId = trafolar[0].id;
@@ -1053,9 +1085,12 @@ const App = (() => {
 
         if (!trafo) return;
 
-        const tahmin = TahminModulu.aySonuTahminiYap(trafoId, yil, ay, yontem);
-        const mevcutOzet = HesaplamaModulu.aylikOzetHesapla(tahmin.mevcutVeriler);
-        const tahminOzet = HesaplamaModulu.aylikOzetHesapla(tahmin.tumVeriler);
+        document.getElementById('tahmin-summary').innerHTML = '<p class="text-muted">Tahmin Modeli çalıştırılıyor... <span class="loading-spinner"></span></p>';
+
+        try {
+            const tahmin = await TahminModulu.aySonuTahminiYap(trafoId, yil, ay, yontem);
+            const mevcutOzet = HesaplamaModulu.aylikOzetHesapla(tahmin.mevcutVeriler);
+            const tahminOzet = HesaplamaModulu.aylikOzetHesapla(tahmin.tumVeriler);
 
         if (!mevcutOzet || !tahminOzet) {
             document.getElementById('tahmin-summary').innerHTML = '<p class="text-muted">Yeterli veri bulunamadı.</p>';
@@ -1102,7 +1137,6 @@ const App = (() => {
             </div>
         `;
 
-        // ── Grafik ──
         const kumulatif = HesaplamaModulu.kumulatifOranlarHesapla(tahmin.mevcutVeriler);
         GrafikModulu.createCumulativeLineChart(
             'chart-tahmin-line',
@@ -1110,18 +1144,8 @@ const App = (() => {
             tahmin.tahminVeriler,
             HesaplamaModulu.SINIRLAR.kapasitif
         );
-
-        // Senaryo tarih varsayılanı
-        const senaryoTarih = document.getElementById('senaryo-tarih');
-        if (senaryoTarih && !senaryoTarih.value) {
-            senaryoTarih.value = VeriModulu.BUGUN;
-        }
-
-        // Akıllı miktar varsayılan önerisi
-        const miktarInput = document.getElementById('senaryo-miktar');
-        if (miktarInput && !miktarInput.value) {
-            const tur = document.getElementById('senaryo-tur')?.value || 'reaktor';
-            miktarInput.value = tur === 'yukTransferi' ? 3500 : 2500;
+        } catch (e) {
+            document.getElementById('tahmin-summary').innerHTML = `<p class="text-danger">Hata: ${e.message}</p>`;
         }
     }
 
@@ -1146,11 +1170,12 @@ const App = (() => {
         });
     }
 
-    function runSenaryo(shouldScroll = true) {
-        if (!state.selectedTrafoId) {
-            const trafolar = VeriModulu.getTrafolar();
-            if (trafolar.length) state.selectedTrafoId = trafolar[0].id;
+    async function runSenaryo(kullaniciTetikledi = true) {
+        if (kullaniciTetikledi) {
+            const btn = document.getElementById('btn-senaryo-calistir');
+            if (btn) btn.innerHTML = 'Hesaplanıyor... <span class="loading-spinner"></span>';
         }
+
         const trafoId = state.selectedTrafoId;
         const yontem = document.getElementById('tahmin-yontem-select')?.value || state.selectedYontem || 'ensemble';
         const senaryoTuru = document.getElementById('senaryo-tur').value;
@@ -1162,10 +1187,11 @@ const App = (() => {
             return;
         }
 
-        const tahmin = TahminModulu.aySonuTahminiYap(trafoId, state.selectedYil, state.selectedAy, yontem);
-        const orijinalVeriler = tahmin.tumVeriler;
-        const senaryoluVeriler = SenaryoModulu.senaryoUygula(orijinalVeriler, senaryoTuru, baslangicTarihi, miktar);
-        const karsilastirma = SenaryoModulu.senaryoKarsilastir(orijinalVeriler, senaryoluVeriler);
+        try {
+            const tahmin = await TahminModulu.aySonuTahminiYap(trafoId, state.selectedYil, state.selectedAy, yontem);
+            const orijinalVeriler = tahmin.tumVeriler;
+            const senaryoluVeriler = SenaryoModulu.senaryoUygula(orijinalVeriler, senaryoTuru, baslangicTarihi, miktar);
+            const karsilastirma = SenaryoModulu.senaryoKarsilastir(orijinalVeriler, senaryoluVeriler);
 
         if (!karsilastirma) {
             showToast('Karşılaştırma yapılamadı.', 'error');
@@ -1217,8 +1243,17 @@ const App = (() => {
             HesaplamaModulu.SINIRLAR.kapasitif
         );
 
-        if (shouldScroll) {
-            sonucEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (e) {
+            showToast('Senaryo hatası: ' + e.message, 'error');
+        } finally {
+            if (kullaniciTetikledi) {
+                const btn = document.getElementById('btn-senaryo-calistir');
+                if (btn) btn.innerHTML = 'Senaryoyu Uygula ve Test Et';
+            }
+            if (shouldScroll) {
+                const sonucEl = document.getElementById('senaryo-sonuc');
+                sonucEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         }
     }
 
@@ -1231,8 +1266,8 @@ const App = (() => {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
 
-        const icons = { success: '', error: '', warning: '', info: '' };
-        toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> ${message}`;
+        const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+        toast.innerHTML = `<span>${icons[type] ?? 'ℹ️'}</span> ${message}`;
 
         container.appendChild(toast);
 
@@ -1298,6 +1333,125 @@ const App = (() => {
     // PUBLIC API
     // ═══════════════════════════════════════════
 
+    function updateDashboardUI(ozetler) {
+        let guvenliSayisi = 0, dikkatSayisi = 0, riskliSayisi = 0, tehlikeliSayisi = 0;
+        let toplamAktif = 0, toplamEnduktif = 0, toplamKapasitif = 0;
+
+        ozetler.forEach(({ ozet }) => {
+            if (!ozet) return;
+            toplamAktif += ozet.toplamAktif;
+            toplamEnduktif += ozet.toplamEnduktif;
+            toplamKapasitif += ozet.toplamKapasitif;
+
+            const sev = ozet.kapasitifRisk.seviye;
+            if (sev === 'guvenli' || sev === 'normal') guvenliSayisi++;
+            else if (sev === 'dikkat') dikkatSayisi++;
+            else if (sev === 'riskli') riskliSayisi++;
+            else tehlikeliSayisi++;
+        });
+
+        document.getElementById('summary-cards').innerHTML = `
+            <div class="summary-card card-total">
+                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg></div>
+                <div class="card-content">
+                    <div class="card-value">${ozetler.length}</div>
+                    <div class="card-label">Toplam Trafo</div>
+                </div>
+            </div>
+            <div class="summary-card card-safe">
+                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
+                <div class="card-content">
+                    <div class="card-value">${guvenliSayisi}</div>
+                    <div class="card-label">Güvenli / Normal</div>
+                </div>
+            </div>
+            <div class="summary-card card-warning">
+                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>
+                <div class="card-content">
+                    <div class="card-value">${dikkatSayisi}</div>
+                    <div class="card-label">Dikkat Durumu</div>
+                </div>
+            </div>
+            <div class="summary-card card-danger">
+                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>
+                <div class="card-content">
+                    <div class="card-value">${riskliSayisi + tehlikeliSayisi}</div>
+                    <div class="card-label">Ceza Riski</div>
+                </div>
+            </div>
+        `;
+
+        // ── Grafikler ──
+        GrafikModulu.createDashboardBarChart('chart-dashboard-bar', ozetler);
+        GrafikModulu.createEnergyDoughnut('chart-dashboard-doughnut', toplamAktif, toplamEnduktif, toplamKapasitif);
+
+        // ── Dashboard Ay Badge Güncelle ──
+        const ayBadge = document.getElementById('dashboard-ay-badge');
+        if (ayBadge) ayBadge.textContent = `${AY_ADLARI[state.selectedAy - 1]} ${state.selectedYil}`;
+
+        // ── Trafo Kartları ──
+        const gridEl = document.getElementById('trafo-grid');
+        if (!gridEl) return;
+        gridEl.innerHTML = ozetler.map(({ trafo, ozet, tahminOzet }, idx) => {
+            if (!ozet) return '';
+            const risk = ozet.kapasitifRisk;
+            const ratio = Math.min((ozet.kapasitifOran / 20) * 100, 100);
+            const limitPos = (15 / 20) * 100; // %15 sınırın bar üzerindeki pozisyonu
+
+            const tOran = tahminOzet ? tahminOzet.kapasitifOran : ozet.kapasitifOran;
+            const tRisk = tahminOzet ? tahminOzet.kapasitifRisk : risk;
+            const tahminIkon = tOran >= 15 ? '🔴' : (tOran >= 12 ? '🟡' : '🟢');
+            const tahminEtiket = tOran >= 15 ? 'Ceza Riski!' : (tOran >= 12 ? 'Dikkat' : 'Güvenli');
+
+            return `
+                <div class="trafo-card risk-${risk.seviye}" style="animation-delay: ${idx * 0.06}s"
+                     onclick="App.navigateToTrafo('${trafo.id}')">
+                    <div class="trafo-card-header">
+                        <div>
+                            <h3>${escapeHTML(trafo.adi)} <span class="badge badge-${tRisk.seviye}" style="margin-left:8px; font-size:10px;">${tahminEtiket}</span></h3>
+                            <div class="trafo-tip">${escapeHTML(trafo.tip)} · ${escapeHTML(trafo.bolge)}</div>
+                        </div>
+                        <span class="badge badge-${risk.seviye}">${risk.ikon || ''} ${risk.etiket || risk.seviye.toUpperCase()}</span>
+                    </div>
+                    <div class="trafo-card-stats">
+                        <div class="trafo-stat">
+                            <span class="trafo-stat-label">Mevcut Oran</span>
+                            <span class="trafo-stat-value highlight" style="color:${risk.renk || 'var(--text)'}">
+                                %${HesaplamaModulu.formatSayi(ozet.kapasitifOran)}
+                            </span>
+                        </div>
+                        <div class="trafo-stat">
+                            <span class="trafo-stat-label">Ay Sonu Tahmini</span>
+                            <span class="trafo-stat-value highlight" style="color:${tRisk.renk || 'var(--text)'}">
+                                %${HesaplamaModulu.formatSayi(tOran)}
+                                <span style="font-size: 13px; margin-left: 2px;" title="${tahminEtiket}">${tahminIkon}</span>
+                            </span>
+                        </div>
+                        <div class="trafo-stat">
+                            <span class="trafo-stat-label">Endüktif Oran</span>
+                            <span class="trafo-stat-value">
+                                %${HesaplamaModulu.formatSayi(ozet.enduktifOran)}
+                            </span>
+                        </div>
+                        <div class="trafo-stat">
+                            <span class="trafo-stat-label">Aktif Enerji</span>
+                            <span class="trafo-stat-value">${HesaplamaModulu.formatEnerji(ozet.toplamAktif)}</span>
+                        </div>
+                    </div>
+                    <div class="ratio-meter">
+                        <div class="ratio-meter-bar">
+                            <div class="ratio-meter-fill" style="width:${ratio}%; background:${risk.renk || 'var(--color-primary)'}"></div>
+                            <div class="ratio-meter-limit" style="left:${limitPos}%" data-label="%15"></div>
+                        </div>
+                    </div>
+                    <div class="trafo-card-footer" style="margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px;" onclick="event.stopPropagation();">
+                        <button class="btn btn-sm btn-outline" onclick="App.navigateToTrafo('${trafo.id}')" style="font-size: 11px; padding: 4px 10px;">Detaylar</button>
+                        <button class="btn btn-sm btn-primary" onclick="if(typeof TopolojiModulu !== 'undefined') TopolojiModulu.openPowerTriangleModal('${trafo.id}')" style="font-size: 11px; padding: 4px 10px;">Güç Üçgeni Analizi</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
     return {
         init,
         navigate,

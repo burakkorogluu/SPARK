@@ -39,6 +39,16 @@ const VeriModulu = (() => {
         '2025-07-15', // Demokrasi ve Millî Birlik Günü
         '2025-08-30', // Zafer Bayramı
         '2025-10-29', // Cumhuriyet Bayramı
+        // 2026
+        '2026-01-01',
+        '2026-03-20', '2026-03-21', '2026-03-22',
+        '2026-04-23',
+        '2026-05-01',
+        '2026-05-19',
+        '2026-05-27', '2026-05-28', '2026-05-29', '2026-05-30',
+        '2026-07-15',
+        '2026-08-30',
+        '2026-10-29',
     ];
 
     const TATIL_SET = new Set(TATIL_GUNLERI);
@@ -85,7 +95,15 @@ const VeriModulu = (() => {
         if (kayitli) {
             _ekTrafolar = JSON.parse(kayitli);
             if (Array.isArray(_ekTrafolar)) {
-                _ekTrafolar.forEach(t => TRAFOLAR.push(t));
+                // Hatalı/bozuk kayıtları temizle (Örn: string olarak kaydedilmiş olanlar)
+                const gecerliTrafolar = _ekTrafolar.filter(t => t && typeof t === 'object' && t.id);
+                gecerliTrafolar.forEach(t => TRAFOLAR.push(t));
+                
+                // Eğer bozuk kayıtlar varsa localStorage'ı temiziyle güncelle
+                if (gecerliTrafolar.length !== _ekTrafolar.length) {
+                    _ekTrafolar = gecerliTrafolar;
+                    localStorage.setItem('spark_ek_trafolar', JSON.stringify(_ekTrafolar));
+                }
             }
         }
     } catch (e) {
@@ -106,12 +124,16 @@ const VeriModulu = (() => {
 
     // ─── Veri Aralığı Parametreleri ───
     const BASLANGIC_TARIH = '2025-01-01';
-    const BITIS_TARIH = '2025-07-22 14:00'; // Gerçek Temmuz saatlik son kayıt tarihi
-
-    // ─── Gerçek TEİAŞ Saatlik Veri Seti (2025-01-01 00:00 -> 2025-07-22 14:00) ───
-    // Format: [trafoId, saatlikTarih, aktifEnerji (kWh), enduktifEnerji (kVArh), kapasitifEnerji (kVArh)]
-    let _RAW_DATA = [];
-
+    
+    function getFormattedCurrentDate() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hour = String(now.getHours()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hour}:00`;
+    }
+    const BITIS_TARIH = getFormattedCurrentDate();
     // ─── Tüm Saatlik Verileri Yükleme ───
     let _tumVeriler = [];
     let _veriMap = new Map(); // trafoId → [veriler]
@@ -134,50 +156,54 @@ const VeriModulu = (() => {
         } catch (e) {}
     }
 
-    function tumVerileriYukle() {
-        _tumVeriler = [];
-        _veriMap = new Map();
-        silinmisVerileriYukle();
+    let _loadedMonths = new Set(); // Hangi ayların yüklendiğini takip eder: "2025-07"
 
-        TRAFOLAR.forEach((trafo) => {
-            _veriMap.set(trafo.id, []);
-        });
-
-        _RAW_DATA.forEach(([trafoId, tarih, aktifEnerji, enduktifEnerji, kapasitifEnerji]) => {
-            if (_silinmisVeriler.has(`${trafoId}_${tarih}`)) return;
-            const d = parseDate(tarih);
-            const gun = d.getDay();
-            const dateStr = tarih.split(' ')[0];
-            const veri = {
-                trafoId,
-                tarih,
-                aktifEnerji,
-                enduktifEnerji,
-                kapasitifEnerji,
-                haftaSonu: gun === 0 || gun === 6,
-                tatil: TATIL_SET.has(dateStr),
-            };
-            _tumVeriler.push(veri);
-            if (_veriMap.has(trafoId)) {
-                _veriMap.get(trafoId).push(veri);
-            }
-        });
+    async function loadAylikVeriler(yil, ay) {
+        const monthKey = `${yil}-${String(ay).padStart(2, '0')}`;
+        if (_loadedMonths.has(monthKey)) {
+            return; // Zaten yüklendi
+        }
+        
+        const startDate = `${monthKey}-01`;
+        const lastDay = new Date(yil, ay, 0).getDate();
+        const endDate = `${monthKey}-${String(lastDay).padStart(2, '0')}`;
+        
+        try {
+            const measurements = await ApiClient.fetchMeasurements(startDate, endDate);
+            
+            const yeniVeriler = measurements.map(m => {
+                const tarih = m.timestamp.replace('T', ' ');
+                const d = parseDate(tarih);
+                const gun = d.getDay();
+                const dateStr = tarih.split(' ')[0];
+                return {
+                    trafoId: m.transformer_id,
+                    tarih: tarih,
+                    aktifEnerji: m.active_kwh,
+                    enduktifEnerji: m.inductive_kvarh,
+                    kapasitifEnerji: m.capacitive_kvarh,
+                    haftaSonu: gun === 0 || gun === 6,
+                    tatil: TATIL_SET.has(dateStr)
+                };
+            }).filter(v => !_silinmisVeriler.has(`${v.trafoId}_${v.tarih}`));
+            
+            veriEkleToplu(yeniVeriler);
+            _loadedMonths.add(monthKey);
+            console.log(`VeriModulu: ${monthKey} dönemi için ${yeniVeriler.length} ölçüm başarıyla yüklendi.`);
+        } catch (e) {
+            console.error(`VeriModulu: ${monthKey} verileri çekilemedi:`, e);
+        }
     }
 
     async function init() {
-        try {
-            if (typeof SPARK_RAW_DATA !== 'undefined') {
-                _RAW_DATA = SPARK_RAW_DATA;
-                console.log(`VeriModulu: ${_RAW_DATA.length} satır ham veri yüklendi.`);
-            } else {
-                throw new Error("SPARK_RAW_DATA bulunamadı");
-            }
-        } catch (e) {
-            console.error('VeriModulu: raw_data.js yüklenemedi:', e);
-            _RAW_DATA = [];
-        }
+        // Eski _RAW_DATA mantığı kaldırıldı, sadece state başlatılıyor
+        _tumVeriler = [];
+        _veriMap = new Map();
+        TRAFOLAR.forEach((trafo) => {
+            _veriMap.set(trafo.id, []);
+        });
         
-        tumVerileriYukle();
+        silinmisVerileriYukle();
         ekVerileriYukle();
     }
 
@@ -267,6 +293,36 @@ const VeriModulu = (() => {
         ekVerileriKaydet();
     }
 
+    function veriEkleToplu(yeniVerilerDizisi) {
+        let hasChanges = false;
+        yeniVerilerDizisi.forEach(veri => {
+            const trafoVerileri = _veriMap.get(veri.trafoId);
+            if (trafoVerileri) {
+                const mevcutIdx = trafoVerileri.findIndex(v => v.tarih === veri.tarih);
+                if (mevcutIdx !== -1) {
+                    trafoVerileri[mevcutIdx] = veri;
+                    const genelIdx = _tumVeriler.findIndex(v => v.trafoId === veri.trafoId && v.tarih === veri.tarih);
+                    if (genelIdx !== -1) _tumVeriler[genelIdx] = veri;
+                    const ekIdx = _ekVeriler.findIndex(v => v.trafoId === veri.trafoId && v.tarih === veri.tarih);
+                    if (ekIdx !== -1) _ekVeriler[ekIdx] = veri;
+                    else _ekVeriler.push(veri);
+                    hasChanges = true;
+                    return;
+                }
+            }
+            _ekVeriler.push(veri);
+            _tumVeriler.push(veri);
+            if (!_veriMap.has(veri.trafoId)) _veriMap.set(veri.trafoId, []);
+            _veriMap.get(veri.trafoId).push(veri);
+            hasChanges = true;
+        });
+
+        if (hasChanges) {
+            _veriMap.forEach(veriler => veriler.sort((a, b) => a.tarih.localeCompare(b.tarih)));
+            ekVerileriKaydet();
+        }
+    }
+
     function veriSil(trafoId, tarih) {
         _silinmisVeriler.add(`${trafoId}_${tarih}`);
         silinmisVerileriKaydet();
@@ -301,8 +357,10 @@ const VeriModulu = (() => {
                 v.tarih.startsWith(prefix)
             );
         },
+        loadAylikVeriler,
         getTatiller: () => TATIL_GUNLERI,
         veriEkle,
+        veriEkleToplu,
         veriSil,
         BUGUN: BITIS_TARIH.split(' ')[0],
         BUGUN_SAATLIK: BITIS_TARIH,
