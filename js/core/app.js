@@ -1397,9 +1397,8 @@ const App = (() => {
                      onclick="App.navigateToTrafo('${trafo.id}')">
                     <div class="trafo-card-header">
                         <div style="flex: 1; min-width: 0; padding-right: 8px;">
-                            <h3 style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 2px;">
-                                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${escapeHTML(trafo.adi)}</span>
-                                <span class="badge badge-${tRisk.seviye}" style="font-size:10px; white-space: nowrap;">${tahminEtiket}</span>
+                            <h3 style="margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHTML(trafo.adi)}">
+                                ${escapeHTML(trafo.adi)}
                             </h3>
                             <div class="trafo-tip">${trafo.tip ? escapeHTML(trafo.tip) + ' · ' : ''}${escapeHTML(trafo.bolge)}</div>
                         </div>
