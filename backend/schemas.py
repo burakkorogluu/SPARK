@@ -35,3 +35,25 @@ class ProcessedMeasurement(Measurement):
     
     class Config:
         from_attributes = True
+
+class Feeder(BaseModel):
+    id: str
+    name: str
+    current_transformer_id: str
+    alternative_transformer_id: Optional[str] = None
+    simulated_load_kw: float
+
+    class Config:
+        from_attributes = True
+
+class Reactor(BaseModel):
+    id: str
+    name: str
+    current_transformer_id: str
+    alternative_transformer_id: Optional[str] = None
+    capacity_kvar: float
+    status: str
+
+    class Config:
+        from_attributes = True
+

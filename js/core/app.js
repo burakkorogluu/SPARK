@@ -155,8 +155,10 @@ const App = (() => {
             case 'veri-giris': renderVeriGiris(); break;
             case 'trafo-detay': renderTrafoDetay(); break;
             case 'tahmin': renderTahmin(); break;
+            case 'manevra': renderManevra(); break;
         }
     }
+
 
     // ═══════════════════════════════════════════
     // SELECT POPULATE
@@ -1443,6 +1445,132 @@ const App = (() => {
             `;
         }).join('');
     }
+
+    // ═══════════════════════════════════════════
+    // MANEVRA ÖNERİ MODÜLÜ (GRUP B)
+    // ═══════════════════════════════════════════
+
+    async function renderManevra() {
+        await loadManevraAssets();
+        
+        const btnOneri = document.getElementById('btn-manevra-onerisi-al');
+        if (btnOneri && !btnOneri.dataset.bound) {
+            btnOneri.dataset.bound = "true";
+            btnOneri.addEventListener('click', async () => {
+                await fetchAndRenderManevraSuggestions();
+            });
+        }
+    }
+
+    async function loadManevraAssets() {
+        const feederBody = document.getElementById('feeder-table-body');
+        const reactorBody = document.getElementById('reactor-table-body');
+        if (!feederBody || !reactorBody) return;
+
+        try {
+            const data = await ApiClient.fetchManeuverAssets();
+            
+            // Render Feeders
+            if (data.feeders && data.feeders.length > 0) {
+                feederBody.innerHTML = data.feeders.map(f => `
+                    <tr>
+                        <td><b>${escapeHTML(f.name)}</b> <span class="text-muted" style="font-size:11px;">(${escapeHTML(f.id)})</span></td>
+                        <td><span class="badge badge-info">${escapeHTML(f.current_transformer_id)}</span></td>
+                        <td><span class="badge">${escapeHTML(f.alternative_transformer_id || '-')}</span></td>
+                        <td class="text-right"><b>${f.simulated_load_kw.toLocaleString('tr-TR')}</b> kW</td>
+                    </tr>
+                `).join('');
+            } else {
+                feederBody.innerHTML = '<tr><td colspan="4" class="text-center">Fider bulunamadı.</td></tr>';
+            }
+
+            // Render Reactors
+            if (data.reactors && data.reactors.length > 0) {
+                reactorBody.innerHTML = data.reactors.map(r => `
+                    <tr>
+                        <td><b>${escapeHTML(r.name)}</b> <span class="text-muted" style="font-size:11px;">(${escapeHTML(r.id)})</span></td>
+                        <td><span class="badge badge-info">${escapeHTML(r.current_transformer_id)}</span></td>
+                        <td><span class="badge">${escapeHTML(r.alternative_transformer_id || '-')}</span></td>
+                        <td class="text-right"><b>${r.capacity_kvar.toLocaleString('tr-TR')}</b> kVAr</td>
+                        <td class="text-center"><span class="badge ${r.status === 'active' ? 'badge-success' : 'badge-danger'}">${r.status === 'active' ? 'Aktif' : 'Pasif'}</span></td>
+                    </tr>
+                `).join('');
+            } else {
+                reactorBody.innerHTML = '<tr><td colspan="5" class="text-center">Reaktör bulunamadı.</td></tr>';
+            }
+        } catch (err) {
+            console.error("Manevra varlıkları yüklenirken hata:", err);
+        }
+    }
+
+    async function fetchAndRenderManevraSuggestions() {
+        const container = document.getElementById('manevra-onerileri-container');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div style="padding: 20px; text-align: center;">
+                <div class="loading-spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto 10px auto;"></div>
+                <span>Akıllı Manevra Önerileri Analiz Ediliyor...</span>
+            </div>
+        `;
+
+        try {
+            const suggestions = await ApiClient.fetchManeuverSuggestions();
+            if (!suggestions || suggestions.length === 0) {
+                container.innerHTML = `<div class="alert-box info">Şu anda yapılması gereken kritik bir manevra önerisi bulunmamaktadır.</div>`;
+                return;
+            }
+
+            container.innerHTML = suggestions.map(s => `
+                <div style="padding: 18px; border-radius: 10px; background: var(--bg-surface, rgba(30, 41, 59, 0.4)); border: 1px solid var(--border-color, rgba(148, 163, 184, 0.2)); display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge ${s.impact === 'Yüksek' ? 'badge-danger' : (s.impact === 'Orta' ? 'badge-warning' : 'badge-info')}">Öncelik: ${escapeHTML(s.impact)}</span>
+                            <h4 style="margin: 0; font-size: 16px;">${escapeHTML(s.title)}</h4>
+                        </div>
+                        <button class="btn btn-sm btn-primary btn-apply-maneuver" 
+                                data-asset-type="${s.feeder_id ? 'feeder' : 'reactor'}"
+                                data-asset-id="${s.feeder_id || s.reactor_id}"
+                                data-target="${s.target_trafo_id}">
+                            ⚡ Manevrayı Uygula
+                        </button>
+                    </div>
+                    <p style="margin: 0; color: var(--text-muted, #94a3b8); font-size: 14px; line-height: 1.5;">${escapeHTML(s.description)}</p>
+                    <div style="display: flex; gap: 16px; font-size: 13px; margin-top: 4px;">
+                        <span>📍 <b>Mevcut Trafo:</b> ${escapeHTML(s.source_trafo_name)}</span>
+                        <span>➡️ <b>Hedef Trafo:</b> ${escapeHTML(s.target_trafo_name)}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            // Bind apply buttons
+            container.querySelectorAll('.btn-apply-maneuver').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const type = btn.currentTarget.dataset.assetType;
+                    const id = btn.currentTarget.dataset.assetId;
+                    const target = btn.currentTarget.dataset.target;
+                    await applyManevrayaBas(type, id, target);
+                });
+            });
+
+        } catch (err) {
+            console.error("Manevra önerileri çekilirken hata:", err);
+            container.innerHTML = `<div class="alert-box danger">Öneriler alınırken sunucu hatası oluştu.</div>`;
+        }
+    }
+
+    async function applyManevrayaBas(assetType, assetId, targetTrafoId) {
+        try {
+            const res = await ApiClient.applyManeuver(assetType, assetId, targetTrafoId);
+            showToast(res.message || "Manevra başarıyla uygulandı!", "success");
+            await loadManevraAssets();
+            await fetchAndRenderManevraSuggestions();
+        } catch (err) {
+            console.error("Manevra uygulama hatası:", err);
+            showToast("Manevra uygulanamadı: " + err.message, "error");
+        }
+    }
+
     return {
         init,
         navigate,
@@ -1453,6 +1581,7 @@ const App = (() => {
         toggleModelDetail,
         renderForecastBanner,
         renderDashboard,
+        renderManevra,
         getState: () => state,
     };
 })();

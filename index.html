@@ -47,6 +47,11 @@
                 <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
                 <span class="nav-text">Tahmin & Senaryo</span>
             </button>
+            <button class="nav-btn" data-screen="manevra" id="nav-manevra">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                <span class="nav-text">Manevra Önerileri</span>
+            </button>
+
         </nav>
         <div class="header-info">
             <span class="current-date" id="current-date"></span>
@@ -522,6 +527,75 @@
                 </div>
             </div>
         </section>
+
+        <!-- ─── Ekran 5: Manevra Öneri Modülü ─── -->
+        <section id="screen-manevra" class="screen">
+            <div class="screen-header">
+                <h2>Manevra Öneri Modülü (Grup B)</h2>
+                <p>Şebeke yük dengesini ve reaktif güç durumunu analiz ederek otomatik manevra ve aktarım önerileri sunar.</p>
+            </div>
+
+            <div class="card mt-lg">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <h3>Saha Varlıkları (Fiderler ve Reaktörler)</h3>
+                    <button class="btn btn-primary" id="btn-manevra-onerisi-al">
+                        ⚡ Akıllı Manevra Önerisi Al
+                    </button>
+                </div>
+                <div class="grid grid-2 mt-md" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    <div>
+                        <h4 style="margin-bottom: 8px;">Fider Listesi</h4>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fider Adı</th>
+                                        <th>Bağlı Olduğu Trafo</th>
+                                        <th>Alternatif Trafo</th>
+                                        <th class="text-right">Yük (kW)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="feeder-table-body">
+                                    <tr><td colspan="4" class="text-center">Yükleniyor...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom: 8px;">Reaktör Listesi</h4>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Reaktör Adı</th>
+                                        <th>Bağlı Olduğu Trafo</th>
+                                        <th>Alternatif Trafo</th>
+                                        <th class="text-right">Kapasite (kVAr)</th>
+                                        <th class="text-center">Durum</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reactor-table-body">
+                                    <tr><td colspan="5" class="text-center">Yükleniyor...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Öneriler Kart Grubu -->
+            <div class="card mt-lg">
+                <div class="card-header">
+                    <h3>Aktif Manevra Tavsiyeleri</h3>
+                </div>
+                <div id="manevra-onerileri-container" style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
+                    <div style="padding: 16px; border-radius: 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--text-main);">
+                        Manevra önerilerini hesaplamak için yukarıdaki <b>"Akıllı Manevra Önerisi Al"</b> butonuna basınız.
+                    </div>
+                </div>
+            </div>
+        </section>
+
 
     </main>
 

@@ -110,3 +110,48 @@ def get_forecast(
 ):
     from services.forecast_service import get_cached_forecast
     return get_cached_forecast(db, transformer_id, year, month, method)
+
+@app.get("/api/maneuver/assets")
+def get_maneuver_assets(db: Session = Depends(get_db)):
+    feeders = db.query(models.Feeder).all()
+    reactors = db.query(models.Reactor).all()
+    return {
+        "feeders": [
+            {
+                "id": f.id,
+                "name": f.name,
+                "current_transformer_id": f.current_transformer_id,
+                "alternative_transformer_id": f.alternative_transformer_id,
+                "simulated_load_kw": f.simulated_load_kw
+            } for f in feeders
+        ],
+        "reactors": [
+            {
+                "id": r.id,
+                "name": r.name,
+                "current_transformer_id": r.current_transformer_id,
+                "alternative_transformer_id": r.alternative_transformer_id,
+                "capacity_kvar": r.capacity_kvar,
+                "status": r.status
+            } for r in reactors
+        ]
+    }
+
+@app.get("/api/maneuver/suggest")
+def get_maneuver_suggestions(db: Session = Depends(get_db)):
+    from services.maneuver_service import analyze_and_suggest_maneuvers
+    return analyze_and_suggest_maneuvers(db)
+
+@app.post("/api/maneuver/apply")
+def apply_maneuver_endpoint(
+    asset_type: str = Query(..., description="feeder or reactor"),
+    asset_id: str = Query(..., description="ID of the asset"),
+    target_trafo_id: str = Query(..., description="Destination Transformer ID"),
+    db: Session = Depends(get_db)
+):
+    from services.maneuver_service import apply_maneuver
+    success = apply_maneuver(db, asset_type, asset_id, target_trafo_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="Manevra uygulanamadı veya varlık bulunamadı.")
+    return {"status": "success", "message": f"{asset_id} varlığı {target_trafo_id} trafosuna başarıyla aktarıldı."}
+
