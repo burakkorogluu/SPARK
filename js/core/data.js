@@ -137,6 +137,7 @@ const VeriModulu = (() => {
     // ─── Tüm Saatlik Verileri Yükleme ───
     let _tumVeriler = [];
     let _veriMap = new Map(); // trafoId → [veriler]
+    let _loadedMonths = new Set();
 
     async function loadAylikVeriler(yil, ay) {
         const monthKey = `${yil}-${String(ay).padStart(2, '0')}`;
@@ -179,6 +180,7 @@ const VeriModulu = (() => {
     async function init() {
         _tumVeriler = [];
         _veriMap = new Map();
+        _loadedMonths = new Set();
         TRAFOLAR.forEach((trafo) => {
             _veriMap.set(trafo.id, []);
         });

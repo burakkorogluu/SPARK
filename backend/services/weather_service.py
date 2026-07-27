@@ -12,6 +12,7 @@ def get_weather_data(start_date: str, end_date: str, db: Session = None):
     """
     Fetches hourly weather data for the given date range (YYYY-MM-DD).
     If db session is provided, queries database first and caches missing items.
+    Also backfills missing new parameters for existing rows.
     """
     weather_map = {}
     
@@ -20,6 +21,9 @@ def get_weather_data(start_date: str, end_date: str, db: Session = None):
         end_dt = datetime.datetime.strptime(end_date, "%Y-%m-%d") + datetime.timedelta(days=1)
     except Exception:
         return weather_map
+
+    needs_api = False
+    expected_hours = int((end_dt - start_dt).total_seconds() / 3600) + 1
 
     if db is not None:
         try:
@@ -30,17 +34,29 @@ def get_weather_data(start_date: str, end_date: str, db: Session = None):
             
             for rec in cached_records:
                 key = rec.timestamp.strftime("%Y-%m-%d %H:00")
-                weather_map[key] = {"temp": rec.temperature}
+                weather_map[key] = {
+                    "temp": rec.temperature,
+                    "humidity": rec.humidity,
+                    "wind_speed": rec.wind_speed,
+                    "wind_direction": rec.wind_direction,
+                    "precipitation": rec.precipitation,
+                    "cloud_cover": rec.cloud_cover
+                }
+                
+                # Check if any new parameter is missing
+                if rec.wind_speed is None or rec.cloud_cover is None:
+                    needs_api = True
         except Exception as e:
             print(f"Weather DB Query Error: {e}")
+            needs_api = True
 
-    expected_hours = int((end_dt - start_dt).total_seconds() / 3600) + 1
-    
-    # If DB already has most data, avoid API call
-    if len(weather_map) >= expected_hours - 24:
+    if len(weather_map) < expected_hours - 24:
+        needs_api = True
+
+    if not needs_api:
         return weather_map
 
-    url = f"https://archive-api.open-meteo.com/v1/archive?latitude={LAT}&longitude={LON}&start_date={start_date}&end_date={end_date}&hourly=temperature_2m,relative_humidity_2m,cloud_cover,direct_radiation&timezone=Europe%2FIstanbul"
+    url = f"https://archive-api.open-meteo.com/v1/archive?latitude={LAT}&longitude={LON}&start_date={start_date}&end_date={end_date}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,cloud_cover&timezone=Europe%2FIstanbul"
     
     try:
         response = requests.get(url, timeout=10)
@@ -50,43 +66,82 @@ def get_weather_data(start_date: str, end_date: str, db: Session = None):
         if "hourly" in data and "time" in data["hourly"]:
             times = data["hourly"]["time"]
             temps = data["hourly"]["temperature_2m"]
+            hums = data["hourly"]["relative_humidity_2m"]
+            winds = data["hourly"]["wind_speed_10m"]
+            wind_dirs = data["hourly"]["wind_direction_10m"]
+            precs = data["hourly"]["precipitation"]
+            clouds = data["hourly"]["cloud_cover"]
             
-            for i, t in enumerate(times):
-                dt_str = t.replace("T", " ")
-                temp_val = temps[i] if temps[i] is not None else 20.0
-                weather_map[dt_str] = {"temp": temp_val}
-
             if db is not None:
-                existing_ts = set(r[0] for r in db.query(models.WeatherData.timestamp).filter(
+                existing_records = {r.timestamp: r for r in db.query(models.WeatherData).filter(
                     models.WeatherData.timestamp >= start_dt,
                     models.WeatherData.timestamp <= end_dt
-                ).all())
+                ).all()}
                 
                 to_add = []
                 for i, t in enumerate(times):
-                    dt_obj = datetime.datetime.strptime(t.replace("T", " "), "%Y-%m-%d %H:00")
-                    if dt_obj not in existing_ts:
-                        temp_val = temps[i] if temps[i] is not None else 20.0
-                        to_add.append(models.WeatherData(timestamp=dt_obj, temperature=temp_val))
-                        existing_ts.add(dt_obj)
+                    dt_str = t.replace("T", " ")
+                    dt_obj = datetime.datetime.strptime(dt_str, "%Y-%m-%d %H:00")
+                    
+                    t_val = temps[i] if temps[i] is not None else 20.0
+                    h_val = hums[i] if hums[i] is not None else 50.0
+                    ws_val = winds[i] if winds[i] is not None else 0.0
+                    wd_val = wind_dirs[i] if wind_dirs[i] is not None else 0.0
+                    p_val = precs[i] if precs[i] is not None else 0.0
+                    c_val = clouds[i] if clouds[i] is not None else 0.0
+                    
+                    weather_map[dt_str] = {
+                        "temp": t_val, "humidity": h_val, "wind_speed": ws_val,
+                        "wind_direction": wd_val, "precipitation": p_val, "cloud_cover": c_val
+                    }
+
+                    if dt_obj in existing_records:
+                        rec = existing_records[dt_obj]
+                        if rec.wind_speed is None:
+                            rec.humidity = h_val
+                            rec.wind_speed = ws_val
+                            rec.wind_direction = wd_val
+                            rec.precipitation = p_val
+                            rec.cloud_cover = c_val
+                    else:
+                        to_add.append(models.WeatherData(
+                            timestamp=dt_obj, temperature=t_val, humidity=h_val,
+                            wind_speed=ws_val, wind_direction=wd_val, precipitation=p_val, cloud_cover=c_val
+                        ))
                         
-                if to_add:
+                if to_add or existing_records:
                     try:
                         db.add_all(to_add)
                         db.commit()
-                        print(f"Cached {len(to_add)} weather records into database.")
+                        print(f"Cached/Updated weather records in database.")
                     except Exception as commit_err:
                         db.rollback()
                         print(f"Weather DB Commit Error: {commit_err}")
+            else:
+                for i, t in enumerate(times):
+                    dt_str = t.replace("T", " ")
+                    weather_map[dt_str] = {
+                        "temp": temps[i] if temps[i] is not None else 20.0,
+                        "humidity": hums[i] if hums[i] is not None else 50.0,
+                        "wind_speed": winds[i] if winds[i] is not None else 0.0,
+                        "wind_direction": wind_dirs[i] if wind_dirs[i] is not None else 0.0,
+                        "precipitation": precs[i] if precs[i] is not None else 0.0,
+                        "cloud_cover": clouds[i] if clouds[i] is not None else 0.0
+                    }
 
         return weather_map
     except Exception as e:
         print(f"Weather API Error: {e}")
         return weather_map
 
-def get_temperature_for_timestamp(weather_map, dt: datetime.datetime):
+def get_weather_features_for_timestamp(weather_map, dt: datetime.datetime):
     key = dt.strftime("%Y-%m-%d %H:00")
     if key in weather_map:
-        return weather_map[key]["temp"]
-    return 20.0
+        return weather_map[key]
+    return {
+        "temp": 20.0, "humidity": 50.0, "wind_speed": 0.0,
+        "wind_direction": 0.0, "precipitation": 0.0, "cloud_cover": 0.0
+    }
 
+def get_temperature_for_timestamp(weather_map, dt: datetime.datetime):
+    return get_weather_features_for_timestamp(weather_map, dt)["temp"]

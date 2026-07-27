@@ -538,7 +538,7 @@ const App = (() => {
     function setupFormHandlers() {
         // Manuel veri giriş formu
         const form = document.getElementById('veri-giris-form');
-        form?.addEventListener('submit', (e) => {
+        form?.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const trafoId = document.getElementById('input-trafo').value;

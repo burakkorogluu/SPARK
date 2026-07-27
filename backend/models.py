@@ -35,6 +35,11 @@ class WeatherData(Base):
 
     timestamp = Column(DateTime, primary_key=True, index=True)
     temperature = Column(Float)
+    humidity = Column(Float, nullable=True)
+    wind_speed = Column(Float, nullable=True)
+    wind_direction = Column(Float, nullable=True)
+    precipitation = Column(Float, nullable=True)
+    cloud_cover = Column(Float, nullable=True)
 
 class Feeder(Base):
     __tablename__ = "feeders"

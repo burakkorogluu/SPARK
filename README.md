@@ -1,6 +1,6 @@
 # 🌐 SPARK | Akıllı Şebeke Reaktif Güç Takip, Saatlik Tahmin ve Karar Destek Sistemi
 
-**SPARK**, Türkiye Elektrik İletim A.Ş. (**TEİAŞ**) trafo merkezlerinin saatlik yük verilerini kullanarak aktif, endüktif ve kapasitif enerji tüketimlerini gerçek zamanlı izleyen; EPDK reaktif ceza sınırlarına karşı yapay zeka ve makine öğrenmesi modelleriyle **saatlik ay sonu ceza projeksiyonu** sunan gelişmiş bir **SCADA ve Karar Destek Sistemidir**.
+**SPARK**, Türkiye Elektrik İletim A.Ş. (**TEİAŞ**) trafo merkezlerinin saatlik yük verilerini kullanarak aktif, endüktif ve kapasitif enerji tüketimlerini gerçek zamanlı izleyen; EPDK reaktif ceza sınırlarına karşı gelişmiş yapay zeka (XGBoost), makine öğrenmesi ve meteorolojik verilerle **saatlik ay sonu ceza projeksiyonu** sunan modern bir **SCADA ve Karar Destek Sistemidir**.
 
 ---
 
@@ -12,7 +12,7 @@ Türkiye'de **EPDK (Enerji Piyasası Düzenleme Kurumu)** mevzuatına göre ayl�
 
 ## ⚡ Veri Seti ve Altyapı
 
-Sistem, gerçek TEİAŞ yük kayıtları ve OSOS tabanlı saatlik okumalarla çalışır. Önceki "Sadece Tarayıcı (Client-Side)" mimarisinden ölçeklenebilir modern **Backend & Frontend** mimarisine geçiş yapılmıştır.
+Sistem, gerçek TEİAŞ yük kayıtları, OSOS tabanlı saatlik okumalar ve **Open-Meteo API** üzerinden anlık/geçmiş hava durumu (Sıcaklık, Nem, Rüzgar, Bulutluluk vb.) metrikleriyle çalışır.
 Veriler SQLite veritabanı (`osos_sim.db`) üzerinde tutulmakta olup, SQLAlchemy ORM ile yönetilmektedir.
 
 **Tanımlı Örnek Trafolar:**
@@ -34,15 +34,16 @@ Seçilen trafonun saat saat tüketim geçmişi, kümülatif ilerleyiş grafikler
 ### 3. 🌐 Şebeke Topolojisi & SCADA
 Trafolar arası enerji akışını animasyonlarla gösteren endüstriyel şema. Trafolara tıklandığında Canvas üzerinde çizilen **Anlık Fazör & Güç Üçgeni**.
 
-### 4. 📈 Saatlik Ay Sonu Tahminci (Makine Öğrenmesi)
-Python Backend'de (Scikit-Learn & Statsmodels) çalışan 7 farklı tahmin algoritması:
-1. **🌳 Random Forest (Makine Öğrenmesi):** Hafta sonu, saat ve 24 saatlik gecikme (lag) özniteliklerini kullanan Regresyon Ormanı.
-2. **🚀 Topluluk Modeli (Ensemble):** Random Forest ve Holt-Winters modellerinin birleştirilmiş daha stabil versiyonu.
-3. **📈 Holt-Winters Üçlü Üssel Düzeltme:** Mevsimsellik ve trendi ayrıştıran istatistiksel zaman serisi modeli (24 saatlik periyot).
-4. **Doğrusal Regresyon (Linear Regression):** Gecikmeli öznitelikler üzerinden lineer eğilim hesabı.
-5. **İstatistiksel Ortalama:** Son 7 günün aynı saatlerinin aritmetik ortalaması.
-6. **Geçen Hafta (Persistence):** Bir önceki haftanın birebir tekrarı kabulü.
-7. **Geçen Ay:** Geçen ayki hareketliliğin devam edeceği varsayımı.
+### 4. 📈 Saatlik Ay Sonu Tahminci & Yapay Zeka (XGBoost + SHAP)
+Python Backend'de çalışan 8 farklı tahmin algoritması:
+1. **🤖 XGBoost & SHAP (Yapay Zeka):** Sıcaklık, Nem, Rüzgar, Bulutluluk ve THI (Hissedilen Isı İndeksi) verilerini analiz ederek en tutarlı tahminleri üretir. SHAP entegrasyonu sayesinde arayüze "Neden sınır ihlali yaşandığına" dair istatistiksel kanıtlar (XAI) sunar.
+2. **🌳 Random Forest (Makine Öğrenmesi):** Hafta sonu, saat ve 24 saatlik gecikme (lag) özniteliklerini kullanan Regresyon Ormanı.
+3. **🚀 Topluluk Modeli (Ensemble):** Çeşitli modellerin birleştirilmiş daha stabil versiyonu.
+4. **📈 Holt-Winters Üçlü Üssel Düzeltme:** Mevsimsellik ve trendi ayrıştıran istatistiksel zaman serisi modeli (24 saatlik periyot).
+5. **Doğrusal Regresyon (Linear Regression):** Gecikmeli öznitelikler üzerinden lineer eğilim hesabı.
+6. **İstatistiksel Ortalama:** Son 7 günün aynı saatlerinin aritmetik ortalaması.
+7. **Geçen Hafta (Persistence):** Bir önceki haftanın birebir tekrarı kabulü.
+8. **Geçen Ay:** Geçen ayki hareketliliğin devam edeceği varsayımı.
 
 *Not: Sistem tüm tahminlerde, veri üzerindeki modele özgü sapmaları hesaplayarak (MAPE üzerinden) **Gerçek Güven Skoru** üretir.*
 
@@ -63,8 +64,9 @@ SPARK/
 │   ├── init_db.py              # Veritabanı ilklendirme scripti
 │   ├── osos_sim.db             # Uygulama veritabanı
 │   └── services/
+│       ├── weather_service.py  # Open-Meteo Entegrasyonu ve Backfill Mekanizması
 │       ├── analysis_service.py # Veri analizi ve aylık oran hesaplamaları
-│       └── forecast_service.py # Scikit-Learn destekli tahmin ve ML motoru
+│       └── forecast_service.py # XGBoost, SHAP ve ML tahmin motoru
 ├── css/
 │   └── style.css               # Tasarım sistemi
 └── js/
@@ -93,6 +95,9 @@ Terminalinizde proje dizinine gidin ve aşağıdaki komutları çalıştırın:
 # Python sanal ortamını (venv) aktifleştirin
 source backend/venv/bin/activate 
 
+# Bağımlılıkları Kurun
+pip install -r backend/requirements.txt
+
 # FastAPI sunucusunu başlatın
 cd backend
 uvicorn main:app --reload --port 8000
@@ -100,4 +105,4 @@ uvicorn main:app --reload --port 8000
 *(Sunucu `http://127.0.0.1:8000` adresinde ayağa kalkacaktır.)*
 
 ### 2. Frontend (İstemci) Başlatma
-Sunucu ayaktayken, ana dizindeki **`index.html`** dosyasını herhangi bir modern web tarayıcısında (Chrome, Firefox, Safari) açmanız yeterlidir. Arayüz otomatik olarak yerel sunucuya bağlanarak çalışmaya başlayacaktır.
+Sunucu ayaktayken, ana dizindeki **`index.html`** dosyasını herhangi bir modern web tarayıcısında (Chrome, Firefox, Safari) açmanız yeterlidir. Localhost üzerinden sunucu ayağa kalkmışsa doğrudan iletişim kurulur.
