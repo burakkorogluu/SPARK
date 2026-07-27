@@ -1396,11 +1396,14 @@ const App = (() => {
                 <div class="trafo-card risk-${risk.seviye}" style="animation-delay: ${idx * 0.06}s"
                      onclick="App.navigateToTrafo('${trafo.id}')">
                     <div class="trafo-card-header">
-                        <div>
-                            <h3>${escapeHTML(trafo.adi)} <span class="badge badge-${tRisk.seviye}" style="margin-left:8px; font-size:10px;">${tahminEtiket}</span></h3>
-                            <div class="trafo-tip">${escapeHTML(trafo.tip)} · ${escapeHTML(trafo.bolge)}</div>
+                        <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                            <h3 style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 2px;">
+                                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${escapeHTML(trafo.adi)}</span>
+                                <span class="badge badge-${tRisk.seviye}" style="font-size:10px; white-space: nowrap;">${tahminEtiket}</span>
+                            </h3>
+                            <div class="trafo-tip">${trafo.tip ? escapeHTML(trafo.tip) + ' · ' : ''}${escapeHTML(trafo.bolge)}</div>
                         </div>
-                        <span class="badge badge-${risk.seviye}">${risk.ikon || ''} ${risk.etiket || risk.seviye.toUpperCase()}</span>
+                        <span class="badge badge-${risk.seviye}" style="flex-shrink: 0; white-space: nowrap;">${risk.ikon || ''} ${risk.etiket || risk.seviye.toUpperCase()}</span>
                     </div>
                     <div class="trafo-card-stats">
                         <div class="trafo-stat">
