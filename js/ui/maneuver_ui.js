@@ -248,6 +248,14 @@ const ManeuverUI = (() => {
             applyBtn.addEventListener('click', async () => {
                 if (!_simCurrentData) return;
                 const reason = document.getElementById('sim-reason-input')?.value || '';
+                const overrideChk = document.getElementById('chk-override-overload');
+                const overrideOverload = overrideChk ? overrideChk.checked : false;
+
+                if (overrideChk && !overrideChk.checked) {
+                    App.showToast("Bu manevra hedef trafoda aşırı yüke sebep oluyor! Devam etmek için onay kutusunu işaretleyin.", "warning");
+                    return;
+                }
+
                 try {
                     applyBtn.disabled = true;
                     applyBtn.textContent = 'Uygulanıyor...';
@@ -255,7 +263,8 @@ const ManeuverUI = (() => {
                         _simCurrentData.asset_type,
                         _simCurrentData.asset_id,
                         _simCurrentData.target_trafo_id,
-                        reason || null
+                        reason || null,
+                        overrideOverload
                     );
                     App.showToast(res.message || "Manevra başarıyla uygulandı!", "success");
                     closeModal();
@@ -303,9 +312,22 @@ const ManeuverUI = (() => {
                 const map = { tehlikeli: 'Tehlikeli', riskli: 'Riskli', dikkat: 'Dikkat', normal: 'Normal', guvenli: 'Güvenli' };
                 return map[risk] || risk;
             };
-            const loadBarClass = (ratio) => ratio > 70 ? 'high' : (ratio > 50 ? 'medium' : 'low');
+            const loadBarClass = (ratio) => ratio > 100 ? 'high' : (ratio > 70 ? 'high' : (ratio > 50 ? 'medium' : 'low'));
 
             body.innerHTML = `
+                ${sim.is_overload ? `
+                <div style="margin-bottom: 16px; padding: 12px 16px; border-radius: 8px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; font-size: 13px;">
+                    <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 4px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        ${App.escapeHTML(sim.overload_warning || 'Aşırı Yük Uyarısı!')}
+                    </div>
+                    <label style="display: flex; align-items: center; gap: 8px; margin-top: 8px; cursor: pointer; color: var(--text-primary); font-weight: 500;">
+                        <input type="checkbox" id="chk-override-overload" style="width: 16px; height: 16px; accent-color: #ef4444;">
+                        Aşırı Yük Riskini Kabul Ediyorum ve Yine de Devam Et
+                    </label>
+                </div>
+                ` : ''}
+
                 <div class="sim-comparison-grid">
                     <div class="sim-trafo-panel">
                         <h4>Kaynak Trafo</h4>
@@ -379,7 +401,7 @@ const ManeuverUI = (() => {
             `;
         } catch (err) {
             console.error("Simülasyon hatası:", err);
-            body.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--color-danger-light);">Simülasyon yapılırken hata oluştu: ${App.escapeHTML(err.message)}</div>`;
+            body.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--color-danger-light); font-weight: 500; font-size: 14px;">${App.escapeHTML(err.message)}</div>`;
         }
     }
 
@@ -466,20 +488,40 @@ const ManeuverUI = (() => {
         if (!canvas) return;
 
         const wrap = canvas.parentElement;
+        let logicalWidth = 900;
+        let logicalHeight = 440;
+        
         if (wrap) {
-            canvas.width = wrap.clientWidth || 900;
-            canvas.height = 280;
+            logicalWidth = wrap.clientWidth || 900;
         }
 
+        // Görüntü Kalitesi (High DPI / Retina Display) Desteği
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = logicalWidth * dpr;
+        canvas.height = logicalHeight * dpr;
+        canvas.style.width = logicalWidth + 'px';
+        canvas.style.height = logicalHeight + 'px';
+
         const ctx = canvas.getContext('2d');
-        const W = canvas.width;
-        const H = canvas.height;
+        ctx.scale(dpr, dpr);
+        
+        const W = logicalWidth;
+        const H = logicalHeight;
+        
         ctx.clearRect(0, 0, W, H);
 
         const isLight = document.body.getAttribute('data-theme') === 'light';
-        const textColor = isLight ? '#1e293b' : '#e0e0e0';
-        const mutedColor = isLight ? '#64748b' : '#757575';
-        const activeLineColor = isLight ? '#3174f6' : '#5b8df6';
+        const textColor = isLight ? '#334155' : '#f8fafc';
+        const mutedColor = isLight ? '#94a3b8' : '#94a3b8';
+        const borderColor = isLight ? '#e2e8f0' : '#334155';
+        
+        const trafoColor = isLight ? '#0f172a' : '#ffffff';
+        const trafoBg = isLight ? '#ffffff' : '#1e293b';
+        
+        const activeLineColor = isLight ? 'rgba(59, 130, 246, 0.45)' : 'rgba(96, 165, 250, 0.4)';
+        const activeStroke = isLight ? '#3b82f6' : '#60a5fa';
+        
+        const altLineColor = isLight ? 'rgba(148, 163, 184, 0.4)' : 'rgba(100, 116, 139, 0.5)';
 
         const trafoSet = new Set();
         (assets.feeders || []).forEach(f => { trafoSet.add(f.current_transformer_id); if (f.alternative_transformer_id) trafoSet.add(f.alternative_transformer_id); });
@@ -494,141 +536,285 @@ const ManeuverUI = (() => {
             return;
         }
 
-        const trafoY = 50;
-        const feederY = 180;
-        const reactorY = 230;
+        // YENİ YERLEŞİM (Daha Ferah): Reaktörler üstte, Trafolar ortada, Fiderler altta
+        const reactorY = 80;
+        const trafoY = 220;
+        const feederY = 360;
+
         const trafoSpacing = W / (trafos.length + 1);
-
         const trafoPositions = {};
+        
         trafos.forEach((tid, i) => {
-            const x = trafoSpacing * (i + 1);
-            trafoPositions[tid] = x;
-
-            ctx.fillStyle = activeLineColor;
-            ctx.beginPath();
-            ctx.arc(x, trafoY, 20, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 10px Inter, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(tid.split('-').pop(), x, trafoY);
-
-            ctx.fillStyle = textColor;
-            ctx.font = '11px Inter, sans-serif';
-            ctx.fillText(tid, x, trafoY - 30);
+            trafoPositions[tid] = trafoSpacing * (i + 1);
         });
 
         const feeders = assets.feeders || [];
         const feederSpacing = feeders.length > 0 ? W / (feeders.length + 1) : W / 2;
+        const feederPositions = [];
+        
+        const reactors = assets.reactors || [];
+        const reactorSpacing = reactors.length > 0 ? W / (reactors.length + 1) : W / 2;
+        const reactorPositions = [];
 
-        feeders.forEach((f, i) => {
-            const fx = feederSpacing * (i + 1);
-
-            const boxW = 80, boxH = 28;
-            ctx.fillStyle = isLight ? '#e3f2fd' : 'rgba(49, 116, 246, 0.15)';
-            ctx.strokeStyle = activeLineColor;
-            ctx.lineWidth = 1.5;
+        // Yardımcı fonksiyon: Bezier eğrisi çizimi
+        const drawConnection = (startX, startY, endX, endY, isAlt, customColor = null) => {
             ctx.beginPath();
-            ctx.roundRect(fx - boxW / 2, feederY - boxH / 2, boxW, boxH, 6);
-            ctx.fill();
+            ctx.moveTo(startX, startY);
+            
+            const diff = endY - startY;
+            const cpY1 = startY + diff * 0.4;
+            const cpY2 = endY - diff * 0.4;
+            
+            ctx.bezierCurveTo(startX, cpY1, endX, cpY2, endX, endY);
+            
+            ctx.lineWidth = isAlt ? 1.5 : 2;
+            ctx.strokeStyle = customColor ? customColor : (isAlt ? altLineColor : activeLineColor);
+            
+            if (isAlt) ctx.setLineDash([6, 6]);
+            else ctx.setLineDash([]);
+            
             ctx.stroke();
+            ctx.setLineDash([]);
+        };
 
-            ctx.fillStyle = textColor;
-            ctx.font = '10px Inter, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            const shortName = f.name.length > 12 ? f.name.substring(0, 12) + '…' : f.name;
-            ctx.fillText(shortName, fx, feederY);
-
-            ctx.fillStyle = mutedColor;
-            ctx.font = '9px Inter, sans-serif';
-            ctx.fillText(`${f.simulated_load_kw} kW`, fx, feederY + 20);
-
-            if (trafoPositions[f.current_transformer_id] !== undefined) {
-                const tx = trafoPositions[f.current_transformer_id];
-                ctx.strokeStyle = activeLineColor;
-                ctx.lineWidth = 2;
-                ctx.setLineDash([]);
-                ctx.beginPath();
-                ctx.moveTo(fx, feederY - boxH / 2);
-                ctx.lineTo(tx, trafoY + 20);
-                ctx.stroke();
-            }
-
-            if (f.alternative_transformer_id && trafoPositions[f.alternative_transformer_id] !== undefined) {
-                const ax = trafoPositions[f.alternative_transformer_id];
-                ctx.strokeStyle = isLight ? 'rgba(15,23,42,0.2)' : 'rgba(148,163,184,0.25)';
-                ctx.lineWidth = 1;
-                ctx.setLineDash([4, 4]);
-                ctx.beginPath();
-                ctx.moveTo(fx, feederY - boxH / 2);
-                ctx.lineTo(ax, trafoY + 20);
-                ctx.stroke();
-                ctx.setLineDash([]);
+        // Bağlantıların çizimi (En altta kalsın diye önce çiziliyor)
+        
+        // Reaktör Bağlantıları (Üstten Ortaya)
+        reactors.forEach((r, i) => {
+            const rx = reactorSpacing * (i + 1);
+            reactorPositions.push(rx);
+            const rr = 16;
+            
+            if (trafoPositions[r.current_transformer_id] !== undefined) {
+                const tx = trafoPositions[r.current_transformer_id];
+                const isActive = r.status === 'active';
+                const lineColor = isActive ? (isLight ? 'rgba(217, 119, 6, 0.6)' : 'rgba(251, 191, 36, 0.6)') : altLineColor;
+                drawConnection(rx, reactorY + rr, tx, trafoY - 16, false, lineColor);
             }
         });
 
-        const reactors = assets.reactors || [];
-        const reactorSpacing = reactors.length > 0 ? W / (reactors.length + 1) : W / 2;
+        // Fider Bağlantıları (Alttan Ortaya)
+        feeders.forEach((f, i) => {
+            const fx = feederSpacing * (i + 1);
+            feederPositions.push(fx);
+            const boxH = 40;
+            
+            if (trafoPositions[f.current_transformer_id] !== undefined) {
+                const tx = trafoPositions[f.current_transformer_id];
+                drawConnection(fx, feederY - boxH / 2, tx, trafoY + 16, false);
+            }
+            if (f.alternative_transformer_id && trafoPositions[f.alternative_transformer_id] !== undefined) {
+                const ax = trafoPositions[f.alternative_transformer_id];
+                drawConnection(fx, feederY - boxH / 2, ax, trafoY + 16, true);
+            }
+        });
 
+        // Reaktörler (Üst)
         reactors.forEach((r, i) => {
-            const rx = reactorSpacing * (i + 1);
-
-            const rr = 14;
-            ctx.fillStyle = r.status === 'active'
-                ? (isLight ? '#fff3e0' : 'rgba(245, 124, 0, 0.15)')
-                : (isLight ? '#fafafa' : 'rgba(117,117,117,0.15)');
-            ctx.strokeStyle = r.status === 'active' ? '#f57c00' : '#757575';
+            const rx = reactorPositions[i];
+            const rr = 16;
+            
+            const isActive = r.status === 'active';
+            const rColor = isActive ? (isLight ? '#d97706' : '#fbbf24') : (isLight ? '#94a3b8' : '#64748b');
+            const rBg = isActive ? (isLight ? '#fffbeb' : 'rgba(245, 158, 11, 0.08)') : (isLight ? '#f8fafc' : 'rgba(148, 163, 184, 0.08)');
+            
+            ctx.shadowColor = isActive ? 'rgba(245, 158, 11, 0.2)' : 'rgba(0,0,0,0.05)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 4;
+            
+            ctx.fillStyle = rBg;
+            ctx.strokeStyle = rColor;
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.arc(rx, reactorY, rr, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
-
-            ctx.fillStyle = r.status === 'active' ? '#f57c00' : '#757575';
-            ctx.font = 'bold 9px Inter, sans-serif';
+            
+            ctx.shadowColor = 'transparent';
+            
+            ctx.fillStyle = rColor;
+            ctx.font = '700 12px Inter, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('R', rx, reactorY);
-
+            
             ctx.fillStyle = mutedColor;
-            ctx.font = '9px Inter, sans-serif';
-            const shortRName = r.name.length > 14 ? r.name.substring(0, 14) + '…' : r.name;
-            ctx.fillText(shortRName, rx, reactorY + 22);
-
-            if (trafoPositions[r.current_transformer_id] !== undefined) {
-                const tx = trafoPositions[r.current_transformer_id];
-                ctx.strokeStyle = r.status === 'active' ? '#f57c00' : '#757575';
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([]);
-                ctx.beginPath();
-                ctx.moveTo(rx, reactorY - rr);
-                ctx.lineTo(tx, trafoY + 20);
-                ctx.stroke();
-            }
+            ctx.font = '400 10px Inter, sans-serif';
+            const shortRName = r.name.length > 16 ? r.name.substring(0, 16) + '…' : r.name;
+            ctx.fillText(shortRName, rx, reactorY - 26); // Etiketi üste aldık
         });
 
-        ctx.setLineDash([]);
-        ctx.fillStyle = mutedColor;
-        ctx.font = '10px Inter, sans-serif';
-        ctx.textAlign = 'left';
+        // Trafolar (Orta)
+        trafos.forEach((tid, i) => {
+            const x = trafoPositions[tid];
+            const tw = 88;
+            const th = 32;
+            
+            ctx.shadowColor = 'rgba(0,0,0,0.08)';
+            ctx.shadowBlur = 12;
+            ctx.shadowOffsetY = 4;
+            
+            ctx.fillStyle = trafoBg;
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(x - tw/2, trafoY - th/2, tw, th, th/2);
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.shadowColor = 'transparent';
+            
+            ctx.fillStyle = trafoColor;
+            ctx.font = '600 12px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const cleanName = tid.split('-').pop();
+            ctx.fillText(cleanName, x, trafoY);
+            
+            ctx.fillStyle = mutedColor;
+            ctx.font = '10px Inter, sans-serif';
+            ctx.fillText(tid, x + tw/2 + 30, trafoY); // Etiketi sağa aldık
+        });
 
+        // Fiderler (Alt)
+        feeders.forEach((f, i) => {
+            const fx = feederPositions[i];
+            const boxW = 104, boxH = 40;
+            
+            ctx.shadowColor = 'rgba(0,0,0,0.06)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 4;
+            
+            ctx.fillStyle = trafoBg;
+            ctx.strokeStyle = activeStroke;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(fx - boxW/2, feederY - boxH/2, boxW, boxH, 6);
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.shadowColor = 'transparent';
+            
+            ctx.fillStyle = textColor;
+            ctx.font = '500 11px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const shortName = f.name.length > 14 ? f.name.substring(0, 14) + '…' : f.name;
+            ctx.fillText(shortName, fx, feederY - 5);
+            
+            ctx.fillStyle = mutedColor;
+            ctx.font = '400 10px Inter, sans-serif';
+            ctx.fillText(`${f.simulated_load_kw.toLocaleString('tr-TR')} kW`, fx, feederY + 9);
+        });
+
+        // Lejant
+        ctx.fillStyle = mutedColor;
+        ctx.font = '11px Inter, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+
+        // Aktif Bağlantı
         ctx.strokeStyle = activeLineColor;
         ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(10, H - 16); ctx.lineTo(30, H - 16); ctx.stroke();
-        ctx.fillText('Aktif Bağlantı', 34, H - 12);
+        ctx.beginPath(); ctx.moveTo(20, H - 24); ctx.lineTo(46, H - 24); ctx.stroke();
+        ctx.fillText('Aktif Fider', 56, H - 24);
 
-        ctx.strokeStyle = mutedColor;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath(); ctx.moveTo(140, H - 16); ctx.lineTo(160, H - 16); ctx.stroke();
+        // Reaktör Bağlantısı
+        ctx.strokeStyle = isLight ? 'rgba(217, 119, 6, 0.6)' : 'rgba(251, 191, 36, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(130, H - 24); ctx.lineTo(156, H - 24); ctx.stroke();
+        ctx.fillText('Reaktör Bağlantısı', 166, H - 24);
+
+        // Alternatif Bağlantı
+        ctx.strokeStyle = altLineColor;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath(); ctx.moveTo(280, H - 24); ctx.lineTo(306, H - 24); ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillText('Alternatif Bağlantı', 164, H - 12);
+        ctx.fillText('Alternatif Fider', 316, H - 24);
     }
 
     function bindManevraCRUDModals() {
+        // Manuel Manevra Binds
+        const btnManuel = document.getElementById('btn-manuel-manevra');
+        const modalManuel = document.getElementById('manuel-manevra-modal');
+        const closeManuelBtn = document.getElementById('btn-close-manuel-modal');
+        const formManuel = document.getElementById('manuel-manevra-form');
+        const selectAssetType = document.getElementById('manuel-asset-type');
+        const selectAssetId = document.getElementById('manuel-asset-id');
+        
+        if (btnManuel && modalManuel && !btnManuel.dataset.bound) {
+            btnManuel.dataset.bound = "true";
+            
+            const filterTargetTrafos = async () => {
+                const assetId = selectAssetId.value;
+                const type = selectAssetType.value;
+                const targetSelect = document.getElementById('manuel-target-trafo');
+                if (!targetSelect) return;
+                
+                if (!assetId || !_cachedAssets) {
+                    await populateModalTrafoSelects(['manuel-target-trafo']);
+                    return;
+                }
+
+                const list = type === 'feeder' ? _cachedAssets.feeders : _cachedAssets.reactors;
+                const asset = (list || []).find(a => a.id === assetId);
+                
+                if (asset) {
+                    const allTrafos = await ApiClient.fetchTransformers();
+                    let allowed = [];
+                    
+                    if (asset.alternative_transformer_id) {
+                        allowed = allTrafos.filter(t => t.id === asset.alternative_transformer_id);
+                    } else {
+                        allowed = allTrafos.filter(t => t.id !== asset.current_transformer_id);
+                    }
+
+                    if (allowed.length === 0) {
+                        targetSelect.innerHTML = '<option value="">Uygun alternatif trafo bulunamadı</option>';
+                    } else {
+                        targetSelect.innerHTML = allowed.map(t => `<option value="${t.id}">${t.name} (${t.id})</option>`).join('');
+                    }
+                }
+            };
+
+            const populateAssets = async (type) => {
+                if (!_cachedAssets) return;
+                const assets = type === 'feeder' ? _cachedAssets.feeders : _cachedAssets.reactors;
+                selectAssetId.innerHTML = '<option value="">Seçiniz...</option>' + 
+                    (assets || []).map(a => `<option value="${a.id}">${a.name} (${a.current_transformer_id})</option>`).join('');
+                await filterTargetTrafos();
+            };
+
+            btnManuel.addEventListener('click', async () => {
+                await populateAssets(selectAssetType.value);
+                modalManuel.style.display = 'flex';
+            });
+            
+            closeManuelBtn?.addEventListener('click', () => { modalManuel.style.display = 'none'; });
+            modalManuel.addEventListener('click', (e) => { if (e.target === modalManuel) modalManuel.style.display = 'none'; });
+
+            selectAssetType?.addEventListener('change', async (e) => {
+                await populateAssets(e.target.value);
+            });
+
+            selectAssetId?.addEventListener('change', async () => {
+                await filterTargetTrafos();
+            });
+
+            formManuel?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const type = selectAssetType.value;
+                const assetId = selectAssetId.value;
+                const target = document.getElementById('manuel-target-trafo').value;
+                
+                if (!assetId || !target) return;
+                
+                modalManuel.style.display = 'none';
+                await openSimulationModal(type, assetId, target);
+            });
+        }
+
         const addFeederBtn = document.getElementById('btn-add-feeder');
         const feederModal = document.getElementById('add-feeder-modal');
         const closeFeederBtn = document.getElementById('btn-close-add-feeder');

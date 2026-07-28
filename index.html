@@ -605,7 +605,7 @@
                         </h4>
                     </div>
                     <div class="maneuver-topology-canvas-wrap">
-                        <canvas id="maneuver-topology-canvas" width="900" height="280"></canvas>
+                        <canvas id="maneuver-topology-canvas" width="900" height="440"></canvas>
                     </div>
                 </div>
 
@@ -669,10 +669,16 @@
                 <div style="margin-top: 24px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
                         <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">Akıllı Manevra Tavsiyeleri</h3>
-                        <button class="btn btn-primary" id="btn-manevra-onerisi-al">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>
-                            Öneri Analizi Çalıştır
-                        </button>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-outline" id="btn-manuel-manevra">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                Manuel Manevra
+                            </button>
+                            <button class="btn btn-primary" id="btn-manevra-onerisi-al">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>
+                                Öneri Analizi Çalıştır
+                            </button>
+                        </div>
                     </div>
                     <div class="suggestion-cards-container" id="manevra-onerileri-container">
                         <div style="padding: 16px; border-radius: 8px; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
@@ -722,6 +728,41 @@
 
     </main>
 
+    <!-- ═══ Manuel Manevra Modalı ═══ -->
+    <div class="scada-modal-overlay" id="manuel-manevra-modal" style="display: none;">
+        <div class="scada-modal-card" style="max-width: 400px;">
+            <div class="scada-modal-header">
+                <h3>Manuel Manevra Oluştur</h3>
+                <button class="modal-close-btn" id="btn-close-manuel-modal">✕</button>
+            </div>
+            <div class="scada-modal-body">
+                <form id="manuel-manevra-form" class="veri-form">
+                    <div class="form-group">
+                        <label for="manuel-asset-type">Varlık Tipi</label>
+                        <select id="manuel-asset-type" required>
+                            <option value="feeder">Fider Aktarımı</option>
+                            <option value="reactor">Reaktör Değişimi</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="manuel-asset-id">Taşınacak Varlık</label>
+                        <select id="manuel-asset-id" required>
+                            <option value="">Seçiniz...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="manuel-target-trafo">Hedef Trafo</label>
+                        <select id="manuel-target-trafo" required>
+                            <option value="">Seçiniz...</option>
+                        </select>
+                    </div>
+                    <div class="form-actions" style="margin-top: 20px;">
+                        <button type="submit" class="btn btn-primary btn-full">Simüle Et & İlerle</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     <!-- ═══ Güç Üçgeni & Fazör Diyagramı Pop-up Modalı ═══ -->
     <div class="scada-modal-overlay" id="power-triangle-modal" style="display: none;">
         <div class="scada-modal-card">

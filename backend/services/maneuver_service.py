@@ -325,6 +325,7 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     """
     Simulate a maneuver without applying it.
     Returns before/after load ratios and risk levels for both source and target transformers.
+    Raises ValueError on edge case topology errors.
     """
     _, trafo_stats = _get_trafo_stats(db)
 
@@ -345,6 +346,14 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     else:
         return None
 
+    # Edge Case 1: Same Transformer Transfer (No-Op)
+    if source_id == target_trafo_id:
+        raise ValueError(f"'{asset_name}' zaten '{target_trafo_id}' trafosuna bağlı.")
+
+    # Edge Case 2: Topology / Physical Line Check
+    if asset.alternative_transformer_id and target_trafo_id != asset.alternative_transformer_id:
+        raise ValueError(f"'{asset_name}' fiziksel hat topolojisi gereği sadece '{asset.alternative_transformer_id}' trafosuna aktarılabilir.")
+
     if source_id not in trafo_stats or target_trafo_id not in trafo_stats:
         return None
 
@@ -359,7 +368,6 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
         source_load_after = source_load_before - asset_load
         target_load_after = target_load_before + asset_load
     else:
-        # Reactor switch: no kW change, but reactive profile changes
         source_load_after = source_load_before
         target_load_after = target_load_before
 
@@ -367,6 +375,11 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     source_ratio_after = (source_load_after / source_stats["power_kw"] * 100) if source_stats["power_kw"] > 0 else 0
     target_ratio_before = target_stats["load_ratio"]
     target_ratio_after = (target_load_after / target_stats["power_kw"] * 100) if target_stats["power_kw"] > 0 else 0
+
+    is_overload = target_ratio_after > 100
+    overload_warning = None
+    if is_overload:
+        overload_warning = f"KRİTİK UYARI: Bu manevra hedef trafo ({target_stats['model'].name}) yükünü %{target_ratio_after:.1f}'e çıkararak aşırı yüklenmeye (Overload) sebep olacaktır!"
 
     # Determine reactive improvement message
     reactive_msg = None
@@ -402,32 +415,50 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
         "source_risk_after": _calculate_risk_level(source_ratio_after),
         "target_risk_before": _calculate_risk_level(target_ratio_before),
         "target_risk_after": _calculate_risk_level(target_ratio_after),
+        "is_overload": is_overload,
+        "overload_warning": overload_warning,
         "reactive_improvement": reactive_msg
     }
 
 
-def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id: str, reason: str = None):
+def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id: str, reason: str = None, override_overload: bool = False):
     """
     Apply a maneuver and log it in ManeuverLog.
-    Returns the created log entry or None on failure.
-    
-    Not: Ikili trafo yapısında alternative_transformer_id alanına old_trafo_id yazılması
-    geçişin geri alınabilmesini ve iki trafo arası çift yönlü takası sağlar. 3+ trafo
-    senaryoları eklenirse, ilk orijinal trafonun kaybolmaması için `original_transformer_id`
-    alanı veritabanı modeline eklenebilir.
+    Enforces edge-case protections (no-op, topology, overload confirmation).
     """
+    _, trafo_stats = _get_trafo_stats(db)
+
     if asset_type == "feeder":
         asset = db.query(models.Feeder).filter(models.Feeder.id == asset_id).first()
         if not asset:
             return None
         old_trafo_id = asset.current_transformer_id
-        old_trafo = db.query(models.Transformer).filter(models.Transformer.id == old_trafo_id).first()
+        
+        # Edge Case 1: Same Trafo
+        if old_trafo_id == target_trafo_id:
+            raise ValueError(f"Fider zaten '{target_trafo_id}' trafosuna bağlı.")
+            
+        # Edge Case 2: Topology check
+        if asset.alternative_transformer_id and target_trafo_id != asset.alternative_transformer_id:
+            raise ValueError(f"Fider sadece alternatif trafosuna ({asset.alternative_transformer_id}) aktarılabilir.")
+
         new_trafo = db.query(models.Transformer).filter(models.Transformer.id == target_trafo_id).first()
         if not new_trafo:
             return None
 
+        # Edge Case 3: Overload check
+        target_stats = trafo_stats.get(target_trafo_id)
+        if target_stats and target_stats["power_kw"] > 0:
+            target_load_after = target_stats["total_feeder_load"] + asset.simulated_load_kw
+            target_ratio_after = (target_load_after / target_stats["power_kw"]) * 100
+            if target_ratio_after > 100 and not override_overload:
+                raise ValueError(f"Aşırı Yük Uyarısı: Bu manevra hedef trafoda ({target_trafo_id}) %{target_ratio_after:.1f} aşırı yük oluşturur. İlerlemeniz için 'Aşırı Yük Riskini Kabul Ediyorum' seçeneğini işaretlemelisiniz.")
+
+        old_trafo = db.query(models.Transformer).filter(models.Transformer.id == old_trafo_id).first()
         asset.alternative_transformer_id = old_trafo_id
         asset.current_transformer_id = target_trafo_id
+
+        impact = "Kritik (Aşırı Yüklü)" if target_stats and (target_stats["total_feeder_load"] + asset.simulated_load_kw) / target_stats["power_kw"] > 1 else "Orta"
 
         log = models.ManeuverLog(
             action_type="feeder_transfer",
@@ -439,7 +470,7 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
             source_trafo_name=old_trafo.name if old_trafo else old_trafo_id,
             target_trafo_name=new_trafo.name,
             reason=reason,
-            impact_level="Orta",
+            impact_level=impact,
             status="applied"
         )
         db.add(log)
@@ -452,6 +483,13 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         if not asset:
             return None
         old_trafo_id = asset.current_transformer_id
+        
+        if old_trafo_id == target_trafo_id:
+            raise ValueError(f"Reaktör zaten '{target_trafo_id}' trafosuna bağlı.")
+            
+        if asset.alternative_transformer_id and target_trafo_id != asset.alternative_transformer_id:
+            raise ValueError(f"Reaktör sadece alternatif trafosuna ({asset.alternative_transformer_id}) aktarılabilir.")
+
         old_trafo = db.query(models.Transformer).filter(models.Transformer.id == old_trafo_id).first()
         new_trafo = db.query(models.Transformer).filter(models.Transformer.id == target_trafo_id).first()
         if not new_trafo:

@@ -37,7 +37,7 @@ const ApiClient = (() => {
                         const body = await response.json();
                         errorDetail = body.detail || JSON.stringify(body);
                     } catch (_) { /* json parse başarısız */ }
-                    throw new Error(`API Hatası ${response.status}: ${errorDetail}`);
+                    throw new Error(errorDetail);
                 }
                 throw new Error(`API Hatası: ${response.status}`);
             }
@@ -101,7 +101,7 @@ const ApiClient = (() => {
         return _fetch(url, { method: 'POST' });
     }
 
-    async function applyManeuver(assetType, assetId, targetTrafoId, reason = null) {
+    async function applyManeuver(assetType, assetId, targetTrafoId, reason = null, overrideOverload = false) {
         return _fetch(`${API_BASE_URL}/maneuver/apply`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -109,7 +109,8 @@ const ApiClient = (() => {
                 asset_type: assetType,
                 asset_id: assetId,
                 target_trafo_id: targetTrafoId,
-                reason: reason
+                reason: reason,
+                override_overload: overrideOverload
             })
         });
     }

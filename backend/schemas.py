@@ -125,3 +125,4 @@ class ManeuverApplyRequest(BaseModel):
     asset_id: str
     target_trafo_id: str
     reason: Optional[str] = None
+    override_overload: bool = False

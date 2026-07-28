@@ -234,10 +234,13 @@ def simulate_maneuver_endpoint(
     db: Session = Depends(get_db)
 ):
     from services.maneuver_service import simulate_maneuver
-    result = simulate_maneuver(db, asset_type, asset_id, target_trafo_id)
-    if not result:
-        raise HTTPException(status_code=400, detail="Simülasyon yapılamadı. Varlık veya trafo bulunamadı.")
-    return result
+    try:
+        result = simulate_maneuver(db, asset_type, asset_id, target_trafo_id)
+        if not result:
+            raise HTTPException(status_code=400, detail="Simülasyon yapılamadı. Varlık veya trafo bulunamadı.")
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/maneuver/apply")
 def apply_maneuver_endpoint(
@@ -245,14 +248,24 @@ def apply_maneuver_endpoint(
     db: Session = Depends(get_db)
 ):
     from services.maneuver_service import apply_maneuver
-    log = apply_maneuver(db, request.asset_type, request.asset_id, request.target_trafo_id, request.reason)
-    if not log:
-        raise HTTPException(status_code=400, detail="Manevra uygulanamadı veya varlık bulunamadı.")
-    return {
-        "status": "success",
-        "message": f"{log.asset_name} varlığı {log.target_trafo_name} trafosuna başarıyla aktarıldı.",
-        "log_id": log.id
-    }
+    try:
+        log = apply_maneuver(
+            db, 
+            request.asset_type, 
+            request.asset_id, 
+            request.target_trafo_id, 
+            request.reason, 
+            request.override_overload
+        )
+        if not log:
+            raise HTTPException(status_code=400, detail="Manevra uygulanamadı veya varlık bulunamadı.")
+        return {
+            "status": "success",
+            "message": f"{log.asset_name} varlığı {log.target_trafo_name} trafosuna başarıyla aktarıldı.",
+            "log_id": log.id
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/maneuver/history")
 def get_maneuver_history_endpoint(
