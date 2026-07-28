@@ -50,9 +50,58 @@ const ApiClient = (() => {
         return await response.json();
     }
 
-    async function applyManeuver(assetType, assetId, targetTrafoId) {
-        const url = `${API_BASE_URL}/maneuver/apply?asset_type=${assetType}&asset_id=${assetId}&target_trafo_id=${targetTrafoId}`;
+    async function simulateManeuver(assetType, assetId, targetTrafoId) {
+        const url = `${API_BASE_URL}/maneuver/simulate?asset_type=${assetType}&asset_id=${assetId}&target_trafo_id=${targetTrafoId}`;
         const response = await fetch(url, { method: 'POST' });
+        if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
+        return await response.json();
+    }
+
+    async function applyManeuver(assetType, assetId, targetTrafoId, reason = null) {
+        const response = await fetch(`${API_BASE_URL}/maneuver/apply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                asset_type: assetType,
+                asset_id: assetId,
+                target_trafo_id: targetTrafoId,
+                reason: reason
+            })
+        });
+        if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
+        return await response.json();
+    }
+
+    async function fetchManeuverHistory(limit = 50, offset = 0) {
+        const url = `${API_BASE_URL}/maneuver/history?limit=${limit}&offset=${offset}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
+        return await response.json();
+    }
+
+    async function rollbackManeuver(logId) {
+        const url = `${API_BASE_URL}/maneuver/rollback/${logId}`;
+        const response = await fetch(url, { method: 'POST' });
+        if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
+        return await response.json();
+    }
+
+    async function addFeeder(feederData) {
+        const response = await fetch(`${API_BASE_URL}/maneuver/feeder`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(feederData)
+        });
+        if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
+        return await response.json();
+    }
+
+    async function addReactor(reactorData) {
+        const response = await fetch(`${API_BASE_URL}/maneuver/reactor`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reactorData)
+        });
         if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
         return await response.json();
     }
@@ -81,7 +130,12 @@ const ApiClient = (() => {
         fetchForecast,
         fetchManeuverAssets,
         fetchManeuverSuggestions,
+        simulateManeuver,
         applyManeuver,
+        fetchManeuverHistory,
+        rollbackManeuver,
+        addFeeder,
+        addReactor,
         addMeasurement,
         deleteMeasurement
     };

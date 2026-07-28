@@ -1969,3 +1969,839 @@ input::placeholder {
     --shadow-glow-green: none;
     --shadow-glow-amber: none;
 }
+
+
+/* ═══════════════════════════════════════════════════
+   MANEVRA ÖNERİ MODÜLÜ — Gelişmiş Stiller
+   ═══════════════════════════════════════════════════ */
+
+/* ─── Özet Kartları Grid ─── */
+.maneuver-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.maneuver-stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.maneuver-stat-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--color-primary);
+}
+
+.maneuver-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.maneuver-stat-icon.feeder { background: rgba(49, 116, 246, 0.12); color: var(--color-primary); }
+.maneuver-stat-icon.reactor { background: rgba(245, 124, 0, 0.12); color: var(--color-warning); }
+.maneuver-stat-icon.suggestion { background: rgba(46, 125, 50, 0.12); color: var(--color-success); }
+.maneuver-stat-icon.history { background: rgba(94, 53, 177, 0.12); color: var(--color-accent); }
+
+.maneuver-stat-info h4 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.maneuver-stat-info span {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    display: block;
+}
+
+/* ─── Sub-Tab Navigasyonu ─── */
+.maneuver-subtab-nav {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 24px;
+    padding: 0;
+}
+
+.maneuver-subtab-btn {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.maneuver-subtab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(49, 116, 246, 0.05);
+}
+
+.maneuver-subtab-btn.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+    font-weight: 600;
+}
+
+.maneuver-subtab-btn .subtab-count {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.maneuver-subtab-btn.active .subtab-count {
+    background: rgba(49, 116, 246, 0.15);
+    color: var(--color-primary);
+}
+
+.maneuver-tab-content {
+    display: none;
+}
+
+.maneuver-tab-content.active {
+    display: block;
+    animation: fadeInTab 0.3s ease;
+}
+
+@keyframes fadeInTab {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Gelişmiş Varlık Tabloları ─── */
+.maneuver-asset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 900px) {
+    .maneuver-asset-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.maneuver-asset-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.maneuver-asset-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.maneuver-asset-header h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-add-asset {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid var(--color-primary);
+    background: rgba(49, 116, 246, 0.1);
+    color: var(--color-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.btn-add-asset:hover {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+/* ─── Yük Oranı Progress Bar ─── */
+.load-bar-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 100px;
+}
+
+.load-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.load-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+    background: var(--color-primary);
+}
+
+.load-bar-fill.low { background: var(--color-success); }
+.load-bar-fill.medium { background: var(--color-warning); }
+.load-bar-fill.high { background: var(--color-danger); }
+
+.load-bar-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 36px;
+    text-align: right;
+}
+
+/* ─── Öneri Kartları ─── */
+.suggestion-cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.suggestion-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+    animation: slideInCard 0.4s ease;
+}
+
+.suggestion-card:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-1px);
+}
+
+@keyframes slideInCard {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.suggestion-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.suggestion-card-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.suggestion-card-info h4 {
+    margin: 0 0 6px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.suggestion-card-badges {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.suggestion-card-desc {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 10px 0;
+}
+
+.suggestion-card-meta {
+    display: flex;
+    gap: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+
+.suggestion-card-meta b {
+    color: var(--text-secondary);
+}
+
+.suggestion-card-actions {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    flex-shrink: 0;
+}
+
+/* ─── Puan Göstergesi ─── */
+.score-gauge {
+    width: 56px;
+    height: 56px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.score-gauge svg {
+    transform: rotate(-90deg);
+}
+
+.score-gauge-bg {
+    fill: none;
+    stroke: var(--bg-tertiary);
+    stroke-width: 4;
+}
+
+.score-gauge-fill {
+    fill: none;
+    stroke-width: 4;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s ease;
+}
+
+.score-gauge-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.score-gauge-label {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* ─── Simülasyon Önizleme (Mini) ─── */
+.sim-preview {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    font-size: 12px;
+}
+
+.sim-preview-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.sim-preview-label {
+    color: var(--text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sim-preview-values {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sim-preview-arrow {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.sim-preview-val {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.sim-preview-val.before { color: var(--text-secondary); }
+.sim-preview-val.after { color: var(--color-success); }
+.sim-preview-val.after.worse { color: var(--color-danger); }
+
+/* ─── Simülasyon Modal (Detaylı) ─── */
+.sim-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 20px 0;
+}
+
+.sim-comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+.sim-trafo-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.sim-trafo-panel h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 4px 0;
+}
+
+.sim-trafo-panel .trafo-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0 0 16px 0;
+}
+
+.sim-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sim-metric:last-child {
+    border-bottom: none;
+}
+
+.sim-metric-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.sim-metric-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.sim-load-bar-large {
+    margin-top: 12px;
+}
+
+.sim-load-bar-large .load-bar-track {
+    height: 14px;
+    border-radius: 7px;
+}
+
+.sim-arrow-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding-top: 40px;
+}
+
+.sim-arrow-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(49, 116, 246, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+    font-size: 20px;
+}
+
+.sim-arrow-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    max-width: 60px;
+}
+
+.sim-reactive-note {
+    padding: 14px 18px;
+    background: rgba(49, 116, 246, 0.06);
+    border: 1px solid rgba(49, 116, 246, 0.15);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.sim-reason-input {
+    width: 100%;
+    min-height: 60px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    resize: vertical;
+}
+
+.sim-reason-input:focus {
+    border-color: var(--color-primary);
+    outline: none;
+}
+
+/* ─── Onay Modal ─── */
+.confirm-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn-confirm {
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.btn-confirm.primary {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+.btn-confirm.primary:hover {
+    background: var(--color-primary-dark);
+}
+
+.btn-confirm.danger {
+    background: var(--color-danger);
+    color: #fff;
+}
+
+.btn-confirm.danger:hover {
+    background: #b71c1c;
+}
+
+.btn-confirm.outline {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.btn-confirm.outline:hover {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+}
+
+/* ─── Geçmiş Tablosu ─── */
+.maneuver-history-filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.maneuver-history-filters select,
+.maneuver-history-filters input {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+}
+
+.history-table-wrapper {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.history-table th {
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.history-table td {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.history-table tr:last-child td {
+    border-bottom: none;
+}
+
+.history-table tr:hover td {
+    background: var(--bg-card-hover);
+}
+
+/* ─── Manevra Badge'leri ─── */
+.maneuver-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.maneuver-badge.applied {
+    background: rgba(46, 125, 50, 0.12);
+    color: var(--color-success-light);
+    border: 1px solid rgba(46, 125, 50, 0.3);
+}
+
+.maneuver-badge.rolled-back {
+    background: rgba(198, 40, 40, 0.12);
+    color: var(--color-danger-light);
+    border: 1px solid rgba(198, 40, 40, 0.3);
+}
+
+.maneuver-badge.impact-high {
+    background: rgba(198, 40, 40, 0.12);
+    color: var(--color-danger-light);
+    border: 1px solid rgba(198, 40, 40, 0.3);
+}
+
+.maneuver-badge.impact-medium {
+    background: rgba(245, 124, 0, 0.12);
+    color: var(--color-warning-light);
+    border: 1px solid rgba(245, 124, 0, 0.3);
+}
+
+.maneuver-badge.impact-low {
+    background: rgba(25, 118, 210, 0.12);
+    color: var(--color-info);
+    border: 1px solid rgba(25, 118, 210, 0.3);
+}
+
+/* ─── Geri Al Butonu ─── */
+.btn-rollback {
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid var(--color-danger);
+    background: rgba(198, 40, 40, 0.08);
+    color: var(--color-danger-light);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.btn-rollback:hover {
+    background: var(--color-danger);
+    color: #fff;
+}
+
+/* ─── CRUD Modal Form ─── */
+.crud-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.crud-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.crud-form .form-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.crud-form .form-group input,
+.crud-form .form-group select {
+    padding: 10px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.2s ease;
+}
+
+.crud-form .form-group input:focus,
+.crud-form .form-group select:focus {
+    border-color: var(--color-primary);
+    outline: none;
+}
+
+/* ─── Mini Topoloji Diyagramı ─── */
+.maneuver-topology-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.maneuver-topology-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.maneuver-topology-header h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.maneuver-topology-canvas-wrap {
+    width: 100%;
+    min-height: 280px;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.maneuver-topology-canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 280px;
+}
+
+/* ─── Buton Stilleri (Manevra özel) ─── */
+.btn-simulate {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid var(--color-info);
+    background: rgba(25, 118, 210, 0.1);
+    color: var(--color-info);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.btn-simulate:hover {
+    background: var(--color-info);
+    color: #fff;
+}
+
+.btn-apply-confirm {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    background: var(--color-success);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.btn-apply-confirm:hover {
+    background: #1b5e20;
+}
+
+/* ─── Animasyonlar ─── */
+@keyframes loadBarGrow {
+    from { width: 0; }
+}
+
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(49, 116, 246, 0.2); }
+    50% { box-shadow: 0 0 0 8px rgba(49, 116, 246, 0); }
+}
+
+.suggestion-card.highlight {
+    animation: pulseGlow 2s ease infinite;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+    .maneuver-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .sim-comparison-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sim-arrow-column {
+        transform: rotate(90deg);
+        padding: 10px 0;
+    }
+
+    .suggestion-card-top {
+        flex-direction: column;
+    }
+
+    .suggestion-card-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+

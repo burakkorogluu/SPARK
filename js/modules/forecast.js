@@ -40,6 +40,8 @@ const TahminModulu = (() => {
             aktifEnerji: v.active_kwh,
             enduktifEnerji: v.inductive_kvarh,
             kapasitifEnerji: v.capacitive_kvarh,
+            kap_reason: v.kap_reason || null,
+            end_reason: v.end_reason || null,
             isTahmin
         }));
 

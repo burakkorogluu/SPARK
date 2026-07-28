@@ -66,4 +66,24 @@ class Reactor(Base):
     current_transformer = relationship("Transformer", foreign_keys=[current_transformer_id], back_populates="reactors")
     alternative_transformer = relationship("Transformer", foreign_keys=[alternative_transformer_id])
 
+class ManeuverLog(Base):
+    __tablename__ = "maneuver_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp = Column(DateTime, default=datetime.datetime.now, index=True)
+    action_type = Column(String)         # "feeder_transfer" | "reactor_switch"
+    asset_type = Column(String)          # "feeder" | "reactor"
+    asset_id = Column(String)            # Fider/Reaktör ID
+    asset_name = Column(String)          # Fider/Reaktör adı
+    source_trafo_id = Column(String, ForeignKey("transformers.id"))
+    target_trafo_id = Column(String, ForeignKey("transformers.id"))
+    source_trafo_name = Column(String)
+    target_trafo_name = Column(String)
+    reason = Column(String, nullable=True)              # Manevra gerekçesi
+    impact_level = Column(String, default="Orta")       # "Yüksek" | "Orta" | "Düşük"
+    status = Column(String, default="applied")           # "applied" | "rolled_back"
+    rolled_back_at = Column(DateTime, nullable=True)
+
+    source_transformer = relationship("Transformer", foreign_keys=[source_trafo_id])
+    target_transformer = relationship("Transformer", foreign_keys=[target_trafo_id])
 

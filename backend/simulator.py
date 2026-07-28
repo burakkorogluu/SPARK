@@ -22,50 +22,59 @@ def generate_hourly_data():
         current_hour = now.replace(minute=0, second=0, microsecond=0)
 
         for trafo in transformers:
-            # Check if we already have data for this hour to avoid duplicates
-            existing = db.query(models.Measurement).filter(
-                models.Measurement.transformer_id == trafo.id,
-                models.Measurement.timestamp == current_hour
-            ).first()
+            # Find the last measurement timestamp for this transformer
+            last_measurement = db.query(models.Measurement).filter(
+                models.Measurement.transformer_id == trafo.id
+            ).order_by(models.Measurement.timestamp.desc()).first()
 
-            if existing:
-                continue
-
-            # Simulate base loads depending on power_mva
-            # e.g., 100 MVA trafo -> active energy roughly around 20,000 - 50,000 kWh per hour
-            base_active = (trafo.power_mva / 100) * random.randint(20000, 50000)
-            
-            # Simulate daily load curve (lower at night, higher during day)
-            hour = current_hour.hour
-            if 0 <= hour < 7:
-                multiplier = random.uniform(0.4, 0.6)
-            elif 7 <= hour < 18:
-                multiplier = random.uniform(0.9, 1.2)
+            if last_measurement and last_measurement.timestamp < current_hour:
+                start_hour = last_measurement.timestamp + timedelta(hours=1)
+            elif not last_measurement:
+                start_hour = current_hour
             else:
-                multiplier = random.uniform(0.7, 0.9)
+                start_hour = current_hour + timedelta(hours=1) # Already up to date
 
-            active = int(base_active * multiplier)
+            # Generate data for all missing hours up to current_hour
+            temp_hour = start_hour
+            while temp_hour <= current_hour:
+                existing = db.query(models.Measurement).filter(
+                    models.Measurement.transformer_id == trafo.id,
+                    models.Measurement.timestamp == temp_hour
+                ).first()
 
-            # Inductive is typically 10-15% of active
-            inductive = int(active * random.uniform(0.10, 0.15))
+                if existing:
+                    temp_hour += timedelta(hours=1)
+                    continue
 
-            # Capacitive is typically 5-10% of active, but sometimes spikes (e.g., UMR-TRB)
-            if trafo.id == "UMR-TRB":
-                capacitive = int(active * random.uniform(0.12, 0.18)) # high risk
-            else:
-                capacitive = int(active * random.uniform(0.05, 0.10))
+                base_active = (trafo.power_mva / 100) * random.randint(20000, 50000)
+                hour = temp_hour.hour
+                if 0 <= hour < 7:
+                    multiplier = random.uniform(0.4, 0.6)
+                elif 7 <= hour < 18:
+                    multiplier = random.uniform(0.9, 1.2)
+                else:
+                    multiplier = random.uniform(0.7, 0.9)
 
-            measurement = models.Measurement(
-                transformer_id=trafo.id,
-                timestamp=current_hour,
-                active_kwh=active,
-                inductive_kvarh=inductive,
-                capacitive_kvarh=capacitive
-            )
-            db.add(measurement)
+                active = int(base_active * multiplier)
+                inductive = int(active * random.uniform(0.10, 0.15))
+
+                if trafo.id == "UMR-TRB":
+                    capacitive = int(active * random.uniform(0.12, 0.18))
+                else:
+                    capacitive = int(active * random.uniform(0.05, 0.10))
+
+                measurement = models.Measurement(
+                    transformer_id=trafo.id,
+                    timestamp=temp_hour,
+                    active_kwh=active,
+                    inductive_kvarh=inductive,
+                    capacitive_kvarh=capacitive
+                )
+                db.add(measurement)
+                temp_hour += timedelta(hours=1)
         
         db.commit()
-        logger.info(f"OSOS Simulation: Generated data for {len(transformers)} transformers at {current_hour}")
+        logger.info(f"OSOS Simulation: Catch-up/Generated data up to {current_hour}")
 
     except Exception as e:
         logger.error(f"Error in OSOS Simulator: {e}")

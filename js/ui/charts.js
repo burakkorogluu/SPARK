@@ -479,9 +479,14 @@ const GrafikModulu = (() => {
             allLabels = [...mevcutLabels, ...tahminLabels];
             allValuesForScale.push(...tahminKumValues);
 
+            const bridgeCustomReasons = new Array(mevcutValues.length - 1).fill(null);
+            bridgeCustomReasons.push(null);
+            bridgeCustomReasons.push(...tahminDaily.map(d => d.kap_reason || null));
+
             datasets.push({
                 label: 'Tahmin Edilen Kümülatif (%)',
                 data: bridgeKumData,
+                customReasons: bridgeCustomReasons,
                 borderColor: '#FB8C00',
                 backgroundColor: 'rgba(251, 140, 0, 0.1)',
                 fill: true,
@@ -530,6 +535,15 @@ const GrafikModulu = (() => {
                                 item.parsed.y !== null
                                     ? `${item.dataset.label}: %${item.parsed.y.toFixed(2)}`
                                     : '',
+                            afterLabel: (item) => {
+                                if (item.dataset.customReasons) {
+                                    const reason = item.dataset.customReasons[item.dataIndex];
+                                    if (reason) {
+                                        return `Yapay Zeka Etkeni: ${reason}`;
+                                    }
+                                }
+                                return '';
+                            }
                         },
                     },
                     annotation: {
@@ -604,12 +618,14 @@ const GrafikModulu = (() => {
 
         if (tahminData && tahminData.length > 0) {
             let tLabels = [];
+            let tReasons = [];
             if (isHourly) {
                 tahminData.forEach(v => {
                     tahminValues.push(v.aktifEnerji > 0 ? (v.kapasitifEnerji / v.aktifEnerji) * 100 : 0);
                     const day = v.tarih.split(' ')[0].split('-')[2];
                     const hour = v.tarih.split(' ')[1].substring(0, 5);
                     tLabels.push(`${day} ${hour}`);
+                    tReasons.push(v.kap_reason || null);
                 });
             } else {
                 const sonMevcut = mevcutDaily[mevcutDaily.length - 1];
@@ -620,6 +636,7 @@ const GrafikModulu = (() => {
                 );
                 tLabels = tahminDaily.map((d) => d.label);
                 tahminValues = tahminDaily.map((d) => d.gunlukKapasitifOran || (d.aktifEnerji > 0 ? (d.kapasitifEnerji / d.aktifEnerji) * 100 : 0));
+                tReasons = tahminDaily.map(d => d.kap_reason || null);
             }
 
             allLabels = [...allLabels, ...tLabels];
@@ -629,6 +646,7 @@ const GrafikModulu = (() => {
             const dataset1Colors = [...colors, ...new Array(tahminValues.length).fill('transparent')];
             const dataset1BgColors = [...bgColors, ...new Array(tahminValues.length).fill('transparent')];
             const dataset2Data = [...new Array(mevcutValues.length).fill(null), ...tahminValues];
+            const dataset2Reasons = [...new Array(mevcutValues.length).fill(null), ...tReasons];
 
             datasets.push({
                 label: isHourly ? 'Gerçekleşen Saatlik Oran (%)' : 'Gerçekleşen Günlük Oran (%)',
@@ -644,6 +662,7 @@ const GrafikModulu = (() => {
             datasets.push({
                 label: isHourly ? 'Tahmin Edilen Saatlik Oran (%)' : 'Tahmin Edilen Günlük Oran (%)',
                 data: dataset2Data,
+                customReasons: dataset2Reasons,
                 backgroundColor: isLight ? 'rgba(251, 140, 0, 0.85)' : 'rgba(251, 140, 0, 0.25)',
                 borderColor: '#FB8C00',
                 borderWidth: 2,
@@ -700,6 +719,15 @@ const GrafikModulu = (() => {
                                 const risk = HesaplamaModulu.riskSeviyesiBelirle(item.parsed.y, 'kapasitif');
                                 return `${item.dataset.label}: ${valStr} (${risk.etiket})`;
                             },
+                            afterLabel: (item) => {
+                                if (item.dataset.customReasons) {
+                                    const reason = item.dataset.customReasons[item.dataIndex];
+                                    if (reason) {
+                                        return `Yapay Zeka Etkeni: ${reason}`;
+                                    }
+                                }
+                                return '';
+                            }
                         },
                     },
                     annotation: {

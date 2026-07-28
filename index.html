@@ -531,30 +531,102 @@
             </div>
         </section>
 
-        <!-- ─── Ekran 5: Manevra Öneri Modülü ─── -->
+        <!-- ─── Ekran 5: Manevra Öneri Modülü (Gelişmiş) ─── -->
         <section id="screen-manevra" class="screen">
             <div class="screen-header">
-                <h2>Manevra Öneri Modülü (Grup B)</h2>
-                <p>Şebeke yük dengesini ve reaktif güç durumunu analiz ederek otomatik manevra ve aktarım önerileri sunar.</p>
+                <h2>Manevra Öneri &amp; Karar Destek Modülü</h2>
+                <p>Şebeke yük dengesini ve reaktif güç durumunu analiz ederek akıllı manevra ve aktarım önerileri sunar. Simülasyon, onay ve geri alma desteği ile tam karar döngüsü sağlar.</p>
             </div>
 
-            <div class="card mt-lg">
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <h3>Saha Varlıkları (Fiderler ve Reaktörler)</h3>
-                    <button class="btn btn-primary" id="btn-manevra-onerisi-al">
-                        Akıllı Manevra Önerisi Al
-                    </button>
+            <!-- Özet Kartları -->
+            <div class="maneuver-summary-grid" id="maneuver-summary-grid">
+                <div class="maneuver-stat-card">
+                    <div class="maneuver-stat-icon feeder">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                    </div>
+                    <div class="maneuver-stat-info">
+                        <h4 id="stat-feeder-count">—</h4>
+                        <span>Toplam Fider</span>
+                    </div>
                 </div>
-                <div class="grid grid-2 mt-md" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-                    <div>
-                        <h4 style="margin-bottom: 8px;">Fider Listesi</h4>
+                <div class="maneuver-stat-card">
+                    <div class="maneuver-stat-icon reactor">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    </div>
+                    <div class="maneuver-stat-info">
+                        <h4 id="stat-reactor-count">—</h4>
+                        <span>Toplam Reaktör</span>
+                    </div>
+                </div>
+                <div class="maneuver-stat-card">
+                    <div class="maneuver-stat-icon suggestion">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>
+                    </div>
+                    <div class="maneuver-stat-info">
+                        <h4 id="stat-suggestion-count">—</h4>
+                        <span>Aktif Öneri</span>
+                    </div>
+                </div>
+                <div class="maneuver-stat-card">
+                    <div class="maneuver-stat-icon history">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div class="maneuver-stat-info">
+                        <h4 id="stat-history-count">—</h4>
+                        <span>Uygulanan İşlem</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-Tab Navigasyonu -->
+            <div class="maneuver-subtab-nav" id="maneuver-subtab-nav">
+                <button class="maneuver-subtab-btn active" data-subtab="varliklar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                    Varlıklar &amp; Öneriler
+                    <span class="subtab-count" id="subtab-count-varliklar">0</span>
+                </button>
+                <button class="maneuver-subtab-btn" data-subtab="gecmis">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Manevra Geçmişi
+                    <span class="subtab-count" id="subtab-count-gecmis">0</span>
+                </button>
+            </div>
+
+            <!-- Tab İçerikleri -->
+            <!-- TAB 1: Varlıklar & Öneriler -->
+            <div class="maneuver-tab-content active" id="tab-varliklar">
+
+                <!-- Mini Şebeke Topoloji Diyagramı -->
+                <div class="maneuver-topology-container">
+                    <div class="maneuver-topology-header">
+                        <h4>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                            Fider — Trafo Bağlantı Haritası
+                        </h4>
+                    </div>
+                    <div class="maneuver-topology-canvas-wrap">
+                        <canvas id="maneuver-topology-canvas" width="900" height="280"></canvas>
+                    </div>
+                </div>
+
+                <!-- Fider & Reaktör Tabloları -->
+                <div class="maneuver-asset-grid" style="margin-top: 20px;">
+                    <!-- Fider Listesi -->
+                    <div class="maneuver-asset-section">
+                        <div class="maneuver-asset-header">
+                            <h4>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                                Fiderler
+                            </h4>
+                            <button class="btn-add-asset" id="btn-add-feeder">+ Fider Ekle</button>
+                        </div>
                         <div class="table-wrapper">
                             <table class="data-table">
                                 <thead>
                                     <tr>
                                         <th>Fider Adı</th>
-                                        <th>Bağlı Olduğu Trafo</th>
-                                        <th>Alternatif Trafo</th>
+                                        <th>Bağlı Trafo</th>
+                                        <th>Alternatif</th>
                                         <th class="text-right">Yük (kW)</th>
                                     </tr>
                                 </thead>
@@ -564,15 +636,23 @@
                             </table>
                         </div>
                     </div>
-                    <div>
-                        <h4 style="margin-bottom: 8px;">Reaktör Listesi</h4>
+
+                    <!-- Reaktör Listesi -->
+                    <div class="maneuver-asset-section">
+                        <div class="maneuver-asset-header">
+                            <h4>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                                Reaktörler
+                            </h4>
+                            <button class="btn-add-asset" id="btn-add-reactor">+ Reaktör Ekle</button>
+                        </div>
                         <div class="table-wrapper">
                             <table class="data-table">
                                 <thead>
                                     <tr>
                                         <th>Reaktör Adı</th>
-                                        <th>Bağlı Olduğu Trafo</th>
-                                        <th>Alternatif Trafo</th>
+                                        <th>Bağlı Trafo</th>
+                                        <th>Alternatif</th>
                                         <th class="text-right">Kapasite (kVAr)</th>
                                         <th class="text-center">Durum</th>
                                     </tr>
@@ -584,20 +664,60 @@
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Öneriler Kart Grubu -->
-            <div class="card mt-lg">
-                <div class="card-header">
-                    <h3>Aktif Manevra Tavsiyeleri</h3>
-                </div>
-                <div id="manevra-onerileri-container" style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
-                    <div style="padding: 16px; border-radius: 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--text-main);">
-                        Manevra önerilerini hesaplamak için yukarıdaki <b>"Akıllı Manevra Önerisi Al"</b> butonuna basınız.
+                <!-- Akıllı Öneriler Paneli -->
+                <div style="margin-top: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                        <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">Akıllı Manevra Tavsiyeleri</h3>
+                        <button class="btn btn-primary" id="btn-manevra-onerisi-al">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>
+                            Öneri Analizi Çalıştır
+                        </button>
+                    </div>
+                    <div class="suggestion-cards-container" id="manevra-onerileri-container">
+                        <div style="padding: 16px; border-radius: 8px; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
+                            Manevra önerilerini hesaplamak için yukarıdaki <b>"Öneri Analizi Çalıştır"</b> butonuna basınız.
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <!-- TAB 2: Manevra Geçmişi -->
+            <div class="maneuver-tab-content" id="tab-gecmis">
+                <div class="maneuver-history-filters">
+                    <select id="history-filter-type">
+                        <option value="">Tümü</option>
+                        <option value="feeder_transfer">Fider Aktarımı</option>
+                        <option value="reactor_switch">Reaktör Değişimi</option>
+                    </select>
+                    <select id="history-filter-status">
+                        <option value="">Tüm Durumlar</option>
+                        <option value="applied">Uygulanmış</option>
+                        <option value="rolled_back">Geri Alınmış</option>
+                    </select>
+                </div>
+                <div class="history-table-wrapper">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Tarih</th>
+                                <th>İşlem Tipi</th>
+                                <th>Varlık</th>
+                                <th>Kaynak Trafo</th>
+                                <th>Hedef Trafo</th>
+                                <th>Etki</th>
+                                <th>Durum</th>
+                                <th class="text-center">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <tr><td colspan="8" class="text-center" style="padding: 30px; color: var(--text-muted);">Henüz manevra geçmişi bulunmuyor.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </section>
+
 
 
     </main>
@@ -684,7 +804,114 @@
         </div>
     </div>
 
+    <!-- ═══ Manevra Simülasyon Modalı ═══ -->
+    <div class="scada-modal-overlay" id="maneuver-simulation-modal" style="display: none; z-index: 9999;">
+        <div class="scada-modal-card" style="max-width: 800px;">
+            <div class="scada-modal-header">
+                <div>
+                    <h3>Manevra Etki Simülasyonu</h3>
+                    <span class="text-muted" style="font-size: 12px;">Uygulamadan önce manevranın etkilerini analiz edin</span>
+                </div>
+                <button class="modal-close-btn" id="btn-close-sim-modal">✕</button>
+            </div>
+            <div class="scada-modal-body" style="padding-top: 0;">
+                <div class="sim-modal-body" id="sim-modal-body">
+                    <div style="text-align: center; padding: 40px;">
+                        <div class="loading-spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto 10px;"></div>
+                        <span>Simülasyon hesaplanıyor...</span>
+                    </div>
+                </div>
+                <div style="margin-top: 8px;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Manevra Gerekçesi (Opsiyonel)</label>
+                    <textarea class="sim-reason-input" id="sim-reason-input" placeholder="Bu manevranın uygulanma gerekçesini belirtebilirsiniz..."></textarea>
+                </div>
+                <div class="confirm-modal-actions">
+                    <button class="btn-confirm outline" id="btn-sim-cancel">İptal</button>
+                    <button class="btn-confirm primary" id="btn-sim-apply">Onayla ve Uygula</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Fider Ekleme Modalı ═══ -->
+    <div class="scada-modal-overlay" id="add-feeder-modal" style="display: none; z-index: 9999;">
+        <div class="scada-modal-card" style="max-width: 500px;">
+            <div class="scada-modal-header">
+                <div><h3>Yeni Fider Ekle</h3></div>
+                <button class="modal-close-btn" id="btn-close-add-feeder">✕</button>
+            </div>
+            <div class="scada-modal-body" style="padding-top: 0;">
+                <form class="crud-form" id="add-feeder-form">
+                    <div class="form-group">
+                        <label for="new-feeder-id">Fider ID</label>
+                        <input type="text" id="new-feeder-id" required placeholder="Ör: FDR-UMR-4">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-feeder-name">Fider Adı</label>
+                        <input type="text" id="new-feeder-name" required placeholder="Ör: Endüstri Fideri 4">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-feeder-trafo">Bağlı Trafo</label>
+                        <select id="new-feeder-trafo" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-feeder-alt-trafo">Alternatif Trafo</label>
+                        <select id="new-feeder-alt-trafo"><option value="">— Yok —</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-feeder-load">Simüle Yük (kW)</label>
+                        <input type="number" id="new-feeder-load" value="500" min="0" step="50" required>
+                    </div>
+                    <button type="submit" class="btn-confirm primary" style="margin-top: 8px;">Fider Oluştur</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Reaktör Ekleme Modalı ═══ -->
+    <div class="scada-modal-overlay" id="add-reactor-modal" style="display: none; z-index: 9999;">
+        <div class="scada-modal-card" style="max-width: 500px;">
+            <div class="scada-modal-header">
+                <div><h3>Yeni Reaktör Ekle</h3></div>
+                <button class="modal-close-btn" id="btn-close-add-reactor">✕</button>
+            </div>
+            <div class="scada-modal-body" style="padding-top: 0;">
+                <form class="crud-form" id="add-reactor-form">
+                    <div class="form-group">
+                        <label for="new-reactor-id">Reaktör ID</label>
+                        <input type="text" id="new-reactor-id" required placeholder="Ör: RCT-UMR-2">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-reactor-name">Reaktör Adı</label>
+                        <input type="text" id="new-reactor-name" required placeholder="Ör: Ümraniye Reaktör R2">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-reactor-trafo">Bağlı Trafo</label>
+                        <select id="new-reactor-trafo" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-reactor-alt-trafo">Alternatif Trafo</label>
+                        <select id="new-reactor-alt-trafo"><option value="">— Yok —</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-reactor-capacity">Kapasite (kVAr)</label>
+                        <input type="number" id="new-reactor-capacity" value="250" min="0" step="50" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-reactor-status">Durum</label>
+                        <select id="new-reactor-status">
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Pasif</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-confirm primary" style="margin-top: 8px;">Reaktör Oluştur</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══ Toast Notification Container ═══ -->
+
     <div class="toast-container" id="toast-container"></div>
 
     <!-- ═══ Scripts (sıra önemli!) ═══ -->
