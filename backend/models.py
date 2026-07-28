@@ -102,3 +102,18 @@ class SystemAlert(Base):
     transformer = relationship("Transformer")
 
 
+class ForecastMeasurement(Base):
+    __tablename__ = "forecast_measurements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transformer_id = Column(String, ForeignKey("transformers.id"))
+    timestamp = Column(DateTime, index=True)
+    model_type = Column(String, index=True)
+    active_kwh = Column(Float)
+    inductive_kvarh = Column(Float)
+    capacitive_kvarh = Column(Float)
+    confidence_score = Column(Float, nullable=True)
+    kap_reason = Column(String, nullable=True)
+    end_reason = Column(String, nullable=True)
+
+    transformer = relationship("Transformer")

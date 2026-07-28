@@ -13,13 +13,22 @@ Türkiye'de **EPDK (Enerji Piyasası Düzenleme Kurumu)** mevzuatına göre ayl�
 ## ⚡ Veri Seti ve Altyapı
 
 Sistem, gerçek TEİAŞ yük kayıtları, OSOS tabanlı saatlik okumalar ve **Open-Meteo API** üzerinden anlık/geçmiş hava durumu (Sıcaklık, Nem, Rüzgar, Bulutluluk vb.) metrikleriyle çalışır.
-Veriler SQLite veritabanı (`osos_sim.db`) üzerinde tutulmakta olup, SQLAlchemy ORM ile yönetilmektedir.
+Veriler SQLite veritabanı (`osos_sim.db`) üzerinde tutulmakta olup, SQLAlchemy ORM ile yönetilmektedir. Algoritmalar, 1.5 yıllık (yaklaşık 13.000+ saatlik) tarihsel veriyi işleyerek eğitilir.
 
 **Tanımlı Örnek Trafolar:**
 * 🏙️ **Ümraniye TM – TRA (`UMR-TRA`)**: `100 MVA` 
 * 🏙️ **Ümraniye TM – TRB (`UMR-TRB`)**: `100 MVA` (Kapasitif riski yüksek)
 * ⚓ **Kartal TM – TRA (`KRT-TRA`)**: `80 MVA`
 * ⚓ **Kartal TM – TRB (`KRT-TRB`)**: `80 MVA`
+
+---
+
+## 🚀 Batch Prediction (Yığın Tahmin) ve Hız Optimizasyonu
+
+Son güncellemeyle birlikte SPARK, sektör standardı olan **Batch Prediction Serving** mimarisine geçmiştir:
+* **Asenkron Arka Plan Görevi (Cron):** `APScheduler` ile her Pazar gece 02:00'da tüm makine öğrenmesi modelleri 1.5 yıllık verilerle eğitilir. Modeller, önümüzdeki 30 günün saatlik tahminlerini üretip `ForecastMeasurement` veritabanı tablosuna kaydeder.
+* **Akıllı Temizlik:** Simülatörden veya OSOS'tan "Gerçek" ölçüm verisi geldiğinde, veritabanındaki o saate ait eski tahmin otomatik olarak silinir.
+* **Sıfır Bekleme (Sub-second API):** Kullanıcı arayüzden tahmin istediğinde modelleri anlık çalıştırmak yerine (15sn+), doğrudan veritabanından önceden hesaplanmış veriler çekilir. Yanıt süresi 0.01 saniyenin altındadır!
 
 ---
 
@@ -36,9 +45,9 @@ Trafolar arası enerji akışını animasyonlarla gösteren endüstriyel şema. 
 
 ### 4. 📈 Saatlik Ay Sonu Tahminci & Yapay Zeka (XGBoost + SHAP)
 Python Backend'de çalışan 8 farklı tahmin algoritması:
-1. **🤖 XGBoost & SHAP (Yapay Zeka):** Sıcaklık, Nem, Rüzgar, Bulutluluk ve THI (Hissedilen Isı İndeksi) verilerini analiz ederek en tutarlı tahminleri üretir. SHAP entegrasyonu sayesinde arayüze "Neden sınır ihlali yaşandığına" dair istatistiksel kanıtlar (XAI) sunar.
-2. **🌳 Random Forest (Makine Öğrenmesi):** Hafta sonu, saat ve 24 saatlik gecikme (lag) özniteliklerini kullanan Regresyon Ormanı.
-3. **🚀 Topluluk Modeli (Ensemble):** Çeşitli modellerin birleştirilmiş daha stabil versiyonu.
+1. **🤖 XGBoost & SHAP (Yapay Zeka):** Sıcaklık, Nem, Rüzgar, Bulutluluk ve THI verilerini analiz eder. SHAP ile "neden sınır ihlali yaşandığına" dair istatistiksel kanıt sunar.
+2. **🌳 Random Forest (Makine Öğrenmesi):** Hafta sonu, saat ve gecikme (lag) özniteliklerini kullanan Regresyon Ormanı.
+3. **🚀 Topluluk Modeli (Ensemble):** Çeşitli modellerin birleştirilmiş, daha stabil ve genel geçerliliği en yüksek modelidir. (Varsayılan Model)
 4. **📈 Holt-Winters Üçlü Üssel Düzeltme:** Mevsimsellik ve trendi ayrıştıran istatistiksel zaman serisi modeli (24 saatlik periyot).
 5. **Doğrusal Regresyon (Linear Regression):** Gecikmeli öznitelikler üzerinden lineer eğilim hesabı.
 6. **İstatistiksel Ortalama:** Son 7 günün aynı saatlerinin aritmetik ortalaması.
@@ -57,16 +66,17 @@ SPARK, **Python FastAPI** sunucusu ve **Vanilla JS** ön yüzünden (Frontend) o
 SPARK/
 ├── index.html                  # Ana uygulama iskeleti ve arayüz
 ├── backend/
-│   ├── main.py                 # FastAPI sunucu kökü
+│   ├── main.py                 # FastAPI sunucu kökü & APScheduler Görev Yöneticisi
 │   ├── database.py             # SQLite veritabanı bağlantı ayarları
-│   ├── models.py               # SQLAlchemy ORM modelleri
+│   ├── models.py               # SQLAlchemy ORM modelleri (Measurement, ForecastMeasurement vb.)
 │   ├── schemas.py              # Pydantic veri doğrulama şemaları
 │   ├── init_db.py              # Veritabanı ilklendirme scripti
+│   ├── simulator.py            # OSOS Simülatörü ve Gerçek Veri Entegrasyonu
 │   ├── osos_sim.db             # Uygulama veritabanı
 │   └── services/
 │       ├── weather_service.py  # Open-Meteo Entegrasyonu ve Backfill Mekanizması
 │       ├── analysis_service.py # Veri analizi ve aylık oran hesaplamaları
-│       └── forecast_service.py # XGBoost, SHAP ve ML tahmin motoru
+│       └── forecast_service.py # ML tahmin motoru ve Batch Prediction Mantığı
 ├── css/
 │   └── style.css               # Tasarım sistemi
 └── js/
@@ -105,4 +115,4 @@ uvicorn main:app --reload --port 8000
 *(Sunucu `http://127.0.0.1:8000` adresinde ayağa kalkacaktır.)*
 
 ### 2. Frontend (İstemci) Başlatma
-Sunucu ayaktayken, ana dizindeki **`index.html`** dosyasını herhangi bir modern web tarayıcısında (Chrome, Firefox, Safari) açmanız yeterlidir. Localhost üzerinden sunucu ayağa kalkmışsa doğrudan iletişim kurulur.
+Sunucu ayaktayken, ana dizindeki **`index.html`** dosyasını herhangi bir modern web tarayıcısında (Chrome, Firefox, Safari) açmanız yeterlidir. (Veri güvenliği ve CORS kısıtlamaları nedeniyle bir lokal web sunucusu üzerinden açılması tavsiye edilir, örn: `python3 -m http.server 8080`).

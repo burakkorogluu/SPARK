@@ -71,6 +71,13 @@ def generate_hourly_data():
                     capacitive_kvarh=capacitive
                 )
                 db.add(measurement)
+
+                # Gerçek veri geldiği için geçmişin tahminini sil
+                db.query(models.ForecastMeasurement).filter(
+                    models.ForecastMeasurement.transformer_id == trafo.id,
+                    models.ForecastMeasurement.timestamp == temp_hour
+                ).delete(synchronize_session=False)
+
                 temp_hour += timedelta(hours=1)
         
         db.commit()
@@ -127,6 +134,13 @@ def generate_historical_data(days=30):
                     capacitive_kvarh=capacitive
                 )
                 db.add(measurement)
+                
+                # Gerçek veri geldiği için geçmişin tahminini sil
+                db.query(models.ForecastMeasurement).filter(
+                    models.ForecastMeasurement.transformer_id == trafo.id,
+                    models.ForecastMeasurement.timestamp == timestamp
+                ).delete(synchronize_session=False)
+
         db.commit()
         logger.info(f"Generated historical data for the past {days} days.")
     except Exception as e:

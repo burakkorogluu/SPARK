@@ -58,6 +58,11 @@ async def lifespan(app: FastAPI):
 
     # Schedule the simulator to run every hour at minute 1
     scheduler.add_job(simulator.generate_hourly_data, 'cron', minute=1)
+
+    # Schedule the batch forecast to run once a week (e.g., Sunday at 02:00)
+    from services.forecast_service import run_weekly_batch_forecast
+    scheduler.add_job(run_weekly_batch_forecast, 'cron', day_of_week='sun', hour=2, minute=0)
+    
     scheduler.start()
     
     yield
