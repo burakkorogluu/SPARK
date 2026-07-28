@@ -48,13 +48,41 @@ const TahminModulu = (() => {
         const mevcutVeriler = mapData(mevcutVerilerBackend, false);
         const tahminVeriler = mapData(tahminVerilerBackend || [], true);
 
+        let detayliAciklama = "Python Backend üzerinden hesaplandı.";
+        switch(yontem) {
+            case 'ensemble':
+                detayliAciklama = "Birden fazla makine öğrenmesi (XGBoost, Random Forest vb.) modelinin harmanlanmasıyla; geçmiş tüketimler, Open-Meteo hava durumu (sıcaklık, nem) ve takvim özellikleri (hafta sonu/tatil) kullanılarak hesaplanmıştır.";
+                break;
+            case 'xgboost':
+                detayliAciklama = "XGBoost Yapay Zeka algoritması ile; 1.5 yıllık geçmiş yük verileri, hava durumu değişkenleri ve takvim/tatil özellikleri çaprazlanarak, hata payı en aza indirgenerek hesaplanmıştır.";
+                break;
+            case 'randomForest':
+                detayliAciklama = "Random Forest (Rastgele Orman) Makine Öğrenmesi modeli ile; geçmiş trendler, saatlik gecikmeler ve meteorolojik veriler kullanılarak yüzlerce karar ağacı üzerinden ortak kararla hesaplanmıştır.";
+                break;
+            case 'holtWinters':
+                detayliAciklama = "Holt-Winters İstatistiksel Zaman Serisi algoritması ile; hava durumu veya dış faktörler KULLANILMADAN, verinin sadece kendi geçmiş trendi ve 24 saatlik döngüsü dikkate alınarak hesaplanmıştır.";
+                break;
+            case 'regression':
+                detayliAciklama = "Çoklu Doğrusal Regresyon modeli ile; geçmiş enerji tüketimleri ve çevresel değişkenler (sıcaklık) arasındaki lineer (doğrusal) ilişki denklemi kurularak hesaplanmıştır.";
+                break;
+            case 'ortalama':
+                detayliAciklama = "İstatistiksel yöntemle, önceki günlerin/haftaların aynı saatlerindeki tüketim değerlerinin aritmetik ortalaması alınarak (dış faktörler harici) hesaplanmıştır.";
+                break;
+            case 'persistence':
+                detayliAciklama = "Basit referans yöntemiyle, bir önceki haftaki enerji tüketim davranışının bugün ve gelecekte de birebir aynı şekilde tekrarlanacağı varsayılarak kopyalanmıştır.";
+                break;
+            case 'gecenAy':
+                detayliAciklama = "Geçtiğimiz ayın aynı günlerindeki tüketim dalgalanmaları referans (emsal) alınarak oluşturulmuştur.";
+                break;
+        }
+
         return {
             mevcutVeriler,
             tahminVeriler,
             tumVeriler: [...mevcutVeriler, ...tahminVeriler],
             modelBilgi: { 
                 adi: yontem, 
-                aciklama: 'Python Backend üzerinden hesaplandı.',
+                aciklama: detayliAciklama,
                 skor: guvenlikSkoru
             }
         };

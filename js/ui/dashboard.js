@@ -161,7 +161,8 @@ const DashboardUI = (() => {
         } else {
             try {
                 const hamOzetler = await ApiClient.fetchAnalysisSummary(state.selectedYil, state.selectedAy);
-                ozetler = await Promise.all(hamOzetler.map(async (item) => {
+                ozetler = [];
+                for (const item of hamOzetler) {
                     let tahminOzet = null;
                     try {
                         const tSonuc = await TahminModulu.aySonuTahminiYap(item.trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
@@ -178,8 +179,8 @@ const DashboardUI = (() => {
                         enduktifRisk: HesaplamaModulu.riskSeviyesiBelirle(item.ozet.enduktifOran || 0, 'enduktif')
                     };
 
-                    return { trafo: item.trafo, ozet: enrichedOzet, tahminOzet };
-                }));
+                    ozetler.push({ trafo: item.trafo, ozet: enrichedOzet, tahminOzet });
+                }
 
                 _dashboardCache.set(cacheKey, ozetler);
             } catch (error) {
