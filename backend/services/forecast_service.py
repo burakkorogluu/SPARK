@@ -168,6 +168,40 @@ def _prepare_training_data(db: Session, measurements, steps: int, base_features=
     return df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates
 
 
+def _calculate_holdout_confidence(df, X_aktif, X_kap, X_end, model_aktif, model_kap, model_end):
+    """
+    Kronolojik %80/%20 train/test split ile gerçek hold-out güven skoru hesaplar.
+    - Model tüm veri ile eğitilmiş olmalı (tahmin kalitesi korunur).
+    - Güven skoru sadece test setinden hesaplanır (data leakage yok).
+    - Test seti < 24 satır ise in-sample'a fallback yapılır ve uyarı verilir.
+
+    Dönüş: float (0-100 arası güven skoru)
+    """
+    split_idx = int(len(df) * 0.8)
+    test_df = df.iloc[split_idx:]
+
+    if len(test_df) < 24:
+        # Yeterli test verisi yok — in-sample'a dön, log at
+        import logging
+        logging.getLogger("spark.forecast").warning(
+            f"Hold-out için yetersiz veri ({len(test_df)} satır < 24). In-sample güven kullanılıyor."
+        )
+        conf_a = calculate_confidence(df['y_aktif'],     model_aktif.predict(X_aktif))
+        conf_k = calculate_confidence(df['y_kapasitif'], model_kap.predict(X_kap))
+        conf_e = calculate_confidence(df['y_enduktif'],  model_end.predict(X_end))
+        return round((conf_a + conf_k + conf_e) / 3, 1)
+
+    # Test setindeki feature sütunlarını al
+    X_aktif_test = test_df[X_aktif.columns]
+    X_kap_test   = test_df[X_kap.columns]
+    X_end_test   = test_df[X_end.columns]
+
+    conf_a = calculate_confidence(test_df['y_aktif'],     model_aktif.predict(X_aktif_test))
+    conf_k = calculate_confidence(test_df['y_kapasitif'], model_kap.predict(X_kap_test))
+    conf_e = calculate_confidence(test_df['y_enduktif'],  model_end.predict(X_end_test))
+    return round((conf_a + conf_k + conf_e) / 3, 1)
+
+
 # ────────────────────────────────────────────────────────────────────────────
 
 def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
@@ -207,11 +241,9 @@ def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
     xgb_kap = xgb.XGBRegressor(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42).fit(X_kap, df['y_kapasitif'])
     xgb_end = xgb.XGBRegressor(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42).fit(X_end, df['y_enduktif'])
     
-    conf_a = calculate_confidence(df['y_aktif'], xgb_aktif.predict(X_aktif))
-    conf_k = calculate_confidence(df['y_kapasitif'], xgb_kap.predict(X_kap))
-    conf_e = calculate_confidence(df['y_enduktif'], xgb_end.predict(X_end))
-    confidence = round((conf_a + conf_k + conf_e) / 3, 1)
-    
+    # Hold-out güven skoru: kronolojik %80/%20 split — data leakage yok
+    confidence = _calculate_holdout_confidence(df, X_aktif, X_kap, X_end, xgb_aktif, xgb_kap, xgb_end)
+
     last_date = df.index[-1]
     future_dates = [last_date + datetime.timedelta(hours=i) for i in range(1, steps + 1)]
     
@@ -293,10 +325,8 @@ def forecast_random_forest(db: Session, transformer_id: str, steps: int = 168):
     rf_kap   = RandomForestRegressor(n_estimators=100, max_depth=15, n_jobs=1, random_state=42).fit(X_kap, df['y_kapasitif'])
     rf_end   = RandomForestRegressor(n_estimators=100, max_depth=15, n_jobs=1, random_state=42).fit(X_end, df['y_enduktif'])
 
-    conf_a = calculate_confidence(df['y_aktif'],      rf_aktif.predict(X_aktif))
-    conf_k = calculate_confidence(df['y_kapasitif'],  rf_kap.predict(X_kap))
-    conf_e = calculate_confidence(df['y_enduktif'],   rf_end.predict(X_end))
-    confidence = round((conf_a + conf_k + conf_e) / 3, 1)
+    # Hold-out güven skoru: kronolojik %80/%20 split
+    confidence = _calculate_holdout_confidence(df, X_aktif, X_kap, X_end, rf_aktif, rf_kap, rf_end)
 
     preds = generate_predictions_from_model(
         rf_aktif, rf_kap, rf_end, df, steps, transformer_id, future_dates,
@@ -318,10 +348,8 @@ def forecast_regression(db: Session, transformer_id: str, steps: int = 168):
     lr_kap   = LinearRegression().fit(X_kap, df['y_kapasitif'])
     lr_end   = LinearRegression().fit(X_end, df['y_enduktif'])
 
-    conf_a = calculate_confidence(df['y_aktif'],     lr_aktif.predict(X_aktif))
-    conf_k = calculate_confidence(df['y_kapasitif'], lr_kap.predict(X_kap))
-    conf_e = calculate_confidence(df['y_enduktif'],  lr_end.predict(X_end))
-    confidence = round((conf_a + conf_k + conf_e) / 3, 1)
+    # Hold-out güven skoru: kronolojik %80/%20 split
+    confidence = _calculate_holdout_confidence(df, X_aktif, X_kap, X_end, lr_aktif, lr_kap, lr_end)
 
     preds = generate_predictions_from_model(
         lr_aktif, lr_kap, lr_end, df, steps, transformer_id, future_dates,

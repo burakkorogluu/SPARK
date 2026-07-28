@@ -1374,11 +1374,16 @@ const App = (() => {
 
         ozetler.forEach(({ ozet }) => {
             if (!ozet) return;
-            toplamAktif += ozet.toplamAktif;
-            toplamEnduktif += ozet.toplamEnduktif;
+            toplamAktif     += ozet.toplamAktif;
+            toplamEnduktif  += ozet.toplamEnduktif;
             toplamKapasitif += ozet.toplamKapasitif;
 
-            const sev = ozet.kapasitifRisk.seviye;
+            // Her iki risk türünden en kötüsünü al
+            const _RISK_SIRA = { guvenli: 0, normal: 0, dikkat: 1, riskli: 2, tehlikeli: 3 };
+            const kapSev = ozet.kapasitifRisk ? ozet.kapasitifRisk.seviye : 'guvenli';
+            const endSev = ozet.enduktifRisk  ? ozet.enduktifRisk.seviye  : 'guvenli';
+            const sev = (_RISK_SIRA[kapSev] >= _RISK_SIRA[endSev]) ? kapSev : endSev;
+
             if (sev === 'guvenli' || sev === 'normal') guvenliSayisi++;
             else if (sev === 'dikkat') dikkatSayisi++;
             else if (sev === 'riskli') riskliSayisi++;
@@ -1429,9 +1434,16 @@ const App = (() => {
         if (!gridEl) return;
         gridEl.innerHTML = ozetler.map(({ trafo, ozet, tahminOzet }, idx) => {
             if (!ozet) return '';
-            const risk = ozet.kapasitifRisk;
+
+            // Her iki risk türünden en kötüsünü genel risk olarak kullan
+            const _RISK_SIRA = { guvenli: 0, normal: 0, dikkat: 1, riskli: 2, tehlikeli: 3 };
+            const kapRisk = ozet.kapasitifRisk || HesaplamaModulu.riskSeviyesiBelirle(ozet.kapasitifOran || 0, 'kapasitif');
+            const endRisk = ozet.enduktifRisk  || HesaplamaModulu.riskSeviyesiBelirle(ozet.enduktifOran  || 0, 'enduktif');
+            const risk = (_RISK_SIRA[kapRisk.seviye] >= _RISK_SIRA[endRisk.seviye]) ? kapRisk : endRisk;
+
+            // Mevcut oran gösterimi — her iki oran da gösterilir
             const ratio = Math.min((ozet.kapasitifOran / 20) * 100, 100);
-            const limitPos = (15 / 20) * 100; // %15 sınırın bar üzerindeki pozisyonu
+            const limitPos = (15 / 20) * 100;
 
             const tOran = tahminOzet ? tahminOzet.kapasitifOran : ozet.kapasitifOran;
             const tRisk = tahminOzet ? tahminOzet.kapasitifRisk : risk;
@@ -1452,8 +1464,8 @@ const App = (() => {
                     </div>
                     <div class="trafo-card-stats">
                         <div class="trafo-stat">
-                            <span class="trafo-stat-label">Mevcut Oran</span>
-                            <span class="trafo-stat-value highlight" style="color:${risk.renk || 'var(--text)'}">
+                            <span class="trafo-stat-label">Kapasitif Oran</span>
+                            <span class="trafo-stat-value highlight" style="color:${kapRisk.renk || 'var(--text)'}">
                                 %${HesaplamaModulu.formatSayi(ozet.kapasitifOran)}
                             </span>
                         </div>
@@ -1465,8 +1477,9 @@ const App = (() => {
                         </div>
                         <div class="trafo-stat">
                             <span class="trafo-stat-label">Endüktif Oran</span>
-                            <span class="trafo-stat-value">
+                            <span class="trafo-stat-value" style="color:${endRisk.renk || 'var(--text)'}">
                                 %${HesaplamaModulu.formatSayi(ozet.enduktifOran)}
+                                ${(_RISK_SIRA[endRisk.seviye] >= 2) ? `<span class="badge badge-${endRisk.seviye}" style="font-size:9px;margin-left:4px;">${endRisk.ikon}</span>` : ''}
                             </span>
                         </div>
                         <div class="trafo-stat">
@@ -1474,6 +1487,7 @@ const App = (() => {
                             <span class="trafo-stat-value">${HesaplamaModulu.formatEnerji(ozet.toplamAktif)}</span>
                         </div>
                     </div>
+
                     <div class="ratio-meter">
                         <div class="ratio-meter-bar">
                             <div class="ratio-meter-fill" style="width:${ratio}%; background:${risk.renk || 'var(--color-primary)'}"></div>
