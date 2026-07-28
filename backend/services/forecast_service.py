@@ -18,9 +18,11 @@ import calendar
 import warnings
 import holidays
 import os
+import logging
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger("spark.forecast")
 
 FORECAST_CACHE = {}
 CACHE_TTL = int(os.getenv("FORECAST_CACHE_TTL", "3600"))  # Ortam değişkeninden oku
@@ -171,12 +173,10 @@ def _prepare_training_data(db: Session, measurements, steps: int, base_features=
 def _calculate_holdout_confidence(df, X_aktif, X_kap, X_end, model_aktif, model_kap, model_end):
     """
     Kronolojik %80/%20 train/test split ile gerçek hold-out güven skoru hesaplar.
-    - Model tüm veri ile eğitilmiş olmalı (tahmin kalitesi korunur).
-    - Güven skoru sadece test setinden hesaplanır (data leakage yok).
+    - Modelin bir kopyası sadece train seti ile eğitilir ve test setinde değerlendirilir.
     - Test seti < 24 satır ise in-sample'a fallback yapılır ve uyarı verilir.
-
-    Dönüş: float (0-100 arası güven skoru)
     """
+    from sklearn.base import clone
     split_idx = int(len(df) * 0.8)
     test_df = df.iloc[split_idx:]
 
@@ -191,50 +191,41 @@ def _calculate_holdout_confidence(df, X_aktif, X_kap, X_end, model_aktif, model_
         conf_e = calculate_confidence(df['y_enduktif'],  model_end.predict(X_end))
         return round((conf_a + conf_k + conf_e) / 3, 1)
 
-    # Test setindeki feature sütunlarını al
-    X_aktif_test = test_df[X_aktif.columns]
-    X_kap_test   = test_df[X_kap.columns]
-    X_end_test   = test_df[X_end.columns]
+    # Train verilerini al
+    X_aktif_train = X_aktif.iloc[:split_idx]
+    X_kap_train   = X_kap.iloc[:split_idx]
+    X_end_train   = X_end.iloc[:split_idx]
+    
+    y_aktif_train = df['y_aktif'].iloc[:split_idx]
+    y_kap_train   = df['y_kapasitif'].iloc[:split_idx]
+    y_end_train   = df['y_enduktif'].iloc[:split_idx]
 
-    conf_a = calculate_confidence(test_df['y_aktif'],     model_aktif.predict(X_aktif_test))
-    conf_k = calculate_confidence(test_df['y_kapasitif'], model_kap.predict(X_kap_test))
-    conf_e = calculate_confidence(test_df['y_enduktif'],  model_end.predict(X_end_test))
+    # Modelleri kopyala ve sadece train verisiyle eğit (data leakage'ı önlemek için)
+    eval_model_aktif = clone(model_aktif).fit(X_aktif_train, y_aktif_train)
+    eval_model_kap   = clone(model_kap).fit(X_kap_train, y_kap_train)
+    eval_model_end   = clone(model_end).fit(X_end_train, y_end_train)
+
+    # Test setindeki feature sütunlarını al
+    X_aktif_test = X_aktif.iloc[split_idx:]
+    X_kap_test   = X_kap.iloc[split_idx:]
+    X_end_test   = X_end.iloc[split_idx:]
+
+    conf_a = calculate_confidence(test_df['y_aktif'],     eval_model_aktif.predict(X_aktif_test))
+    conf_k = calculate_confidence(test_df['y_kapasitif'], eval_model_kap.predict(X_kap_test))
+    conf_e = calculate_confidence(test_df['y_enduktif'],  eval_model_end.predict(X_end_test))
     return round((conf_a + conf_k + conf_e) / 3, 1)
 
 
 # ────────────────────────────────────────────────────────────────────────────
 
 def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
-
-    sim_now = datetime.datetime.now()
-    measurements = db.query(models.Measurement).filter(
-        models.Measurement.transformer_id == transformer_id,
-        models.Measurement.timestamp <= sim_now
-    ).order_by(models.Measurement.timestamp.desc()).limit(720).all()
-    measurements.reverse()
-    
+    measurements = _load_measurements(db, transformer_id, limit=720)
     if len(measurements) < 168: return [], 0
     
-    tr_holidays = holidays.TR(years=[measurements[0].timestamp.year, measurements[-1].timestamp.year, (measurements[-1].timestamp + datetime.timedelta(days=30)).year])
-    
-    start_str = measurements[0].timestamp.strftime("%Y-%m-%d")
-    end_date = measurements[-1].timestamp + datetime.timedelta(hours=steps)
-    end_str = end_date.strftime("%Y-%m-%d")
-    weather_map = get_weather_data(start_str, end_str, db)
-    
-    df = prepare_dataframe(measurements, weather_map, tr_holidays)
-    
-    for c in ['aktif', 'kapasitif', 'enduktif']:
-        df[f'{c}_lag_1'] = df[f'y_{c}'].shift(1)
-        df[f'{c}_lag_24'] = df[f'y_{c}'].shift(24)
-        df[f'{c}_lag_168'] = df[f'y_{c}'].shift(168)
-    
-    df.dropna(inplace=True)
-    
-    features = ['is_weekend', 'is_holiday', 'hour', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi']
-    X_aktif = df[features + ['aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168']]
-    X_kap = df[features + ['kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168']]
-    X_end = df[features + ['enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168']]
+    base_features = ['is_weekend', 'is_holiday', 'hour', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi']
+    df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates = _prepare_training_data(
+        db, measurements, steps, base_features
+    )
     
     # Train XGBoost
     xgb_aktif = xgb.XGBRegressor(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42).fit(X_aktif, df['y_aktif'])
@@ -243,9 +234,6 @@ def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
     
     # Hold-out güven skoru: kronolojik %80/%20 split — data leakage yok
     confidence = _calculate_holdout_confidence(df, X_aktif, X_kap, X_end, xgb_aktif, xgb_kap, xgb_end)
-
-    last_date = df.index[-1]
-    future_dates = [last_date + datetime.timedelta(hours=i) for i in range(1, steps + 1)]
     
     predictions = []
     last_168 = df[['y_aktif', 'y_kapasitif', 'y_enduktif']].tail(168).to_dict('records')

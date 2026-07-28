@@ -87,3 +87,18 @@ class ManeuverLog(Base):
     source_transformer = relationship("Transformer", foreign_keys=[source_trafo_id])
     target_transformer = relationship("Transformer", foreign_keys=[target_trafo_id])
 
+
+class SystemAlert(Base):
+    __tablename__ = "system_alerts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp = Column(DateTime, default=datetime.datetime.now, index=True)
+    transformer_id = Column(String, ForeignKey("transformers.id"))
+    alert_type = Column(String)    # "capacitive_penalty" | "inductive_penalty" | "warning" | "info"
+    severity = Column(String)      # "critical" | "warning" | "info"
+    message = Column(String)
+    is_read = Column(Integer, default=0)
+
+    transformer = relationship("Transformer")
+
+

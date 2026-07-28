@@ -1,7 +1,9 @@
-# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 import models
 from datetime import datetime, timedelta
+import logging
+
+logger = logging.getLogger("spark.maneuver")
 
 
 def _get_trafo_stats(db: Session):
@@ -408,6 +410,11 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
     """
     Apply a maneuver and log it in ManeuverLog.
     Returns the created log entry or None on failure.
+    
+    Not: Ikili trafo yapısında alternative_transformer_id alanına old_trafo_id yazılması
+    geçişin geri alınabilmesini ve iki trafo arası çift yönlü takası sağlar. 3+ trafo
+    senaryoları eklenirse, ilk orijinal trafonun kaybolmaması için `original_transformer_id`
+    alanı veritabanı modeline eklenebilir.
     """
     if asset_type == "feeder":
         asset = db.query(models.Feeder).filter(models.Feeder.id == asset_id).first()

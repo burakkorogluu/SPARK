@@ -151,6 +151,20 @@ const ApiClient = (() => {
         return _fetch(url, { method: 'DELETE' });
     }
 
+    async function fetchAlerts(limit = 20) {
+        return _fetch(`${API_BASE_URL}/alerts?limit=${limit}`);
+    }
+
+    async function checkAlerts(year = null, month = null) {
+        let url = `${API_BASE_URL}/alerts/check`;
+        if (year && month) url += `?year=${year}&month=${month}`;
+        return _fetch(url, { method: 'POST' });
+    }
+
+    async function evaluateModels(transformerId, steps = 168) {
+        return _fetch(`${API_BASE_URL}/models/evaluate?transformer_id=${encodeURIComponent(transformerId)}&steps=${steps}`);
+    }
+
     return {
         fetchMeasurements,
         fetchTransformers,
@@ -165,6 +179,9 @@ const ApiClient = (() => {
         addFeeder,
         addReactor,
         addMeasurement,
-        deleteMeasurement
+        deleteMeasurement,
+        fetchAlerts,
+        checkAlerts,
+        evaluateModels
     };
 })();

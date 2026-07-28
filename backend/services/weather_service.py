@@ -1,9 +1,10 @@
-# pyrefly: ignore [missing-source-for-stubs]
 import requests
 import datetime
-# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 import models
+import logging
+
+logger = logging.getLogger("spark.weather")
 
 LAT = 41.0082
 LON = 28.9784
@@ -59,13 +60,15 @@ def get_weather_data(start_date: str, end_date: str, db: Session = None):
                     "cloud_cover": rec.cloud_cover
                 }
                 
-                # Check if any new parameter is missing
-                if rec.wind_speed is None or rec.cloud_cover is None:
+                # Check if any parameter is missing
+                if any(getattr(rec, attr, None) is None for attr in ("wind_speed", "cloud_cover", "humidity", "precipitation", "wind_direction")):
                     needs_api = True
         except Exception as e:
             print(f"Weather DB Query Error: {e}")
             needs_api = True
 
+    # -24h toleransı: Son 24 saatlik veriler Open-Meteo arşivinde henüz yayınlanmamış olabileceğinden 
+    # küçük eksikler için sürekli API isteği atılmasını engeller.
     if len(weather_map) < expected_hours - 24:
         needs_api = True
 
@@ -121,7 +124,7 @@ def get_weather_data(start_date: str, end_date: str, db: Session = None):
 
                     if dt_obj in existing_records:
                         rec = existing_records[dt_obj]
-                        if rec.wind_speed is None:
+                        if any(getattr(rec, attr, None) is None for attr in ("wind_speed", "cloud_cover", "humidity", "precipitation", "wind_direction")):
                             rec.humidity = h_val
                             rec.wind_speed = ws_val
                             rec.wind_direction = wd_val

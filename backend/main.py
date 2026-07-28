@@ -9,7 +9,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import models
 import schemas
 from database import engine, SessionLocal
-from typing import List
+from typing import List, Literal
+
+FORECAST_METHODS = Literal["xgboost", "randomForest", "regression", "holtWinters", "ortalama", "persistence", "gecenAy", "ensemble"]
 from datetime import datetime, date
 import simulator
 from contextlib import asynccontextmanager
@@ -26,8 +28,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger("spark")
-
-models.Base.metadata.create_all(bind=engine)
 
 def get_db():
     db = SessionLocal()
@@ -52,6 +52,9 @@ async def lifespan(app: FastAPI):
         print("Generating historical data for the first time...")
         simulator.generate_historical_data(days=10)
     db.close()
+
+    # Catch up any missing hours between last run and now
+    simulator.generate_hourly_data()
 
     # Schedule the simulator to run every hour at minute 1
     scheduler.add_job(simulator.generate_hourly_data, 'cron', minute=1)
@@ -181,7 +184,7 @@ def get_forecast(
     transformer_id: str = Query(..., description="Transformer ID"),
     year: int = Query(..., description="Target Year"),
     month: int = Query(..., description="Target Month"),
-    method: str = Query("ensemble", description="ensemble, randomForest, holtWinters"),
+    method: FORECAST_METHODS = Query("ensemble", description="xgboost, randomForest, regression, holtWinters, ortalama, persistence, gecenAy, ensemble"),
     db: Session = Depends(get_db)
 ):
     from services.forecast_service import get_cached_forecast
@@ -335,3 +338,32 @@ def create_reactor_endpoint(
             "status": reactor.status
         }
     }
+
+@app.get("/api/alerts")
+def get_alerts_endpoint(limit: int = 20, db: Session = Depends(get_db)):
+    from services.alert_service import get_active_alerts
+    return get_active_alerts(db, limit)
+
+@app.post("/api/alerts/check")
+def check_alerts_endpoint(year: int = None, month: int = None, db: Session = Depends(get_db)):
+    from services.alert_service import check_and_generate_alerts, get_active_alerts
+    check_and_generate_alerts(db, year, month)
+    return get_active_alerts(db)
+
+@app.get("/api/models/evaluate")
+def evaluate_models_endpoint(transformer_id: str = Query(..., description="Transformer ID"), steps: int = 168, db: Session = Depends(get_db)):
+    from services.model_eval_service import evaluate_all_models
+    return evaluate_all_models(db, transformer_id, steps)
+
+from fastapi import WebSocket, WebSocketDisconnect
+from ws_handler import ws_manager
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await ws_manager.broadcast({"type": "ping", "data": data})
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
