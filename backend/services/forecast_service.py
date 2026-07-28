@@ -17,11 +17,13 @@ import time
 import calendar
 import warnings
 import holidays
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 FORECAST_CACHE = {}
-CACHE_TTL = 3600 # 1 hour
-SIM_NOW = datetime.datetime.now()
+CACHE_TTL = int(os.getenv("FORECAST_CACHE_TTL", "3600"))  # Ortam değişkeninden oku
 
 def calculate_confidence(y_true, y_pred):
     """Calculates confidence score based on MAPE."""
@@ -69,7 +71,15 @@ def prepare_dataframe(measurements, weather_map=None, tr_holidays=None):
 def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps, transformer_id, future_dates, method_name="regression", weather_map=None, tr_holidays=None):
     predictions = []
     last_168 = df[['y_aktif', 'y_kapasitif', 'y_enduktif']].tail(168).to_dict('records')
-    
+
+    # Eğitimde kullanılan kolon adları ve sırası (_prepare_training_data ile birebir
+    # aynı olmalı) — modeller adlandırılmış DataFrame ile eğitildiği için tahmin
+    # girdisi de aynı isimlerle DataFrame olarak verilmeli, aksi halde sklearn
+    # "X does not have valid feature names" uyarısı veriyor.
+    cols_aktif = ['is_weekend', 'is_holiday', 'hour', 'temp', 'aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168']
+    cols_kap   = ['is_weekend', 'is_holiday', 'hour', 'temp', 'kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168']
+    cols_end   = ['is_weekend', 'is_holiday', 'hour', 'temp', 'enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168']
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         for i in range(steps):
@@ -83,9 +93,9 @@ def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps
             is_holiday = 1 if tr_holidays and d in tr_holidays else 0
             temp = get_temperature_for_timestamp(weather_map, d) if weather_map else 20.0
             
-            feat_aktif = [[is_weekend, is_holiday, d.hour, temp, lag_1['y_aktif'], lag_24['y_aktif'], lag_168['y_aktif']]]
-            feat_kap = [[is_weekend, is_holiday, d.hour, temp, lag_1['y_kapasitif'], lag_24['y_kapasitif'], lag_168['y_kapasitif']]]
-            feat_end = [[is_weekend, is_holiday, d.hour, temp, lag_1['y_enduktif'], lag_24['y_enduktif'], lag_168['y_enduktif']]]
+            feat_aktif = pd.DataFrame([[is_weekend, is_holiday, d.hour, temp, lag_1['y_aktif'], lag_24['y_aktif'], lag_168['y_aktif']]], columns=cols_aktif)
+            feat_kap = pd.DataFrame([[is_weekend, is_holiday, d.hour, temp, lag_1['y_kapasitif'], lag_24['y_kapasitif'], lag_168['y_kapasitif']]], columns=cols_kap)
+            feat_end = pd.DataFrame([[is_weekend, is_holiday, d.hour, temp, lag_1['y_enduktif'], lag_24['y_enduktif'], lag_168['y_enduktif']]], columns=cols_end)
             
             pa = max(0, model_aktif.predict(feat_aktif)[0])
             pk = max(0, model_kap.predict(feat_kap)[0])
@@ -107,10 +117,65 @@ def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps
 
 
 
-def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
+# ─── Ortak Yardımcı Fonksiyonlar ───────────────────────────────────────────
+
+def _load_measurements(db: Session, transformer_id: str, limit: int = 720):
+    """Belirli bir trafo için en son N ölçümü çeker."""
+    sim_now = datetime.datetime.now()
     measurements = db.query(models.Measurement).filter(
         models.Measurement.transformer_id == transformer_id,
-        models.Measurement.timestamp <= SIM_NOW
+        models.Measurement.timestamp <= sim_now
+    ).order_by(models.Measurement.timestamp.desc()).limit(limit).all()
+    measurements.reverse()
+    return measurements
+
+
+def _prepare_training_data(db: Session, measurements, steps: int, base_features=None):
+    """
+    Ölçümlerden DataFrame hazırlar, hava durumu ve tatil verilerini ekler,
+    lag feature'larını (1h, 24h, 168h) oluşturur ve NaN satırlarını temizler.
+    Döndürür: (df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates)
+    """
+    if base_features is None:
+        base_features = ['is_weekend', 'is_holiday', 'hour', 'temp']
+
+    tr_holidays = holidays.TR(years=[
+        measurements[0].timestamp.year,
+        measurements[-1].timestamp.year,
+        (measurements[-1].timestamp + datetime.timedelta(days=30)).year
+    ])
+
+    start_str = measurements[0].timestamp.strftime("%Y-%m-%d")
+    end_str   = (measurements[-1].timestamp + datetime.timedelta(hours=steps)).strftime("%Y-%m-%d")
+    weather_map = get_weather_data(start_str, end_str, db)
+
+    df = prepare_dataframe(measurements, weather_map, tr_holidays)
+
+    for c in ['aktif', 'kapasitif', 'enduktif']:
+        df[f'{c}_lag_1']   = df[f'y_{c}'].shift(1)
+        df[f'{c}_lag_24']  = df[f'y_{c}'].shift(24)
+        df[f'{c}_lag_168'] = df[f'y_{c}'].shift(168)
+
+    df.dropna(inplace=True)
+
+    X_aktif = df[base_features + ['aktif_lag_1',    'aktif_lag_24',    'aktif_lag_168']]
+    X_kap   = df[base_features + ['kapasitif_lag_1','kapasitif_lag_24','kapasitif_lag_168']]
+    X_end   = df[base_features + ['enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168']]
+
+    last_date    = df.index[-1]
+    future_dates = [last_date + datetime.timedelta(hours=i) for i in range(1, steps + 1)]
+
+    return df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates
+
+
+# ────────────────────────────────────────────────────────────────────────────
+
+def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
+
+    sim_now = datetime.datetime.now()
+    measurements = db.query(models.Measurement).filter(
+        models.Measurement.transformer_id == transformer_id,
+        models.Measurement.timestamp <= sim_now
     ).order_by(models.Measurement.timestamp.desc()).limit(720).all()
     measurements.reverse()
     
@@ -152,7 +217,14 @@ def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
     
     predictions = []
     last_168 = df[['y_aktif', 'y_kapasitif', 'y_enduktif']].tail(168).to_dict('records')
-    
+
+    # Create SHAP explainers once (not inside the loop) for performance
+    shap_explainer_kap = shap.TreeExplainer(xgb_kap)
+    shap_explainer_end = shap.TreeExplainer(xgb_end)
+    # SHAP column name mappings
+    kap_cols = list(X_kap.columns)
+    end_cols = list(X_end.columns)
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         for i in range(steps):
@@ -160,38 +232,37 @@ def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
             lag_1 = last_168[-1]
             lag_24 = last_168[-24]
             lag_168 = last_168[-168]
-            
+
             is_weekend = 1 if d.weekday() >= 5 else 0
             is_holiday = 1 if tr_holidays and d in tr_holidays else 0
             w_feat = get_weather_features_for_timestamp(weather_map, d) if weather_map else {"temp": 20.0, "humidity": 50.0, "wind_speed": 0.0, "cloud_cover": 0.0}
             t = w_feat.get("temp", 20.0)
             rh = w_feat.get("humidity", 50.0)
             thi = t - (0.55 - 0.0055 * rh) * (t - 14.5)
-            
+
             row_base = [is_weekend, is_holiday, d.hour, t, rh, w_feat.get("wind_speed", 0.0), w_feat.get("cloud_cover", 0.0), thi]
-            
+
             f_a = pd.DataFrame([row_base + [lag_1['y_aktif'], lag_24['y_aktif'], lag_168['y_aktif']]], columns=X_aktif.columns)
             f_k = pd.DataFrame([row_base + [lag_1['y_kapasitif'], lag_24['y_kapasitif'], lag_168['y_kapasitif']]], columns=X_kap.columns)
             f_e = pd.DataFrame([row_base + [lag_1['y_enduktif'], lag_24['y_enduktif'], lag_168['y_enduktif']]], columns=X_end.columns)
-            
+
             pa = max(0, xgb_aktif.predict(f_a)[0])
             pk = max(0, xgb_kap.predict(f_k)[0])
             pe = max(0, xgb_end.predict(f_e)[0])
-            
-            # SHAP calculations for explainability (only for capacitive and inductive to keep it fast)
-            shap_explainer_kap = shap.TreeExplainer(xgb_kap)
-            shap_values_kap = shap_explainer_kap.shap_values(f_k)[0]
-            
-            shap_explainer_end = shap.TreeExplainer(xgb_end)
-            shap_values_end = shap_explainer_end.shap_values(f_e)[0]
-            
-            # Get top reasons for spike/drops
-            top_kap_idx = np.argmax(np.abs(shap_values_kap))
-            top_end_idx = np.argmax(np.abs(shap_values_end))
-            
-            kap_reason = f"{X_kap.columns[top_kap_idx]} ({round(shap_values_kap[top_kap_idx],2)})"
-            end_reason = f"{X_end.columns[top_end_idx]} ({round(shap_values_end[top_end_idx],2)})"
-            
+
+            # SHAP: only compute for the first 48 steps to avoid O(steps) overhead
+            kap_reason = None
+            end_reason = None
+            if i < 48:
+                shap_values_kap = shap_explainer_kap.shap_values(f_k)[0]
+                shap_values_end = shap_explainer_end.shap_values(f_e)[0]
+
+                top_kap_idx = np.argmax(np.abs(shap_values_kap))
+                top_end_idx = np.argmax(np.abs(shap_values_end))
+
+                kap_reason = f"{kap_cols[top_kap_idx]} ({round(shap_values_kap[top_kap_idx], 2)})"
+                end_reason = f"{end_cols[top_end_idx]} ({round(shap_values_end[top_end_idx], 2)})"
+
             predictions.append({
                 "transformer_id": transformer_id,
                 "timestamp": d.strftime("%Y-%m-%d %H:00:00"),
@@ -202,120 +273,68 @@ def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
                 "kap_reason": kap_reason,
                 "end_reason": end_reason
             })
-            
+
             last_168.append({'y_aktif': pa, 'y_kapasitif': pk, 'y_enduktif': pe})
             last_168.pop(0)
 
     return predictions, confidence
 
+
 def forecast_random_forest(db: Session, transformer_id: str, steps: int = 168):
-    measurements = db.query(models.Measurement).filter(
-        models.Measurement.transformer_id == transformer_id,
-        models.Measurement.timestamp <= SIM_NOW
-    ).order_by(models.Measurement.timestamp.desc()).limit(720).all()
-    measurements.reverse()
-    
+    measurements = _load_measurements(db, transformer_id, limit=720)
     if len(measurements) < 168: return [], 0
-    
-    tr_holidays = holidays.TR(years=[measurements[0].timestamp.year, measurements[-1].timestamp.year, (measurements[-1].timestamp + datetime.timedelta(days=30)).year])
-    
-    start_str = measurements[0].timestamp.strftime("%Y-%m-%d")
-    end_date = measurements[-1].timestamp + datetime.timedelta(hours=steps)
-    end_str = end_date.strftime("%Y-%m-%d")
-    weather_map = get_weather_data(start_str, end_str, db)
-    
-    df = prepare_dataframe(measurements, weather_map, tr_holidays)
-    
-    df['aktif_lag_1'] = df['y_aktif'].shift(1)
-    df['kapasitif_lag_1'] = df['y_kapasitif'].shift(1)
-    df['enduktif_lag_1'] = df['y_enduktif'].shift(1)
-    
-    df['aktif_lag_24'] = df['y_aktif'].shift(24)
-    df['kapasitif_lag_24'] = df['y_kapasitif'].shift(24)
-    df['enduktif_lag_24'] = df['y_enduktif'].shift(24)
-    
-    df['aktif_lag_168'] = df['y_aktif'].shift(168)
-    df['kapasitif_lag_168'] = df['y_kapasitif'].shift(168)
-    df['enduktif_lag_168'] = df['y_enduktif'].shift(168)
-    
-    df.dropna(inplace=True)
-    
-    X_aktif = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168']]
-    X_kap = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168']]
-    X_end = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168']]
-    
+
+    base_features = ['is_weekend', 'is_holiday', 'hour', 'temp']
+    df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates = _prepare_training_data(
+        db, measurements, steps, base_features
+    )
+
     rf_aktif = RandomForestRegressor(n_estimators=100, max_depth=15, n_jobs=1, random_state=42).fit(X_aktif, df['y_aktif'])
-    rf_kap = RandomForestRegressor(n_estimators=100, max_depth=15, n_jobs=1, random_state=42).fit(X_kap, df['y_kapasitif'])
-    rf_end = RandomForestRegressor(n_estimators=100, max_depth=15, n_jobs=1, random_state=42).fit(X_end, df['y_enduktif'])
-    
-    conf_a = calculate_confidence(df['y_aktif'], rf_aktif.predict(X_aktif))
-    conf_k = calculate_confidence(df['y_kapasitif'], rf_kap.predict(X_kap))
-    conf_e = calculate_confidence(df['y_enduktif'], rf_end.predict(X_end))
+    rf_kap   = RandomForestRegressor(n_estimators=100, max_depth=15, n_jobs=1, random_state=42).fit(X_kap, df['y_kapasitif'])
+    rf_end   = RandomForestRegressor(n_estimators=100, max_depth=15, n_jobs=1, random_state=42).fit(X_end, df['y_enduktif'])
+
+    conf_a = calculate_confidence(df['y_aktif'],      rf_aktif.predict(X_aktif))
+    conf_k = calculate_confidence(df['y_kapasitif'],  rf_kap.predict(X_kap))
+    conf_e = calculate_confidence(df['y_enduktif'],   rf_end.predict(X_end))
     confidence = round((conf_a + conf_k + conf_e) / 3, 1)
-    
-    last_date = df.index[-1]
-    future_dates = [last_date + datetime.timedelta(hours=i) for i in range(1, steps + 1)]
-    
-    preds = generate_predictions_from_model(rf_aktif, rf_kap, rf_end, df, steps, transformer_id, future_dates, "randomForest", weather_map, tr_holidays)
+
+    preds = generate_predictions_from_model(
+        rf_aktif, rf_kap, rf_end, df, steps, transformer_id, future_dates,
+        "randomForest", weather_map, tr_holidays
+    )
     return preds, confidence
 
 
 def forecast_regression(db: Session, transformer_id: str, steps: int = 168):
-    measurements = db.query(models.Measurement).filter(
-        models.Measurement.transformer_id == transformer_id,
-        models.Measurement.timestamp <= SIM_NOW
-    ).order_by(models.Measurement.timestamp.desc()).limit(720).all()
-    measurements.reverse()
-    
+    measurements = _load_measurements(db, transformer_id, limit=720)
     if len(measurements) < 168: return [], 0
-    
-    tr_holidays = holidays.TR(years=[measurements[0].timestamp.year, measurements[-1].timestamp.year, (measurements[-1].timestamp + datetime.timedelta(days=30)).year])
-    
-    start_str = measurements[0].timestamp.strftime("%Y-%m-%d")
-    end_date = measurements[-1].timestamp + datetime.timedelta(hours=steps)
-    end_str = end_date.strftime("%Y-%m-%d")
-    weather_map = get_weather_data(start_str, end_str, db)
-    
-    df = prepare_dataframe(measurements, weather_map, tr_holidays)
-    
-    df['aktif_lag_1'] = df['y_aktif'].shift(1)
-    df['kapasitif_lag_1'] = df['y_kapasitif'].shift(1)
-    df['enduktif_lag_1'] = df['y_enduktif'].shift(1)
-    
-    df['aktif_lag_24'] = df['y_aktif'].shift(24)
-    df['kapasitif_lag_24'] = df['y_kapasitif'].shift(24)
-    df['enduktif_lag_24'] = df['y_enduktif'].shift(24)
-    
-    df['aktif_lag_168'] = df['y_aktif'].shift(168)
-    df['kapasitif_lag_168'] = df['y_kapasitif'].shift(168)
-    df['enduktif_lag_168'] = df['y_enduktif'].shift(168)
-    
-    df.dropna(inplace=True)
-    
-    X_aktif = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168']]
-    X_kap = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168']]
-    X_end = df[['is_weekend', 'is_holiday', 'hour', 'temp', 'enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168']]
-    
+
+    base_features = ['is_weekend', 'is_holiday', 'hour', 'temp']
+    df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates = _prepare_training_data(
+        db, measurements, steps, base_features
+    )
+
     lr_aktif = LinearRegression().fit(X_aktif, df['y_aktif'])
-    lr_kap = LinearRegression().fit(X_kap, df['y_kapasitif'])
-    lr_end = LinearRegression().fit(X_end, df['y_enduktif'])
-    
-    conf_a = calculate_confidence(df['y_aktif'], lr_aktif.predict(X_aktif))
+    lr_kap   = LinearRegression().fit(X_kap, df['y_kapasitif'])
+    lr_end   = LinearRegression().fit(X_end, df['y_enduktif'])
+
+    conf_a = calculate_confidence(df['y_aktif'],     lr_aktif.predict(X_aktif))
     conf_k = calculate_confidence(df['y_kapasitif'], lr_kap.predict(X_kap))
-    conf_e = calculate_confidence(df['y_enduktif'], lr_end.predict(X_end))
+    conf_e = calculate_confidence(df['y_enduktif'],  lr_end.predict(X_end))
     confidence = round((conf_a + conf_k + conf_e) / 3, 1)
-    
-    last_date = df.index[-1]
-    future_dates = [last_date + datetime.timedelta(hours=i) for i in range(1, steps + 1)]
-    
-    preds = generate_predictions_from_model(lr_aktif, lr_kap, lr_end, df, steps, transformer_id, future_dates, "regression", weather_map, tr_holidays)
+
+    preds = generate_predictions_from_model(
+        lr_aktif, lr_kap, lr_end, df, steps, transformer_id, future_dates,
+        "regression", weather_map, tr_holidays
+    )
     return preds, confidence
 
 
 def forecast_holt_winters(db: Session, transformer_id: str, steps: int = 168):
+    sim_now = datetime.datetime.now()
     measurements = db.query(models.Measurement).filter(
         models.Measurement.transformer_id == transformer_id,
-        models.Measurement.timestamp <= SIM_NOW
+        models.Measurement.timestamp <= sim_now
     ).order_by(models.Measurement.timestamp.desc()).limit(720).all()
     measurements.reverse()
     
@@ -350,15 +369,20 @@ def forecast_holt_winters(db: Session, transformer_id: str, steps: int = 168):
                 "inductive_kvarh": max(0, int(pred_end.iloc[i])),
                 "is_forecast": True
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger("spark").warning(
+            f"Holt-Winters forecast failed for {transformer_id}: {exc}"
+        )
     return predictions, confidence
 
 
+
 def forecast_ortalama(db: Session, transformer_id: str, steps: int = 168):
+    sim_now = datetime.datetime.now()
     measurements = db.query(models.Measurement).filter(
         models.Measurement.transformer_id == transformer_id,
-        models.Measurement.timestamp <= SIM_NOW
+        models.Measurement.timestamp <= sim_now
     ).order_by(models.Measurement.timestamp.desc()).limit(336).all()
     measurements.reverse()
     
@@ -413,9 +437,10 @@ def forecast_ortalama(db: Session, transformer_id: str, steps: int = 168):
 
 
 def forecast_persistence(db: Session, transformer_id: str, steps: int = 168):
+    sim_now = datetime.datetime.now()
     measurements = db.query(models.Measurement).filter(
         models.Measurement.transformer_id == transformer_id,
-        models.Measurement.timestamp <= SIM_NOW
+        models.Measurement.timestamp <= sim_now
     ).order_by(models.Measurement.timestamp.desc()).limit(336).all()
     measurements.reverse()
     
@@ -462,9 +487,10 @@ def forecast_persistence(db: Session, transformer_id: str, steps: int = 168):
 
 
 def forecast_gecen_ay(db: Session, transformer_id: str, steps: int = 168):
+    sim_now = datetime.datetime.now()
     measurements = db.query(models.Measurement).filter(
         models.Measurement.transformer_id == transformer_id,
-        models.Measurement.timestamp <= SIM_NOW
+        models.Measurement.timestamp <= sim_now
     ).order_by(models.Measurement.timestamp.desc()).limit(1344).all()
     measurements.reverse()
     
@@ -505,12 +531,13 @@ def forecast_gecen_ay(db: Session, transformer_id: str, steps: int = 168):
 
 
 def get_cached_forecast(db: Session, transformer_id: str, year: int, month: int, method: str):
+    sim_now = datetime.datetime.now()
     last_day = calendar.monthrange(year, month)[1]
     end_of_month = datetime.datetime(year, month, last_day, 23, 59, 59)
     
     last_m = db.query(models.Measurement).filter(
         models.Measurement.transformer_id == transformer_id,
-        models.Measurement.timestamp <= SIM_NOW
+        models.Measurement.timestamp <= sim_now
     ).order_by(models.Measurement.timestamp.desc()).first()
     
     if not last_m or last_m.timestamp >= end_of_month:

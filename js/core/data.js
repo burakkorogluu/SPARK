@@ -138,6 +138,8 @@ const VeriModulu = (() => {
     let _tumVeriler = [];
     let _veriMap = new Map(); // trafoId → [veriler]
     let _loadedMonths = new Set();
+    // Hızlı erişim indeksi: "trafoId|tarih" → _tumVeriler dizisindeki index
+    let _tumVerilerIndex = new Map();
 
     async function loadAylikVeriler(yil, ay) {
         const monthKey = `${yil}-${String(ay).padStart(2, '0')}`;
@@ -181,6 +183,7 @@ const VeriModulu = (() => {
         _tumVeriler = [];
         _veriMap = new Map();
         _loadedMonths = new Set();
+        _tumVerilerIndex = new Map();
         TRAFOLAR.forEach((trafo) => {
             _veriMap.set(trafo.id, []);
         });
@@ -199,19 +202,23 @@ const VeriModulu = (() => {
 
         await ApiClient.addMeasurement(payload);
 
-        // ── Mükerrer Kontrol & Yerel State Güncelleme ──
+        const indexKey = `${veri.trafoId}|${veri.tarih}`;
         const trafoVerileri = _veriMap.get(veri.trafoId);
+
         if (trafoVerileri) {
-            const mevcutIdx = trafoVerileri.findIndex(v => v.tarih === veri.tarih);
-            if (mevcutIdx !== -1) {
-                trafoVerileri[mevcutIdx] = veri;
-                const genelIdx = _tumVeriler.findIndex(v => v.trafoId === veri.trafoId && v.tarih === veri.tarih);
-                if (genelIdx !== -1) _tumVeriler[genelIdx] = veri;
+            const existingPos = _tumVerilerIndex.get(indexKey);
+            if (existingPos !== undefined) {
+                // Veri zaten var — güncelle
+                _tumVeriler[existingPos] = veri;
+                const trafoIdx = trafoVerileri.findIndex(v => v.tarih === veri.tarih);
+                if (trafoIdx !== -1) trafoVerileri[trafoIdx] = veri;
                 return;
             }
         }
 
+        const newIdx = _tumVeriler.length;
         _tumVeriler.push(veri);
+        _tumVerilerIndex.set(indexKey, newIdx);
         if (!_veriMap.has(veri.trafoId)) {
             _veriMap.set(veri.trafoId, []);
         }
@@ -220,26 +227,35 @@ const VeriModulu = (() => {
     }
 
     function veriEkleToplu(yeniVerilerDizisi) {
-        let hasChanges = false;
+        // O(n) ekleme — Map indeksi ile duplicate kontrolü
+        let needsSort = false;
         yeniVerilerDizisi.forEach(veri => {
-            const trafoVerileri = _veriMap.get(veri.trafoId);
-            if (trafoVerileri) {
-                const mevcutIdx = trafoVerileri.findIndex(v => v.tarih === veri.tarih);
-                if (mevcutIdx !== -1) {
-                    trafoVerileri[mevcutIdx] = veri;
-                    const genelIdx = _tumVeriler.findIndex(v => v.trafoId === veri.trafoId && v.tarih === veri.tarih);
-                    if (genelIdx !== -1) _tumVeriler[genelIdx] = veri;
-                    hasChanges = true;
-                    return;
-                }
+            const indexKey = `${veri.trafoId}|${veri.tarih}`;
+            const existingPos = _tumVerilerIndex.get(indexKey);
+
+            if (existingPos !== undefined) {
+                // Güncelle
+                _tumVeriler[existingPos] = veri;
+            } else {
+                // Yeni ekle
+                const newPos = _tumVeriler.length;
+                _tumVeriler.push(veri);
+                _tumVerilerIndex.set(indexKey, newPos);
+                needsSort = true;
             }
-            _tumVeriler.push(veri);
+
             if (!_veriMap.has(veri.trafoId)) _veriMap.set(veri.trafoId, []);
-            _veriMap.get(veri.trafoId).push(veri);
-            hasChanges = true;
+            const trafoVerileri = _veriMap.get(veri.trafoId);
+            const trafoIdx = trafoVerileri.findIndex(v => v.tarih === veri.tarih);
+            if (trafoIdx !== -1) {
+                trafoVerileri[trafoIdx] = veri;
+            } else {
+                trafoVerileri.push(veri);
+                needsSort = true;
+            }
         });
 
-        if (hasChanges) {
+        if (needsSort) {
             _veriMap.forEach(veriler => veriler.sort((a, b) => {
                 const ta = (a && a.tarih) ? a.tarih : '';
                 const tb = (b && b.tarih) ? b.tarih : '';
@@ -251,15 +267,24 @@ const VeriModulu = (() => {
     async function veriSil(trafoId, tarih) {
         await ApiClient.deleteMeasurement(trafoId, tarih);
 
-        // Ana haritadan sil
+        // İndeksten sil
+        const indexKey = `${trafoId}|${tarih}`;
+        const pos = _tumVerilerIndex.get(indexKey);
+        if (pos !== undefined) {
+            _tumVeriler.splice(pos, 1);
+            _tumVerilerIndex.delete(indexKey);
+            // Kaydırılan indeksleri güncelle
+            for (let i = pos; i < _tumVeriler.length; i++) {
+                const v = _tumVeriler[i];
+                _tumVerilerIndex.set(`${v.trafoId}|${v.tarih}`, i);
+            }
+        }
+        // trafoMap'ten sil
         const trafoVerileri = _veriMap.get(trafoId);
         if (trafoVerileri) {
             const idx = trafoVerileri.findIndex(v => v.tarih === tarih);
             if (idx !== -1) trafoVerileri.splice(idx, 1);
         }
-        // Genel listeden sil
-        const genelIdx = _tumVeriler.findIndex(v => v.trafoId === trafoId && v.tarih === tarih);
-        if (genelIdx !== -1) _tumVeriler.splice(genelIdx, 1);
     }
 
     // ─── Public API ───

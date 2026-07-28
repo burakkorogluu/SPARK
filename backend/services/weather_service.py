@@ -8,6 +8,22 @@ import models
 LAT = 41.0082
 LON = 28.9784
 
+# Open-Meteo'nun archive endpoint'i henüz reanalize edilmemiş, bugüne çok yakın
+# (veya gelecekteki) tarihler için 400 Bad Request döndürüyor. Bu yüzden API'ye
+# gönderdiğimiz end_date'i güvenli bir geçmiş tarihle sınırlıyoruz.
+ARCHIVE_SAFE_DELAY_DAYS = 2
+
+
+def _clamp_to_archive_safe_date(date_str: str) -> str:
+    """Verilen tarihi Open-Meteo archive API'sinin veri sağlayabileceği en güncel
+    (güvenli) tarihe kırpar. Parse edilemeyen tarihleri olduğu gibi döndürür."""
+    try:
+        d = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+    except Exception:
+        return date_str
+    safe_cutoff = datetime.datetime.now() - datetime.timedelta(days=ARCHIVE_SAFE_DELAY_DAYS)
+    return min(d, safe_cutoff).strftime("%Y-%m-%d")
+
 def get_weather_data(start_date: str, end_date: str, db: Session = None):
     """
     Fetches hourly weather data for the given date range (YYYY-MM-DD).
@@ -56,7 +72,15 @@ def get_weather_data(start_date: str, end_date: str, db: Session = None):
     if not needs_api:
         return weather_map
 
-    url = f"https://archive-api.open-meteo.com/v1/archive?latitude={LAT}&longitude={LON}&start_date={start_date}&end_date={end_date}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,cloud_cover&timezone=Europe%2FIstanbul"
+    api_start_date = start_date
+    api_end_date = _clamp_to_archive_safe_date(end_date)
+
+    # İstenen aralığın tamamı henüz arşivde mevcut değilse (tamamen bugüne çok
+    # yakın/gelecek tarihli), API'ye hiç istek atmadan mevcut (cache'lenmiş) veriyle dön.
+    if api_start_date > api_end_date:
+        return weather_map
+
+    url = f"https://archive-api.open-meteo.com/v1/archive?latitude={LAT}&longitude={LON}&start_date={api_start_date}&end_date={api_end_date}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,cloud_cover&timezone=Europe%2FIstanbul"
     
     try:
         response = requests.get(url, timeout=10)

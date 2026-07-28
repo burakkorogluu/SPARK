@@ -1,5 +1,7 @@
 # pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
+# pyrefly: ignore [missing-import]
+from sqlalchemy import extract
 import models
 from datetime import datetime
 from typing import List, Dict, Optional
@@ -75,64 +77,68 @@ def process_measurements(measurements: List[models.Measurement]) -> List[Dict]:
 def get_monthly_summary(db: Session, year: int, month: int, transformer_id: Optional[str] = None) -> List[Dict]:
     """
     Returns monthly summary for all transformers or a specific one.
+    Optimized: filtering is done at DB level via SQLAlchemy extract(), and
+    aggregation is done in a single pass per transformer.
     """
-    SIM_NOW = datetime.now()
-    query = db.query(models.Measurement).filter(models.Measurement.timestamp <= SIM_NOW)
+    sim_now = datetime.now()
+
+    # DB-level year/month filter — avoids loading all measurements into Python
+    query = db.query(models.Measurement).filter(
+        models.Measurement.timestamp <= sim_now,
+        extract("year",  models.Measurement.timestamp) == year,
+        extract("month", models.Measurement.timestamp) == month,
+    )
     if transformer_id:
         query = query.filter(models.Measurement.transformer_id == transformer_id)
-        
+
     measurements = query.all()
-    
-    # Filter by month and year in Python (or use extract in SQLAlchemy, but this is simple enough for small scale)
-    filtered = [m for m in measurements if m.timestamp.year == year and m.timestamp.month == month]
-    
-    # Group by transformer
-    t_groups = {}
-    for m in filtered:
+
+    # Single-pass aggregation per transformer
+    t_groups: Dict[str, Dict] = {}
+    for m in measurements:
         tid = m.transformer_id
         if tid not in t_groups:
-            t_groups[tid] = {"aktif": 0, "enduktif": 0, "kapasitif": 0, "gunSayisi": 0}
-        t_groups[tid]["aktif"] += m.active_kwh
-        t_groups[tid]["enduktif"] += m.inductive_kvarh
-        t_groups[tid]["kapasitif"] += m.capacitive_kvarh
-        # simple distinct day count approximation (this is hourly data)
-        # We will divide by 24 roughly below or just count days properly
-        
+            t_groups[tid] = {
+                "aktif": 0,
+                "enduktif": 0,
+                "kapasitif": 0,
+                "gun_seti": set()   # distinct day tracking
+            }
+        g = t_groups[tid]
+        g["aktif"]    += m.active_kwh
+        g["enduktif"] += m.inductive_kvarh
+        g["kapasitif"] += m.capacitive_kvarh
+        g["gun_seti"].add(m.timestamp.date())
+
     results = []
-    
-    # Calculate proper distinct days per trafo
-    for tid in t_groups.keys():
-        trafo_measurements = [m for m in filtered if m.transformer_id == tid]
-        unique_days = len(set([m.timestamp.date() for m in trafo_measurements]))
-        t_groups[tid]["gunSayisi"] = unique_days
-    
     for tid, data in t_groups.items():
-        aktif = data["aktif"]
+        aktif    = data["aktif"]
         enduktif = data["enduktif"]
         kapasitif = data["kapasitif"]
-        
+        gun_sayisi = len(data["gun_seti"])
+
         seviye, oran_kapasitif = hesapla_risk_durumu(aktif, kapasitif, enduktif)
-        
+
         trafo_info = db.query(models.Transformer).filter(models.Transformer.id == tid).first()
-        
+        if not trafo_info:
+            continue
+
         results.append({
             "trafo": {
-                "id": trafo_info.id,
-                "adi": trafo_info.name,
-                "bolge": trafo_info.region,
+                "id":      trafo_info.id,
+                "adi":     trafo_info.name,
+                "bolge":   trafo_info.region,
                 "kapasite": trafo_info.power_mva
             },
             "ozet": {
-                "toplamAktif": aktif,
+                "toplamAktif":    aktif,
                 "toplamEnduktif": enduktif,
                 "toplamKapasitif": kapasitif,
-                "kapasitifOran": oran_kapasitif,
-                "enduktifOran": (enduktif / max(1, aktif)) * 100,
-                "kapasitifRisk": {
-                    "seviye": seviye
-                },
-                "gunSayisi": data["gunSayisi"]
+                "kapasitifOran":  oran_kapasitif,
+                "enduktifOran":   (enduktif / max(1, aktif)) * 100,
+                "kapasitifRisk":  {"seviye": seviye},
+                "gunSayisi":      gun_sayisi
             }
         })
-        
+
     return results

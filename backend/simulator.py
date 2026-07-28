@@ -89,8 +89,8 @@ def generate_historical_data(days=30):
     db: Session = SessionLocal()
     try:
         transformers = db.query(models.Transformer).filter(models.Transformer.status == "active").all()
-        # SPARK User specifically works with July 2025 data
-        now = datetime(2025, 7, 22, 14, 0, 0)
+        # Start from current time so historical data is always up-to-date
+        now = datetime.now()
         
         for d in range(days * 24, 0, -1):
             timestamp = now - timedelta(hours=d)

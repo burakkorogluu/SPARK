@@ -14,6 +14,22 @@ const App = (() => {
     const GUN_ADLARI = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
     const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 
+    // ─── Yöntem Adı Görüntüleme ───
+    // Backend'den dönen modelBilgi.adi artık tek kelimelik bir yöntem key'i
+    // (örn. "ensemble", "randomForest", "holtWinters") olduğundan okunabilir
+    // bir etikete çeviriyoruz.
+    const YONTEM_ETIKETLERI = {
+        ensemble: 'Ensemble',
+        randomForest: 'Random Forest',
+        holtWinters: 'Holt-Winters',
+        regression: 'Regresyon',
+        persistence: 'Persistence',
+    };
+    function yontemEtiketiGetir(adi) {
+        if (!adi) return 'Model';
+        return YONTEM_ETIKETLERI[adi] || (adi.charAt(0).toUpperCase() + adi.slice(1));
+    }
+
     // ─── Güvenlik (XSS Koruması) ───
     function escapeHTML(str) {
         if (str === null || str === undefined) return '';
@@ -310,7 +326,7 @@ const App = (() => {
     // SCREEN 1: DASHBOARD
     // ═══════════════════════════════════════════
 
-    function renderForecastBanner(ozetler) {
+    async function renderForecastBanner(ozetler) {
         const currentKey = `${state.selectedYil}-${state.selectedAy}-${state.selectedYontem}`;
 
         if (!ozetler) {
@@ -318,12 +334,12 @@ const App = (() => {
                 ozetler = state.lastOzetler;
             } else {
                 const hamOzetler = HesaplamaModulu.tumTrafoOzetleri(state.selectedYil, state.selectedAy);
-                ozetler = hamOzetler.map(({ trafo, ozet }) => {
+                ozetler = await Promise.all(hamOzetler.map(async ({ trafo, ozet }) => {
                     if (!ozet) return { trafo, ozet: null, tahminOzet: null };
                     let tahminOzet = null;
                     try {
                         if (typeof TahminModulu !== 'undefined') {
-                            const tSonuc = TahminModulu.aySonuTahminiYap(trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
+                            const tSonuc = await TahminModulu.aySonuTahminiYap(trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
                             if (tSonuc && tSonuc.tumVeriler) {
                                 tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
                             }
@@ -332,7 +348,7 @@ const App = (() => {
                         console.warn('Tahmin hatası:', e);
                     }
                     return { trafo, ozet, tahminOzet };
-                });
+                }));
                 state.lastOzetler = ozetler;
                 state.lastOzetlerKey = currentKey;
             }
@@ -559,7 +575,6 @@ const App = (() => {
             }
 
             const d = VeriModulu.parseDate(tarih);
-            if (typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
             _dashboardCache.clear();
             
             try {
@@ -694,7 +709,6 @@ const App = (() => {
                             });
                         }
 
-                        if (typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
                         _dashboardCache.clear();
                         showToast(`${data.length} ölçüm başarıyla OSOS'tan çekildi!`, 'success');
                         renderVeriTablosu();
@@ -798,7 +812,6 @@ const App = (() => {
             }
 
             if (yeniVeriler.length > 0) {
-                if (typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
                 _dashboardCache.clear();
                 VeriModulu.veriEkleToplu(yeniVeriler);
             }
@@ -920,7 +933,6 @@ const App = (() => {
     async function silVeri(trafoId, tarih) {
         try {
             await VeriModulu.veriSil(trafoId, tarih);
-            if (typeof TahminModulu !== 'undefined') TahminModulu.clearCache();
             _dashboardCache.clear();
             showToast('Veri veritabanından silindi.', 'info');
             renderVeriTablosu();
@@ -985,7 +997,7 @@ const App = (() => {
                 <div class="dc-unit">kWh (toplam)</div>
             </div>
             <div class="detay-card">
-                <div class="dc-label">Ay Sonu Tahmini <span style="font-size:11px; font-weight:normal; color:var(--text-dim);">(${tahminSonucu.modelBilgi ? (tahminSonucu.modelBilgi.adi.split(' ')[1] || 'Model') : 'Ensemble'})</span></div>
+                <div class="dc-label">Ay Sonu Tahmini <span style="font-size:11px; font-weight:normal; color:var(--text-dim);">(${tahminSonucu.modelBilgi ? yontemEtiketiGetir(tahminSonucu.modelBilgi.adi) : 'Ensemble'})</span></div>
                 <div class="dc-value" style="color:${tahminRisk ? tahminRisk.renk : 'inherit'}">%${tahminOranStr}</div>
                 <div class="dc-unit">${tahminRisk ? `<span class="badge badge-${tahminRisk.seviye}">${tahminRisk.ikon} ${tahminRisk.etiket}</span>` : ''}</div>
             </div>
@@ -1008,7 +1020,7 @@ const App = (() => {
                 barTitle.textContent = state.chartResolution === 'hourly' ? 'Saatlik Kapasitif Oran Dağılımı (Ayrık)' : 'Günlük Kapasitif Oran Dağılımı (Ayrık)';
             }
 
-            if (!tahminSonucu.tamamlanmis && tahminSonucu.tahminVeriler.length > 0) {
+            if (tahminSonucu.tahminVeriler.length > 0) {
                 tahminBadge.style.display = '';
                 if (barTahminBadge) barTahminBadge.style.display = '';
                 GrafikModulu.createCumulativeLineChart(
@@ -1143,7 +1155,7 @@ const App = (() => {
                 <div class="dc-value" style="color:${fark >= 0 ? 'var(--color-danger)' : 'var(--color-success)'}">
                     ${farkStr}
                 </div>
-                <div class="dc-unit">puan (${bilgi.adi.split(' ')[1] || 'Model'})</div>
+                <div class="dc-unit">puan (${yontemEtiketiGetir(bilgi.adi)})</div>
             </div>
             <div class="detay-card" style="border-left: 3px solid #3b82f6; cursor: pointer;" onclick="App.toggleModelDetail()" title="Açıklama ve test detayları için tıklayın">
                 <div class="dc-label">Canlı Model Güven Skoru</div>
@@ -2148,7 +2160,7 @@ const App = (() => {
         if (addFeederBtn && feederModal && !addFeederBtn.dataset.bound) {
             addFeederBtn.dataset.bound = "true";
             addFeederBtn.addEventListener('click', () => {
-                populateTrafoSelects(['new-feeder-trafo', 'new-feeder-alt-trafo']);
+                populateModalTrafoSelects(['new-feeder-trafo', 'new-feeder-alt-trafo']);
                 feederModal.style.display = 'flex';
             });
             closeFeederBtn?.addEventListener('click', () => { feederModal.style.display = 'none'; });
@@ -2186,7 +2198,7 @@ const App = (() => {
         if (addReactorBtn && reactorModal && !addReactorBtn.dataset.bound) {
             addReactorBtn.dataset.bound = "true";
             addReactorBtn.addEventListener('click', () => {
-                populateTrafoSelects(['new-reactor-trafo', 'new-reactor-alt-trafo']);
+                populateModalTrafoSelects(['new-reactor-trafo', 'new-reactor-alt-trafo']);
                 reactorModal.style.display = 'flex';
             });
             closeReactorBtn?.addEventListener('click', () => { reactorModal.style.display = 'none'; });
@@ -2217,7 +2229,7 @@ const App = (() => {
         }
     }
 
-    async function populateTrafoSelects(selectIds) {
+    async function populateModalTrafoSelects(selectIds) {
         try {
             const trafolar = await ApiClient.fetchTransformers();
             selectIds.forEach(selectId => {

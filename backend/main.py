@@ -13,6 +13,19 @@ from typing import List
 from datetime import datetime, date
 import simulator
 from contextlib import asynccontextmanager
+import os
+import logging
+from dotenv import load_dotenv
+
+load_dotenv()  # .env dosyasındaki değişkenleri yükle
+
+# Logging yapılandırması
+log_level = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
+logging.basicConfig(
+    level=log_level,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("spark")
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -51,9 +64,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="SPARK TEIAS OSOS API", lifespan=lifespan)
 
+# CORS: .env'den oku, varsayılan olarak geliştirme adreslerine izin ver
+_cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:8080,http://localhost:8000,http://127.0.0.1:8080,http://127.0.0.1:8000")
+cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict to frontend URL
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
