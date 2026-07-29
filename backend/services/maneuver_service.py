@@ -491,8 +491,24 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     source_cap_ratio_after = source_cap_ratio_before
     target_cap_ratio_after = target_cap_ratio_before
 
-    if asset_type == "reactor":
-        hours = source_stats.get("measurement_count", 1) or 1
+    hours = source_stats.get("measurement_count", 1) or 1
+    
+    if asset_type == "feeder":
+        feeder_active = asset_load * hours
+        # Assume a nominal 4% capacitive ratio for a standard feeder
+        feeder_cap = feeder_active * 0.04
+        
+        if source_stats["active_sum"] > 0:
+            new_source_active = max(1, source_stats["active_sum"] - feeder_active)
+            new_source_cap = max(0, source_stats["cap_sum"] - feeder_cap)
+            source_cap_ratio_after = (new_source_cap / new_source_active) * 100
+            
+        if target_stats["active_sum"] > 0 or feeder_active > 0:
+            new_target_active = target_stats["active_sum"] + feeder_active
+            new_target_cap = target_stats["cap_sum"] + feeder_cap
+            target_cap_ratio_after = (new_target_cap / new_target_active) * 100
+
+    elif asset_type == "reactor":
         if source_stats["active_sum"] > 0:
             cap_diff = asset.capacity_kvar * hours
             source_cap_ratio_after = ((source_stats["cap_sum"] + cap_diff) / source_stats["active_sum"]) * 100
