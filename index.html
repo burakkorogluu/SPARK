@@ -510,12 +510,37 @@
             <div class="maneuver-tab-content active" id="tab-varliklar">
 
                 <!-- Mini Şebeke Topoloji Diyagramı -->
-                <div class="maneuver-topology-container">
-                    <div class="maneuver-topology-header">
+                <div class="maneuver-topology-container" id="maneuver-topology-container">
+                    <div class="maneuver-topology-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                         <h4>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                             Fider — Trafo Bağlantı Haritası
                         </h4>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn btn-sm btn-outline" id="btn-toggle-edit-mode" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                <span id="txt-edit-mode">Düzenleme Modu</span>
+                            </button>
+                            <button class="btn btn-sm btn-outline" id="btn-toggle-fullscreen" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                                Tam Ekran
+                            </button>
+                            <button class="btn btn-sm" id="btn-exit-fullscreen-fixed" style="display: none; position: fixed; top: 16px; right: 24px; z-index: 100010; padding: 10px 16px; font-size: 14px; background: rgba(239, 68, 68, 0.9); color: white; border: 1px solid #ef4444; border-radius: 6px; align-items: center; gap: 8px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                Tam Ekrandan Çık (ESC)
+                            </button>
+                        </div>
+                    </div>
+                    <div id="maneuver-editor-toolbar" style="display: none; padding: 10px 16px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid var(--border-color); align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--color-warning); text-transform: uppercase; letter-spacing: 0.5px;">✏️ DÜZENLEME ARAÇLARI:</span>
+                        <button class="btn btn-sm btn-outline" id="btn-editor-add-trafo" style="font-size: 12px;">+ Trafo Ekle</button>
+                        <button class="btn btn-sm btn-outline" id="btn-editor-add-feeder" style="font-size: 12px;">+ Fider Ekle</button>
+                        <button class="btn btn-sm btn-outline" id="btn-editor-add-reactor" style="font-size: 12px;">+ Reaktör Ekle</button>
+                        <button class="btn btn-sm btn-outline" id="btn-editor-add-connection" style="font-size: 12px; color: var(--color-info-light); border-color: var(--color-info-light);">🔗 Bağlantı Düzenle</button>
+                        <div style="margin-left: auto; display: flex; gap: 8px;">
+                            <button class="btn btn-sm btn-outline" id="btn-editor-cancel" style="font-size: 12px; color: var(--text-muted);">Vazgeç</button>
+                            <button class="btn btn-sm btn-primary" id="btn-editor-save-confirm" style="font-size: 12px; background: var(--color-primary); color: #fff; font-weight: 600;">Değişiklikleri Kaydet</button>
+                        </div>
                     </div>
                     <div class="maneuver-topology-canvas-wrap">
                         <canvas id="maneuver-topology-canvas" width="900" height="440"></canvas>
@@ -1114,7 +1139,7 @@
     </div>
 
     <!-- ═══ Fider Ekleme Modalı ═══ -->
-    <div class="scada-modal-overlay" id="add-feeder-modal" style="display: none; z-index: 9999;">
+    <div class="scada-modal-overlay" id="add-feeder-modal" style="display: none; z-index: 100005;">
         <div class="scada-modal-card" style="max-width: 500px;">
             <div class="scada-modal-header">
                 <div><h3>Yeni Fider Ekle</h3></div>
@@ -1149,7 +1174,7 @@
     </div>
 
     <!-- ═══ Reaktör Ekleme Modalı ═══ -->
-    <div class="scada-modal-overlay" id="add-reactor-modal" style="display: none; z-index: 9999;">
+    <div class="scada-modal-overlay" id="add-reactor-modal" style="display: none; z-index: 100005;">
         <div class="scada-modal-card" style="max-width: 500px;">
             <div class="scada-modal-header">
                 <div><h3>Yeni Reaktör Ekle</h3></div>
@@ -1190,8 +1215,91 @@
         </div>
     </div>
 
+    <!-- ═══ Trafo Ekleme Modalı ═══ -->
+    <div class="scada-modal-overlay" id="add-trafo-modal" style="display: none; z-index: 100005;">
+        <div class="scada-modal-card" style="max-width: 500px;">
+            <div class="scada-modal-header">
+                <div><h3>Yeni Trafo Ekle</h3></div>
+                <button class="modal-close-btn" id="btn-close-add-trafo">✕</button>
+            </div>
+            <div class="scada-modal-body" style="padding-top: 0;">
+                <form class="crud-form" id="add-trafo-form">
+                    <div class="form-group">
+                        <label for="new-trafo-id">Trafo ID (Kod)</label>
+                        <input type="text" id="new-trafo-id" required placeholder="Ör: KRT-TRC">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-trafo-name">Trafo Adı</label>
+                        <input type="text" id="new-trafo-name" required placeholder="Ör: Kartal TM - TRC">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-trafo-region">Bölge</label>
+                        <input type="text" id="new-trafo-region" value="İstanbul-Anadolu" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-trafo-power">Güç (MVA)</label>
+                        <input type="number" id="new-trafo-power" value="50" min="1" step="5" required>
+                    </div>
+                    <button type="submit" class="btn-confirm primary" style="margin-top: 8px;">Trafo Oluştur</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Bağlantı Düzenleme Modalı ═══ -->
+    <div class="scada-modal-overlay" id="edit-connection-modal" style="display: none; z-index: 100005;">
+        <div class="scada-modal-card" style="max-width: 500px;">
+            <div class="scada-modal-header">
+                <div>
+                    <h3>Bağlantı Düzenle</h3>
+                    <span class="text-muted" style="font-size: 12px;">Varlığın bağlı olduğu ana ve alternatif trafoları değiştirin</span>
+                </div>
+                <button class="modal-close-btn" id="btn-close-edit-conn">✕</button>
+            </div>
+            <div class="scada-modal-body" style="padding-top: 0;">
+                <form class="crud-form" id="edit-connection-form">
+                    <div class="form-group">
+                        <label for="conn-asset-select">Varlık (Fider veya Reaktör)</label>
+                        <select id="conn-asset-select" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="conn-primary-trafo">Ana Bağlı Trafo</label>
+                        <select id="conn-primary-trafo" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="conn-alt-trafo">Alternatif Trafo</label>
+                        <select id="conn-alt-trafo"><option value="">— Yok —</option></select>
+                    </div>
+                    <button type="submit" class="btn-confirm primary" style="margin-top: 8px;">Bağlantıyı Güncelle</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Topoloji Düzenleme Onay Modalı ═══ -->
+    <div class="scada-modal-overlay" id="topology-save-confirm-modal" style="display: none; z-index: 100005;">
+        <div class="scada-modal-card" style="max-width: 600px;">
+            <div class="scada-modal-header">
+                <div>
+                    <h3>Topoloji Değişikliklerini Kaydet</h3>
+                    <span class="text-muted" style="font-size: 12px;">Yapılan fiziksel dizilim ve nesne değişiklikleri veritabanına işlenecek</span>
+                </div>
+                <button class="modal-close-btn" id="btn-close-topology-save">✕</button>
+            </div>
+            <div class="scada-modal-body">
+                <div id="topology-save-summary-body" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+                    <!-- JS ile dinamik doldurulacak -->
+                </div>
+                <div class="confirm-modal-actions">
+                    <button class="btn-confirm outline" id="btn-topology-save-cancel">Vazgeç</button>
+                    <button class="btn-confirm primary" id="btn-topology-save-execute">Değişiklikleri Onayla ve Kaydet</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══ SCADA Manevra Onay Modalı ═══ -->
-    <div class="scada-modal-overlay" id="scada-confirm-breaker-modal" style="display: none; z-index: 10000;">
+    <div class="scada-modal-overlay" id="scada-confirm-breaker-modal" style="display: none; z-index: 100005;">
         <div class="scada-modal-card" style="max-width: 480px; border: 1px solid #eab308;">
             <div class="scada-modal-header" style="background: rgba(234, 179, 8, 0.1);">
                 <h3 style="color: #eab308; display: flex; align-items: center; gap: 8px;">

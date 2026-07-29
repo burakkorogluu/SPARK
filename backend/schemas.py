@@ -24,6 +24,8 @@ class TransformerBase(BaseModel):
     region: str
     power_mva: int
     status: str
+    pos_x: Optional[float] = None
+    pos_y: Optional[float] = None
 
 class Transformer(TransformerBase):
     class Config:
@@ -45,6 +47,8 @@ class Feeder(BaseModel):
     current_transformer_id: str
     alternative_transformer_id: Optional[str] = None
     simulated_load_kw: float
+    pos_x: Optional[float] = None
+    pos_y: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -56,6 +60,8 @@ class Reactor(BaseModel):
     alternative_transformer_id: Optional[str] = None
     capacity_kvar: float
     status: str
+    pos_x: Optional[float] = None
+    pos_y: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -79,6 +85,12 @@ class ManeuverLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ManeuverHistoryResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    logs: List[ManeuverLogResponse]
 
 # ── Simülasyon Schemas ──
 class ManeuverSimulationResponse(BaseModel):
@@ -110,6 +122,8 @@ class FeederCreate(BaseModel):
     current_transformer_id: str
     alternative_transformer_id: Optional[str] = None
     simulated_load_kw: float = 500.0
+    pos_x: Optional[float] = None
+    pos_y: Optional[float] = None
 
 class ReactorCreate(BaseModel):
     id: str
@@ -118,6 +132,31 @@ class ReactorCreate(BaseModel):
     alternative_transformer_id: Optional[str] = None
     capacity_kvar: float = 250.0
     status: str = "active"
+    pos_x: Optional[float] = None
+    pos_y: Optional[float] = None
+
+class TransformerCreate(BaseModel):
+    id: str
+    name: str
+    region: str = "İstanbul-Anadolu"
+    power_mva: int = 50
+    status: str = "active"
+    pos_x: Optional[float] = None
+    pos_y: Optional[float] = None
+
+class AssetPositionUpdate(BaseModel):
+    id: str
+    type: str
+    pos_x: float
+    pos_y: float
+    current_transformer_id: Optional[str] = None
+    alternative_transformer_id: Optional[str] = None
+
+class TopologyBulkUpdateRequest(BaseModel):
+    new_transformers: List[TransformerCreate] = []
+    new_feeders: List[FeederCreate] = []
+    new_reactors: List[ReactorCreate] = []
+    updated_assets: List[AssetPositionUpdate] = []
 
 # ── Manevra Uygulama İsteği ──
 class ManeuverApplyRequest(BaseModel):

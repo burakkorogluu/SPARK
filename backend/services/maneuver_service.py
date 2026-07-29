@@ -14,11 +14,12 @@ def _get_trafo_stats(db: Session):
     trafo_stats = {}
 
     for trafo in transformers:
-        # Get last 7 days of measurements for more stable analysis
-        seven_days_ago = datetime.now() - timedelta(days=7)
+        # Get measurements from the beginning of the current month for billing alignment
+        now = datetime.now()
+        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         recent_measurements = db.query(models.Measurement).filter(
             models.Measurement.transformer_id == trafo.id,
-            models.Measurement.timestamp >= seven_days_ago
+            models.Measurement.timestamp >= start_of_month
         ).order_by(models.Measurement.timestamp.desc()).all()
 
         active_sum = sum(m.active_kwh for m in recent_measurements) if recent_measurements else 0
@@ -53,6 +54,8 @@ def _get_trafo_stats(db: Session):
             "load_ratio": load_ratio,
             "ind_ratio": ind_ratio,
             "cap_ratio": cap_ratio,
+            "active_sum": active_sum,
+            "cap_sum": cap_sum,
             "peak_cap_ratio": peak_cap_ratio,
             "offpeak_cap_ratio": offpeak_cap_ratio,
             "feeders": trafo.feeders,
@@ -483,6 +486,21 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     target_ratio_before = target_stats["load_ratio"]
     target_ratio_after = (target_load_after / target_stats["power_kw"] * 100) if target_stats["power_kw"] > 0 else 0
 
+    source_cap_ratio_before = source_stats["cap_ratio"]
+    target_cap_ratio_before = target_stats["cap_ratio"]
+    source_cap_ratio_after = source_cap_ratio_before
+    target_cap_ratio_after = target_cap_ratio_before
+
+    if asset_type == "reactor":
+        hours = source_stats.get("measurement_count", 1) or 1
+        if source_stats["active_sum"] > 0:
+            cap_diff = asset.capacity_kvar * hours
+            source_cap_ratio_after = ((source_stats["cap_sum"] + cap_diff) / source_stats["active_sum"]) * 100
+        if target_stats["active_sum"] > 0:
+            cap_diff = asset.capacity_kvar * hours
+            new_cap_sum = max(0, target_stats["cap_sum"] - cap_diff)
+            target_cap_ratio_after = (new_cap_sum / target_stats["active_sum"]) * 100
+
     is_overload = target_ratio_after > 100
     overload_warning = None
     if is_overload:
@@ -518,6 +536,10 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
         "source_load_ratio_after": round(source_ratio_after, 1),
         "target_load_ratio_before": round(target_ratio_before, 1),
         "target_load_ratio_after": round(target_ratio_after, 1),
+        "source_cap_ratio_before": round(source_cap_ratio_before, 1),
+        "source_cap_ratio_after": round(source_cap_ratio_after, 1),
+        "target_cap_ratio_before": round(target_cap_ratio_before, 1),
+        "target_cap_ratio_after": round(target_cap_ratio_after, 1),
         "source_risk_before": _calculate_risk_level(source_ratio_before),
         "source_risk_after": _calculate_risk_level(source_ratio_after),
         "target_risk_before": _calculate_risk_level(target_ratio_before),
@@ -691,7 +713,9 @@ def create_feeder(db: Session, feeder_data):
         name=feeder_data.name,
         current_transformer_id=feeder_data.current_transformer_id,
         alternative_transformer_id=feeder_data.alternative_transformer_id,
-        simulated_load_kw=feeder_data.simulated_load_kw
+        simulated_load_kw=feeder_data.simulated_load_kw,
+        pos_x=getattr(feeder_data, 'pos_x', None),
+        pos_y=getattr(feeder_data, 'pos_y', None)
     )
     db.add(feeder)
     db.commit()
@@ -718,12 +742,90 @@ def create_reactor(db: Session, reactor_data):
         current_transformer_id=reactor_data.current_transformer_id,
         alternative_transformer_id=reactor_data.alternative_transformer_id,
         capacity_kvar=reactor_data.capacity_kvar,
-        status=reactor_data.status
+        status=reactor_data.status,
+        pos_x=getattr(reactor_data, 'pos_x', None),
+        pos_y=getattr(reactor_data, 'pos_y', None)
     )
     db.add(reactor)
     db.commit()
     db.refresh(reactor)
     return reactor
+
+
+def create_transformer(db: Session, trafo_data):
+    """Create a new transformer."""
+    existing = db.query(models.Transformer).filter(models.Transformer.id == trafo_data.id).first()
+    if existing:
+        return None
+
+    trafo = models.Transformer(
+        id=trafo_data.id,
+        name=trafo_data.name,
+        region=trafo_data.region,
+        power_mva=trafo_data.power_mva,
+        status=trafo_data.status,
+        pos_x=getattr(trafo_data, 'pos_x', None),
+        pos_y=getattr(trafo_data, 'pos_y', None)
+    )
+    db.add(trafo)
+    db.commit()
+    db.refresh(trafo)
+    return trafo
+
+
+def bulk_update_topology(db: Session, bulk_data):
+    """Bulk update topology: create new assets and update positions/connections."""
+    created_trafos = []
+    created_feeders = []
+    created_reactors = []
+
+    for t_data in bulk_data.new_transformers:
+        t = create_transformer(db, t_data)
+        if t:
+            created_trafos.append(t.id)
+
+    for f_data in bulk_data.new_feeders:
+        f = create_feeder(db, f_data)
+        if f:
+            created_feeders.append(f.id)
+
+    for r_data in bulk_data.new_reactors:
+        r = create_reactor(db, r_data)
+        if r:
+            created_reactors.append(r.id)
+
+    for item in bulk_data.updated_assets:
+        if item.type == 'trafo':
+            asset = db.query(models.Transformer).filter(models.Transformer.id == item.id).first()
+            if asset:
+                asset.pos_x = item.pos_x
+                asset.pos_y = item.pos_y
+        elif item.type == 'feeder':
+            asset = db.query(models.Feeder).filter(models.Feeder.id == item.id).first()
+            if asset:
+                asset.pos_x = item.pos_x
+                asset.pos_y = item.pos_y
+                if item.current_transformer_id:
+                    asset.current_transformer_id = item.current_transformer_id
+                if item.alternative_transformer_id:
+                    asset.alternative_transformer_id = item.alternative_transformer_id
+        elif item.type == 'reactor':
+            asset = db.query(models.Reactor).filter(models.Reactor.id == item.id).first()
+            if asset:
+                asset.pos_x = item.pos_x
+                asset.pos_y = item.pos_y
+                if item.current_transformer_id:
+                    asset.current_transformer_id = item.current_transformer_id
+                if item.alternative_transformer_id:
+                    asset.alternative_transformer_id = item.alternative_transformer_id
+
+    db.commit()
+    return {
+        "created_transformers": created_trafos,
+        "created_feeders": created_feeders,
+        "created_reactors": created_reactors,
+        "updated_positions_count": len(bulk_data.updated_assets)
+    }
 
 
 def delete_feeder(db: Session, feeder_id: str):

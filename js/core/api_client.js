@@ -131,6 +131,14 @@ const ApiClient = (() => {
         });
     }
 
+    async function addTransformer(trafoData) {
+        return _fetch(`${API_BASE_URL}/maneuver/transformer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(trafoData)
+        });
+    }
+
     async function addReactor(reactorData) {
         return _fetch(`${API_BASE_URL}/maneuver/reactor`, {
             method: 'POST',
@@ -145,6 +153,14 @@ const ApiClient = (() => {
 
     async function deleteReactor(reactorId) {
         return _fetch(`${API_BASE_URL}/maneuver/reactor/${encodeURIComponent(reactorId)}`, { method: 'DELETE' });
+    }
+
+    async function bulkUpdateTopology(bulkData) {
+        return _fetch(`${API_BASE_URL}/maneuver/topology/bulk-update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bulkData)
+        });
     }
 
     async function addMeasurement(data) {
@@ -210,10 +226,12 @@ const ApiClient = (() => {
         applyManeuver,
         fetchManeuverHistory,
         rollbackManeuver,
+        addTransformer,
         addFeeder,
         addReactor,
         deleteFeeder,
         deleteReactor,
+        bulkUpdateTopology,
         addMeasurement,
         deleteMeasurement,
         fetchAlerts,

@@ -217,16 +217,30 @@ def get_forecast(
 
 @app.get("/api/maneuver/assets")
 def get_maneuver_assets(db: Session = Depends(get_db)):
+    trafos = db.query(models.Transformer).all()
     feeders = db.query(models.Feeder).all()
     reactors = db.query(models.Reactor).all()
     return {
+        "transformers": [
+            {
+                "id": t.id,
+                "name": t.name,
+                "region": t.region,
+                "power_mva": t.power_mva,
+                "status": t.status,
+                "pos_x": t.pos_x,
+                "pos_y": t.pos_y
+            } for t in trafos
+        ],
         "feeders": [
             {
                 "id": f.id,
                 "name": f.name,
                 "current_transformer_id": f.current_transformer_id,
                 "alternative_transformer_id": f.alternative_transformer_id,
-                "simulated_load_kw": f.simulated_load_kw
+                "simulated_load_kw": f.simulated_load_kw,
+                "pos_x": f.pos_x,
+                "pos_y": f.pos_y
             } for f in feeders
         ],
         "reactors": [
@@ -236,7 +250,9 @@ def get_maneuver_assets(db: Session = Depends(get_db)):
                 "current_transformer_id": r.current_transformer_id,
                 "alternative_transformer_id": r.alternative_transformer_id,
                 "capacity_kvar": r.capacity_kvar,
-                "status": r.status
+                "status": r.status,
+                "pos_x": r.pos_x,
+                "pos_y": r.pos_y
             } for r in reactors
         ]
     }
@@ -248,76 +264,46 @@ def get_maneuver_suggestions(db: Session = Depends(get_db)):
 
 @app.post("/api/maneuver/simulate")
 def simulate_maneuver_endpoint(
-    asset_type: str = Query(..., description="feeder or reactor"),
-    asset_id: str = Query(..., description="ID of the asset"),
-    target_trafo_id: str = Query(..., description="Destination Transformer ID"),
+    asset_type: str,
+    asset_id: str,
+    target_trafo_id: str,
     db: Session = Depends(get_db)
 ):
     from services.maneuver_service import simulate_maneuver
     try:
-        result = simulate_maneuver(db, asset_type, asset_id, target_trafo_id)
-        if not result:
-            raise HTTPException(status_code=400, detail="Simülasyon yapılamadı. Varlık veya trafo bulunamadı.")
-        return result
+        res = simulate_maneuver(db, asset_type, asset_id, target_trafo_id)
+        if not res:
+            raise HTTPException(status_code=404, detail="Manevra simülasyonu başarısız. Varlık veya trafo bulunamadı.")
+        return res
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/maneuver/apply")
 def apply_maneuver_endpoint(
-    request: schemas.ManeuverApplyRequest,
+    req: schemas.ManeuverApplyRequest,
     db: Session = Depends(get_db)
 ):
     from services.maneuver_service import apply_maneuver
     try:
-        log = apply_maneuver(
-            db, 
-            request.asset_type, 
-            request.asset_id, 
-            request.target_trafo_id, 
-            request.reason or "Belirtilmedi", 
-            request.override_overload
+        return apply_maneuver(
+            db,
+            req.asset_type,
+            req.asset_id,
+            req.target_trafo_id,
+            reason=req.reason or "Manevra Ekranı Operatör Müdahalesi",
+            override_overload=req.override_overload
         )
-        if not log:
-            raise HTTPException(status_code=400, detail="Manevra uygulanamadı veya varlık bulunamadı.")
-        return {
-            "status": "success",
-            "message": f"{log.asset_name} varlığı {log.target_trafo_name} trafosuna başarıyla aktarıldı.",
-            "log_id": log.id
-        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/api/maneuver/history")
+@app.get("/api/maneuver/history", response_model=schemas.ManeuverHistoryResponse)
 def get_maneuver_history_endpoint(
-    limit: int = Query(50, description="Results per page"),
-    offset: int = Query(0, description="Offset for pagination"),
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(get_db)
 ):
     from services.maneuver_service import get_maneuver_history
-    result = get_maneuver_history(db, limit, offset)
-    return {
-        "total": result["total"],
-        "limit": result["limit"],
-        "offset": result["offset"],
-        "logs": [
-            {
-                "id": log.id,
-                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
-                "action_type": log.action_type,
-                "asset_type": log.asset_type,
-                "asset_id": log.asset_id,
-                "asset_name": log.asset_name,
-                "source_trafo_id": log.source_trafo_id,
-                "target_trafo_id": log.target_trafo_id,
-                "source_trafo_name": log.source_trafo_name,
-                "target_trafo_name": log.target_trafo_name,
-                "reason": log.reason,
-                "impact_level": log.impact_level,
-                "status": log.status,
-                "rolled_back_at": log.rolled_back_at.isoformat() if log.rolled_back_at else None
-            } for log in result["logs"]
-        ]
-    }
+    return get_maneuver_history(db, limit=limit, offset=offset)
 
 @app.post("/api/maneuver/rollback/{log_id}")
 def rollback_maneuver_endpoint(
@@ -332,6 +318,29 @@ def rollback_maneuver_endpoint(
         "status": "success",
         "message": f"{log.asset_name} manevrasının geri alınması başarılı. Orijinal durum geri yüklendi.",
         "log_id": log.id
+    }
+
+@app.post("/api/maneuver/transformer")
+def create_transformer_endpoint(
+    trafo_data: schemas.TransformerCreate,
+    db: Session = Depends(get_db)
+):
+    from services.maneuver_service import create_transformer
+    trafo = create_transformer(db, trafo_data)
+    if not trafo:
+        raise HTTPException(status_code=400, detail="Trafo oluşturulamadı. ID zaten mevcut.")
+    return {
+        "status": "success",
+        "message": f"'{trafo.name}' trafosu başarıyla oluşturuldu.",
+        "transformer": {
+            "id": trafo.id,
+            "name": trafo.name,
+            "region": trafo.region,
+            "power_mva": trafo.power_mva,
+            "status": trafo.status,
+            "pos_x": trafo.pos_x,
+            "pos_y": trafo.pos_y
+        }
     }
 
 @app.post("/api/maneuver/feeder")
@@ -351,7 +360,9 @@ def create_feeder_endpoint(
             "name": feeder.name,
             "current_transformer_id": feeder.current_transformer_id,
             "alternative_transformer_id": feeder.alternative_transformer_id,
-            "simulated_load_kw": feeder.simulated_load_kw
+            "simulated_load_kw": feeder.simulated_load_kw,
+            "pos_x": feeder.pos_x,
+            "pos_y": feeder.pos_y
         }
     }
 
@@ -373,8 +384,23 @@ def create_reactor_endpoint(
             "current_transformer_id": reactor.current_transformer_id,
             "alternative_transformer_id": reactor.alternative_transformer_id,
             "capacity_kvar": reactor.capacity_kvar,
-            "status": reactor.status
+            "status": reactor.status,
+            "pos_x": reactor.pos_x,
+            "pos_y": reactor.pos_y
         }
+    }
+
+@app.post("/api/maneuver/topology/bulk-update")
+def bulk_update_topology_endpoint(
+    bulk_data: schemas.TopologyBulkUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    from services.maneuver_service import bulk_update_topology
+    result = bulk_update_topology(db, bulk_data)
+    return {
+        "status": "success",
+        "message": "Topoloji değişiklikleri ve konumlar başarıyla kaydedildi.",
+        "result": result
     }
 
 @app.delete("/api/maneuver/feeder/{feeder_id}")

@@ -13,6 +13,8 @@ class Transformer(Base):
     region = Column(String)
     power_mva = Column(Integer)
     status = Column(String, default="active")
+    pos_x = Column(Float, nullable=True)
+    pos_y = Column(Float, nullable=True)
 
     measurements = relationship("Measurement", back_populates="transformer")
     feeders = relationship("Feeder", foreign_keys="[Feeder.current_transformer_id]", back_populates="current_transformer")
@@ -49,6 +51,8 @@ class Feeder(Base):
     current_transformer_id = Column(String, ForeignKey("transformers.id"))
     alternative_transformer_id = Column(String, ForeignKey("transformers.id"))
     simulated_load_kw = Column(Float, default=500.0)
+    pos_x = Column(Float, nullable=True)
+    pos_y = Column(Float, nullable=True)
 
     current_transformer = relationship("Transformer", foreign_keys=[current_transformer_id], back_populates="feeders")
     alternative_transformer = relationship("Transformer", foreign_keys=[alternative_transformer_id])
@@ -62,6 +66,8 @@ class Reactor(Base):
     alternative_transformer_id = Column(String, ForeignKey("transformers.id"))
     capacity_kvar = Column(Float, default=250.0)
     status = Column(String, default="active")
+    pos_x = Column(Float, nullable=True)
+    pos_y = Column(Float, nullable=True)
 
     current_transformer = relationship("Transformer", foreign_keys=[current_transformer_id], back_populates="reactors")
     alternative_transformer = relationship("Transformer", foreign_keys=[alternative_transformer_id])
