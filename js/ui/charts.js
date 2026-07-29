@@ -137,11 +137,11 @@ const GrafikModulu = (() => {
         const createGradient = (context, colorStr) => {
             const chart = context.chart;
             const {ctx, chartArea} = chart;
-            if (!chartArea) return colorStr + (isLight ? 'E6' : '30'); // fallback
+            if (!chartArea) return colorStr + (isLight ? 'FF' : '30'); // fallback
             
             const gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
             if (colorStr.startsWith('#')) {
-                gradient.addColorStop(0, colorStr + (isLight ? '66' : '10')); 
+                gradient.addColorStop(0, colorStr + (isLight ? 'E6' : '10')); 
                 gradient.addColorStop(1, colorStr + (isLight ? 'FF' : 'CC')); 
             } else {
                 gradient.addColorStop(0, colorStr);
