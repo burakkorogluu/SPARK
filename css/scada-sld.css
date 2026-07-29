@@ -1,0 +1,485 @@
+/* ============================================
+   scada-sld.css — Teknik SCADA Tek Hat Şeması (SLD)
+   ============================================ */
+
+.scada-sld-container {
+    background-color: #06090e;
+    color: #e2e8f0;
+    border-radius: 8px;
+    border: 1px solid #1e293b;
+    padding: 16px;
+    font-family: 'Consolas', 'Courier New', monospace, sans-serif;
+    position: relative;
+    user-select: none;
+    overflow-x: auto;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+}
+
+/* Header & Controls */
+.scada-sld-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.scada-tabs {
+    display: flex;
+    gap: 4px;
+    background: #0f172a;
+    padding: 4px;
+    border-radius: 6px;
+    border: 1px solid #1e293b;
+}
+
+.scada-tab-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #94a3b8;
+    padding: 6px 16px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.scada-tab-btn:hover {
+    color: #f8fafc;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.scada-tab-btn.active {
+    background: #1e293b;
+    color: #38bdf8;
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.scada-status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.scada-status-indicator.red { background-color: #ef4444; box-shadow: 0 0 8px #ef4444; }
+.scada-status-indicator.green { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+.scada-status-indicator.blue { background-color: #3b82f6; box-shadow: 0 0 8px #3b82f6; }
+
+.scada-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.scada-badge {
+    background: #0f172a;
+    border: 1px solid #334155;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.scada-badge .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #22c55e;
+    animation: blink-live 1.2s infinite ease-in-out;
+}
+
+@keyframes blink-live {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.85); }
+}
+
+/* Main SLD Canvas Board */
+.sld-board {
+    min-width: 1100px;
+    background: #05070a;
+    border: 1px solid #0f172a;
+    border-radius: 6px;
+    padding: 24px 20px;
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+}
+
+/* EPS Panel (Right Top Alarm Box) */
+.sld-eps-panel {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 220px;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 11px;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.sld-eps-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #38bdf8;
+}
+
+.sld-eps-header .eps-badge {
+    background: #0284c7;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+}
+
+.sld-eps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sld-eps-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #94a3b8;
+}
+
+.sld-eps-checkbox {
+    width: 10px;
+    height: 10px;
+    border: 1px solid #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.sld-eps-item.active .sld-eps-checkbox {
+    background: #ef4444;
+    box-shadow: 0 0 6px #ef4444;
+}
+
+.sld-eps-item.active {
+    color: #fca5a5;
+    font-weight: 500;
+}
+
+/* Transformer Bay */
+.transformer-bay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.bay-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.bay-title-box {
+    background: #1e3a8a;
+    color: #93c5fd;
+    font-weight: bold;
+    padding: 2px 14px;
+    border-radius: 3px;
+    font-size: 12px;
+    letter-spacing: 1px;
+}
+
+.bay-status-numbers {
+    display: flex;
+    gap: 2px;
+}
+
+.bay-status-num {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: white;
+    border-radius: 2px;
+}
+.bay-status-num.n1 { background: #ef4444; }
+.bay-status-num.n2 { background: #eab308; color: #000; }
+.bay-status-num.n3 { background: #0284c7; }
+
+.bay-control-mode {
+    border: 1px solid #22c55e;
+    color: #22c55e;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 2px;
+    margin-top: 4px;
+    letter-spacing: 1px;
+}
+
+/* Transformer Symbol */
+.transformer-symbol {
+    position: relative;
+    width: 48px;
+    height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 8px 0;
+}
+
+.trafo-circle {
+    width: 32px;
+    height: 32px;
+    border: 2px solid #10b981;
+    border-radius: 50%;
+    position: absolute;
+}
+
+.trafo-circle.top { top: 4px; }
+.trafo-circle.bottom { bottom: 4px; }
+
+/* Measurement Telemetry Box */
+.telemetry-readouts {
+    position: absolute;
+    right: -130px;
+    top: 90px;
+    font-size: 11px;
+    line-height: 1.4;
+    text-align: right;
+    color: #e2e8f0;
+}
+
+.telemetry-readouts.left-side {
+    left: -130px;
+    right: auto;
+    text-align: left;
+}
+
+.telemetry-val {
+    font-weight: bold;
+}
+
+/* Electrical Line Elements */
+.sld-line-vert {
+    width: 2px;
+    background-color: #ca8a04;
+    min-height: 20px;
+}
+
+.sld-line-vert.live {
+    background-color: #eab308;
+    box-shadow: 0 0 4px rgba(234, 179, 8, 0.6);
+}
+
+.sld-line-vert.dead {
+    background-color: #475569;
+    box-shadow: none;
+}
+
+.sld-line-horiz {
+    height: 3px;
+    background-color: #eab308;
+    width: 100%;
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.7);
+    position: relative;
+}
+
+.busbar-container {
+    width: 100%;
+    position: relative;
+    margin: 25px 0 10px 0;
+}
+
+.busbar-title {
+    position: absolute;
+    top: -16px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #eab308;
+}
+
+.busbar-title.left { left: 0; }
+.busbar-title.right { right: 0; }
+
+/* Circuit Breaker & Disconnector Symbols */
+.breaker-box {
+    width: 22px;
+    height: 22px;
+    border: 2px solid #ca8a04;
+    background: #ca8a04;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    z-index: 5;
+}
+
+.breaker-box:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 8px #eab308;
+}
+
+.breaker-box.open {
+    background: #05070a;
+    border-color: #64748b;
+}
+
+.breaker-box.open::after {
+    content: '';
+    width: 14px;
+    height: 2px;
+    background: #ef4444;
+    transform: rotate(45deg);
+}
+
+.breaker-label {
+    position: absolute;
+    left: -24px;
+    font-size: 11px;
+    color: #94a3b8;
+    font-weight: bold;
+}
+
+/* Disconnector & Earth Switch */
+.disconnector-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px dashed #475569;
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: rgba(15, 23, 42, 0.7);
+    margin: 4px 0;
+}
+
+.disconnector-diamond {
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid #eab308;
+    background: #eab308;
+    transform: rotate(45deg);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.disconnector-diamond:hover {
+    transform: rotate(45deg) scale(1.3);
+    box-shadow: 0 0 8px #eab308;
+}
+
+.disconnector-diamond.open {
+    background: #05070a !important;
+    border-color: #64748b !important;
+}
+
+.earth-symbol {
+    font-size: 10px;
+    color: #94a3b8;
+    font-weight: bold;
+}
+
+/* Feeders Grid */
+.feeders-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.feeder-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.feeder-tag {
+    font-size: 10px;
+    color: #eab308;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.feeder-current {
+    font-size: 10px;
+    color: #f8fafc;
+    margin-top: 6px;
+    white-space: nowrap;
+    background: rgba(15, 23, 42, 0.8);
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid #334155;
+}
+
+/* Bottom Bay Controls */
+.bay-controls-bottom {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.bay-btn-label {
+    background: #0284c7;
+    color: white;
+    font-weight: bold;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.bay-btn-label:hover {
+    background: #0369a1;
+    transform: translateY(-1px);
+}
+
+.bay-btn-label.reserv {
+    background: #334155;
+    color: #94a3b8;
+}
+
+.inter-bus-tie {
+    grid-column: span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    height: 30px;
+    margin: 10px 0;
+}
+
+.inter-bus-line {
+    height: 2px;
+    background-color: #ca8a04;
+    width: 60%;
+}

@@ -118,10 +118,11 @@ const ManeuverUI = (() => {
                                 <span class="load-bar-label">${f.simulated_load_kw.toLocaleString('tr-TR')}</span>
                             </div>
                         </td>
+                        <td class="text-center"><button class="btn btn-sm btn-outline btn-delete-asset" style="padding: 4px 8px;" data-type="feeder" data-id="${App.escapeHTML(f.id)}" title="Sil">Sil</button></td>
                     </tr>
                 `).join('');
             } else {
-                feederBody.innerHTML = '<tr><td colspan="4" class="text-center">Fider bulunamadı.</td></tr>';
+                feederBody.innerHTML = '<tr><td colspan="5" class="text-center">Fider bulunamadı.</td></tr>';
             }
 
             if (data.reactors && data.reactors.length > 0) {
@@ -132,11 +133,39 @@ const ManeuverUI = (() => {
                         <td><span class="badge">${App.escapeHTML(r.alternative_transformer_id || '—')}</span></td>
                         <td class="text-right"><b>${r.capacity_kvar.toLocaleString('tr-TR')}</b> kVAr</td>
                         <td class="text-center"><span class="badge ${r.status === 'active' ? 'badge-success' : 'badge-danger'}">${r.status === 'active' ? 'Aktif' : 'Pasif'}</span></td>
+                        <td class="text-center"><button class="btn btn-sm btn-outline btn-delete-asset" style="padding: 4px 8px;" data-type="reactor" data-id="${App.escapeHTML(r.id)}" title="Sil">Sil</button></td>
                     </tr>
                 `).join('');
             } else {
-                reactorBody.innerHTML = '<tr><td colspan="5" class="text-center">Reaktör bulunamadı.</td></tr>';
+                reactorBody.innerHTML = '<tr><td colspan="6" class="text-center">Reaktör bulunamadı.</td></tr>';
             }
+
+            // Silme butonları event listener
+            document.querySelectorAll('.btn-delete-asset').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const type = btn.dataset.type;
+                    const id = btn.dataset.id;
+                    if (!confirm(`Bu ${type === 'feeder' ? 'fideri' : 'reaktörü'} silmek istediğinizden emin misiniz?`)) return;
+                    
+                    try {
+                        btn.disabled = true;
+                        btn.textContent = '...';
+                        if (type === 'feeder') {
+                            await ApiClient.deleteFeeder(id);
+                        } else {
+                            await ApiClient.deleteReactor(id);
+                        }
+                        App.showToast('Başarıyla silindi.', 'success');
+                        _cachedAssets = null;
+                        loadManevraAssets();
+                        loadManevraSummaryStats();
+                    } catch (err) {
+                        App.showToast(`Silme hatası: ${err.message}`, 'error');
+                        btn.disabled = false;
+                        btn.textContent = 'Sil';
+                    }
+                });
+            });
 
             drawManevraTopology(data);
 

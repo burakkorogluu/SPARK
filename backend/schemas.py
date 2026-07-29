@@ -126,3 +126,13 @@ class ManeuverApplyRequest(BaseModel):
     target_trafo_id: str
     reason: Optional[str] = None
     override_overload: bool = False
+
+# ── SCADA Kontrol Schemas ──
+class ScadaBreakerToggleRequest(BaseModel):
+    breaker_id: str
+    target_state: bool
+    trafo_id: Optional[str] = "UMR-TRA"
+    reason: Optional[str] = "SCADA Operatör Manevrası"
+
+class ScadaAlarmAckRequest(BaseModel):
+    alarm_id: str

@@ -724,3 +724,23 @@ def create_reactor(db: Session, reactor_data):
     db.commit()
     db.refresh(reactor)
     return reactor
+
+
+def delete_feeder(db: Session, feeder_id: str):
+    """Delete a feeder."""
+    feeder = db.query(models.Feeder).filter(models.Feeder.id == feeder_id).first()
+    if not feeder:
+        return False
+    db.delete(feeder)
+    db.commit()
+    return True
+
+
+def delete_reactor(db: Session, reactor_id: str):
+    """Delete a reactor."""
+    reactor = db.query(models.Reactor).filter(models.Reactor.id == reactor_id).first()
+    if not reactor:
+        return False
+    db.delete(reactor)
+    db.commit()
+    return True

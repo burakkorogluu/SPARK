@@ -98,6 +98,10 @@ const App = (() => {
             TopolojiModulu.init();
         }
 
+        if (typeof ScadaSldUI !== 'undefined') {
+            ScadaSldUI.init();
+        }
+
         await renderDashboard();
 
         document.getElementById('global-loader')?.remove();
@@ -144,9 +148,6 @@ const App = (() => {
         switch (screen) {
             case 'dashboard':
                 renderDashboard();
-                if (state.dashboardView === 'scada' && typeof TopolojiModulu !== 'undefined') {
-                    TopolojiModulu.render();
-                }
                 break;
             case 'veri-giris':
                 if (typeof DataEntryUI !== 'undefined') DataEntryUI.renderVeriGiris();
@@ -159,6 +160,9 @@ const App = (() => {
                 break;
             case 'manevra':
                 if (typeof ManeuverUI !== 'undefined') ManeuverUI.renderManevra();
+                break;
+            case 'scada-sld':
+                if (typeof ScadaSldUI !== 'undefined') ScadaSldUI.render();
                 break;
         }
     }
@@ -232,13 +236,7 @@ const App = (() => {
             await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);
             if (typeof DetailUI !== 'undefined') DetailUI.renderTrafoDetay();
         });
-        document.getElementById('topoloji-ay-select')?.addEventListener('change', async (e) => {
-            syncAySelects(e.target.value);
-            await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);
-            if (typeof TopolojiModulu !== 'undefined') {
-                TopolojiModulu.render();
-            }
-        });
+
         document.getElementById('dashboard-ay-select')?.addEventListener('change', async (e) => {
             syncAySelects(e.target.value);
             await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);

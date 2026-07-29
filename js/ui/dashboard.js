@@ -147,6 +147,53 @@ const DashboardUI = (() => {
         if (bannerScada) bannerScada.innerHTML = bannerHTML;
     }
 
+    async function renderManeuverBanner() {
+        const container = document.getElementById('dashboard-maneuver-banner');
+        if (!container) return;
+
+        try {
+            const suggestions = await ApiClient.fetchManeuverSuggestions();
+            if (!suggestions || suggestions.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-success" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        <div>
+                            <strong style="color: var(--color-success);">Sistem Optimizasyonu Tamam</strong>
+                            <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">Şu an için şebekede yapılması gereken aktif bir manevra önerisi bulunmuyor.</div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // En yüksek öncelikli olanı bul
+            const topSuggestion = suggestions[0];
+            const isPredictive = topSuggestion.is_predictive;
+            const impactColor = isPredictive ? 'var(--color-warning)' : 'var(--color-primary)';
+            const bgAlpha = isPredictive ? '0.1' : '0.1';
+            
+            container.innerHTML = `
+                <div class="alert" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; background: rgba(49, 116, 246, 0.1); border: 1px solid rgba(49, 116, 246, 0.3);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <strong style="color: var(--color-primary);">Aktif Manevra Önerisi Var</strong>
+                            <span class="badge" style="background: var(--color-primary); color: white; padding: 2px 6px; font-size: 11px; border-radius: 4px;">${suggestions.length} Öneri</span>
+                        </div>
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">
+                            <b>${topSuggestion.title}</b>: ${topSuggestion.description}
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="App.navigate('maneuver')">Manevra Paneline Git</button>
+                </div>
+            `;
+            
+        } catch (e) {
+            console.error("Manevra önerileri alınamadı:", e);
+            container.innerHTML = '';
+        }
+    }
+
     async function renderDashboard() {
         const state = App.getState();
         const cacheKey = `${state.selectedYil}_${state.selectedAy}_${state.selectedYontem}`;
@@ -155,6 +202,9 @@ const DashboardUI = (() => {
         document.getElementById('summary-cards').innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">Sunucudan analizler ve projeksiyonlar çekiliyor... <span class="loading-spinner"></span></div>';
         const bannerCharts = document.getElementById('dashboard-forecast-banner');
         if (bannerCharts) bannerCharts.innerHTML = '';
+
+        // Manevra önerilerini arka planda getir
+        renderManeuverBanner();
 
         if (_dashboardCache.has(cacheKey)) {
             ozetler = _dashboardCache.get(cacheKey);
@@ -196,23 +246,13 @@ const DashboardUI = (() => {
     function switchDashboardView(viewName) {
         const state = App.getState();
         state.dashboardView = viewName;
-        const btnCharts = document.getElementById('btn-view-charts');
-        const btnScada = document.getElementById('btn-view-scada');
         const panelCharts = document.getElementById('dashboard-view-charts');
-        const panelScada = document.getElementById('dashboard-view-scada');
 
-        if (btnCharts && btnScada) {
-            btnCharts.classList.toggle('active', viewName === 'charts');
-            btnScada.classList.toggle('active', viewName === 'scada');
-        }
-        if (panelCharts && panelScada) {
+        if (panelCharts) {
             panelCharts.style.display = viewName === 'charts' ? 'block' : 'none';
-            panelScada.style.display = viewName === 'scada' ? 'block' : 'none';
         }
 
-        if (viewName === 'scada' && typeof TopolojiModulu !== 'undefined') {
-            TopolojiModulu.render();
-        } else if (viewName === 'charts') {
+        if (viewName === 'charts') {
             renderDashboard();
         }
     }
@@ -273,7 +313,6 @@ const DashboardUI = (() => {
 
         if (typeof GrafikModulu !== 'undefined') {
             GrafikModulu.createDashboardBarChart('chart-dashboard-bar', ozetler);
-            GrafikModulu.createEnergyDoughnut('chart-dashboard-doughnut', toplamAktif, toplamEnduktif, toplamKapasitif);
         }
 
         const ayBadge = document.getElementById('dashboard-ay-badge');

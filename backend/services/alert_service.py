@@ -1,4 +1,5 @@
 # pyrefly: ignore [missing-import]
+from typing import Optional
 from sqlalchemy.orm import Session
 import models
 from services.analysis_service import get_monthly_summary
@@ -7,16 +8,16 @@ import logging
 
 logger = logging.getLogger("spark.alerts")
 
-def check_and_generate_alerts(db: Session, year: int = None, month: int = None):
+def check_and_generate_alerts(db: Session, year: Optional[int] = None, month: Optional[int] = None):
     """
     Trafoların ay sonu durumunu analiz edip ceza sınırı veya uyarı eşiği aşımında 
     otomatik sistem alarmları üretir.
     """
-    if not year or not month:
-        now = datetime.now()
-        year, month = now.year, now.month
+    now = datetime.now()
+    req_year = year if year is not None else now.year
+    req_month = month if month is not None else now.month
 
-    summaries = get_monthly_summary(db, year, month)
+    summaries = get_monthly_summary(db, req_year, req_month)
     generated = []
 
     for item in summaries:

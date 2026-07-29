@@ -1,5 +1,5 @@
 # pyrefly: ignore [missing-import]
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 # pyrefly: ignore [missing-import]
@@ -9,7 +9,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import models
 import schemas
 from database import engine, SessionLocal
-from typing import List, Literal
+from typing import List, Literal, Optional
+from ws_handler import ws_manager
 
 FORECAST_METHODS = Literal["xgboost", "randomForest", "regression", "holtWinters", "ortalama", "persistence", "gecenAy", "ensemble"]
 from datetime import datetime, date
@@ -37,6 +38,9 @@ def get_db():
         db.close()
 
 # Start scheduler
+import scada_service
+import asyncio
+
 scheduler = BackgroundScheduler()
 
 @asynccontextmanager
@@ -65,9 +69,26 @@ async def lifespan(app: FastAPI):
     
     scheduler.start()
     
+    # SCADA Canlı Telemetri Broadcast Döngüsü (2 saniyede bir)
+    async def scada_telemetry_loop():
+        while True:
+            await asyncio.sleep(2)
+            if ws_manager.active_connections:
+                db_sub = SessionLocal()
+                try:
+                    snap = scada_service.generate_telemetry_snapshot(db_sub)
+                    await ws_manager.broadcast({"type": "scada_telemetry", "data": snap})
+                except Exception as e:
+                    logger.error(f"SCADA Telemetri Döngü Hatası: {e}")
+                finally:
+                    db_sub.close()
+
+    telemetry_task = asyncio.create_task(scada_telemetry_loop())
+
     yield
     
     # Shutdown
+    telemetry_task.cancel()
     scheduler.shutdown()
 
 app = FastAPI(title="SPARK TEIAS OSOS API", lifespan=lifespan)
@@ -126,9 +147,9 @@ def add_osos_measurement(
     ).first()
 
     if existing:
-        existing.active_kwh = measurement.active_kwh
-        existing.inductive_kvarh = measurement.inductive_kvarh
-        existing.capacitive_kvarh = measurement.capacitive_kvarh
+        existing.active_kwh = measurement.active_kwh  # pyrefly: ignore
+        existing.inductive_kvarh = measurement.inductive_kvarh  # pyrefly: ignore
+        existing.capacitive_kvarh = measurement.capacitive_kvarh  # pyrefly: ignore
         db.commit()
         db.refresh(existing)
         return existing
@@ -254,7 +275,7 @@ def apply_maneuver_endpoint(
             request.asset_type, 
             request.asset_id, 
             request.target_trafo_id, 
-            request.reason, 
+            request.reason or "Belirtilmedi", 
             request.override_overload
         )
         if not log:
@@ -357,13 +378,29 @@ def create_reactor_endpoint(
         }
     }
 
+@app.delete("/api/maneuver/feeder/{feeder_id}")
+def delete_feeder_endpoint(feeder_id: str, db: Session = Depends(get_db)):
+    from services.maneuver_service import delete_feeder
+    success = delete_feeder(db, feeder_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Fider bulunamadı.")
+    return {"status": "success", "message": "Fider başarıyla silindi."}
+
+@app.delete("/api/maneuver/reactor/{reactor_id}")
+def delete_reactor_endpoint(reactor_id: str, db: Session = Depends(get_db)):
+    from services.maneuver_service import delete_reactor
+    success = delete_reactor(db, reactor_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Reaktör bulunamadı.")
+    return {"status": "success", "message": "Reaktör başarıyla silindi."}
+
 @app.get("/api/alerts")
 def get_alerts_endpoint(limit: int = 20, db: Session = Depends(get_db)):
     from services.alert_service import get_active_alerts
     return get_active_alerts(db, limit)
 
 @app.post("/api/alerts/check")
-def check_alerts_endpoint(year: int = None, month: int = None, db: Session = Depends(get_db)):
+def check_alerts_endpoint(year: Optional[int] = None, month: Optional[int] = None, db: Session = Depends(get_db)):
     from services.alert_service import check_and_generate_alerts, get_active_alerts
     check_and_generate_alerts(db, year, month)
     return get_active_alerts(db)
@@ -371,10 +408,26 @@ def check_alerts_endpoint(year: int = None, month: int = None, db: Session = Dep
 @app.get("/api/models/evaluate")
 def evaluate_models_endpoint(transformer_id: str = Query(..., description="Transformer ID"), steps: int = 168, db: Session = Depends(get_db)):
     from services.model_eval_service import evaluate_all_models
-    return evaluate_all_models(db, transformer_id, steps)
 
-from fastapi import WebSocket, WebSocketDisconnect
-from ws_handler import ws_manager
+from services import scada_service
+
+@app.get("/api/scada/state")
+def get_scada_state_endpoint(db: Session = Depends(get_db)):
+    return scada_service.generate_telemetry_snapshot(db)
+
+@app.post("/api/scada/breaker")
+async def scada_toggle_breaker_endpoint(req: schemas.ScadaBreakerToggleRequest, db: Session = Depends(get_db)):
+    res = scada_service.toggle_breaker(db, req.breaker_id, req.target_state, req.trafo_id or "UMR-TRA", req.reason or "SCADA Operatör Manevrası")
+    snap = scada_service.generate_telemetry_snapshot(db)
+    await ws_manager.broadcast({"type": "scada_telemetry", "data": snap})
+    return res
+
+@app.post("/api/scada/alarm/ack")
+async def scada_ack_alarm_endpoint(req: schemas.ScadaAlarmAckRequest, db: Session = Depends(get_db)):
+    res = scada_service.ack_alarm(req.alarm_id)
+    snap = scada_service.generate_telemetry_snapshot(db)
+    await ws_manager.broadcast({"type": "scada_telemetry", "data": snap})
+    return res
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -385,3 +438,4 @@ async def websocket_endpoint(websocket: WebSocket):
             await ws_manager.broadcast({"type": "ping", "data": data})
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)
+

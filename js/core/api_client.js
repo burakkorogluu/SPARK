@@ -139,6 +139,14 @@ const ApiClient = (() => {
         });
     }
 
+    async function deleteFeeder(feederId) {
+        return _fetch(`${API_BASE_URL}/maneuver/feeder/${encodeURIComponent(feederId)}`, { method: 'DELETE' });
+    }
+
+    async function deleteReactor(reactorId) {
+        return _fetch(`${API_BASE_URL}/maneuver/reactor/${encodeURIComponent(reactorId)}`, { method: 'DELETE' });
+    }
+
     async function addMeasurement(data) {
         return _fetch(`${API_BASE_URL}/osos/measurements`, {
             method: 'POST',
@@ -166,6 +174,31 @@ const ApiClient = (() => {
         return _fetch(`${API_BASE_URL}/models/evaluate?transformer_id=${encodeURIComponent(transformerId)}&steps=${steps}`);
     }
 
+    async function fetchScadaState() {
+        return _fetch(`${API_BASE_URL}/scada/state`);
+    }
+
+    async function toggleScadaBreaker(breakerId, targetState, trafoId = 'UMR-TRA', reason = 'SCADA Operatör Manevrası') {
+        return _fetch(`${API_BASE_URL}/scada/breaker`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                breaker_id: breakerId,
+                target_state: targetState,
+                trafo_id: trafoId,
+                reason: reason
+            })
+        });
+    }
+
+    async function ackScadaAlarm(alarmId) {
+        return _fetch(`${API_BASE_URL}/scada/alarm/ack`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ alarm_id: alarmId })
+        });
+    }
+
     return {
         fetchMeasurements,
         fetchTransformers,
@@ -179,10 +212,15 @@ const ApiClient = (() => {
         rollbackManeuver,
         addFeeder,
         addReactor,
+        deleteFeeder,
+        deleteReactor,
         addMeasurement,
         deleteMeasurement,
         fetchAlerts,
         checkAlerts,
-        evaluateModels
+        evaluateModels,
+        fetchScadaState,
+        toggleScadaBreaker,
+        ackScadaAlarm
     };
 })();
