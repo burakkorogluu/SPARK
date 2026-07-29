@@ -847,6 +847,15 @@ const ManeuverUI = (() => {
                             const lineColor = isActive ? (isLight ? 'rgba(217, 119, 6, 0.6)' : 'rgba(251, 191, 36, 0.6)') : altLineColor;
                             drawConnection(n.x, n.y + n.r, tn.x, tn.y - 16, false, lineColor, isFaded);
                         }
+                        if (n.asset.alternative_transformer_id) {
+                            const an = _topologyState.nodes.find(t => t.id === n.asset.alternative_transformer_id);
+                            if (an) {
+                                const isFaded = hoveredNode && hoveredNode.id !== n.id && hoveredNode.id !== an.id;
+                                const reactorAltColor = isLight ? 'rgba(217, 119, 6, 0.3)' : 'rgba(251, 191, 36, 0.3)';
+                                drawConnection(n.x, n.y + n.r, an.x, an.y - 16, true, reactorAltColor, isFaded);
+                            }
+                        }
+
                     } else if (n.type === 'feeder') {
                         const tn = _topologyState.nodes.find(t => t.id === n.asset.current_transformer_id);
                         if (tn) {
