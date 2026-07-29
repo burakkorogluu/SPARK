@@ -38,7 +38,6 @@ def get_db():
         db.close()
 
 # Start scheduler
-import scada_service
 import asyncio
 
 scheduler = BackgroundScheduler()
