@@ -1057,7 +1057,7 @@ const ManeuverUI = (() => {
             ctx.setLineDash([5, 5]);
             ctx.beginPath(); ctx.moveTo(280, H - 24); ctx.lineTo(306, H - 24); ctx.stroke();
             ctx.setLineDash([]);
-            ctx.fillText('Alternatif Fider (Sürükle-bırak destekli)', 316, H - 24);
+            ctx.fillText('Alternatif Fider', 316, H - 24);
 
             ctx.restore();
             _animFrameId = requestAnimationFrame(render);
