@@ -876,6 +876,7 @@ body {
 input[type='text'],
 input[type='number'],
 input[type='date'],
+input[type='datetime-local'],
 select,
 .select-lg,
 .select-sm {
