@@ -1279,10 +1279,6 @@ const ManeuverUI = (() => {
                     btnToggleFullscreen.style.fontWeight = '';
                 }
             }
-            const btnExitFixed = document.getElementById('btn-exit-fullscreen-fixed');
-            if (btnExitFixed) {
-                btnExitFixed.style.display = _isFullscreen ? 'flex' : 'none';
-            }
             setTimeout(() => {
                 if (_cachedAssets) drawManevraTopology(_cachedAssets);
             }, 100);
@@ -1314,17 +1310,6 @@ const ManeuverUI = (() => {
                     updateFullscreenUI();
                 }
             });
-            
-            const btnExitFixed = document.getElementById('btn-exit-fullscreen-fixed');
-            if (btnExitFixed) {
-                btnExitFixed.addEventListener('click', () => {
-                    _isFullscreen = false;
-                    if (document.fullscreenElement) {
-                        document.exitFullscreen().catch(() => {});
-                    }
-                    updateFullscreenUI();
-                });
-            }
         }
 
         // Trafo Ekle Modalı
