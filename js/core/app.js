@@ -114,6 +114,21 @@ const App = (() => {
                 navigate(btn.dataset.screen);
             });
         });
+
+        const toggleBtn = document.getElementById('sidebar-toggle-btn');
+        const sidebar = document.getElementById('app-sidebar');
+
+        if (toggleBtn && sidebar) {
+            const isCollapsed = localStorage.getItem('spark_sidebar_collapsed') === 'true';
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+            }
+
+            toggleBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                localStorage.setItem('spark_sidebar_collapsed', sidebar.classList.contains('collapsed'));
+            });
+        }
     }
 
     function navigate(screen) {
