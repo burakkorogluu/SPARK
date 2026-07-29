@@ -20,5 +20,8 @@ def db_session():
         db.close()
 
 @pytest.fixture(scope="session")
-def client():
-    return TestClient(app)
+def client(db_session):
+    # Using TestClient as a context manager triggers the lifespan events,
+    # but here we just ensure db_session ran so Base.metadata.create_all is called.
+    with TestClient(app) as c:
+        yield c

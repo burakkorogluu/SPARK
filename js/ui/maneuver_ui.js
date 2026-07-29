@@ -380,7 +380,7 @@ const ManeuverUI = (() => {
                 return 'var(--color-success-light)';
             };
             const riskLabel = (risk) => {
-                const map = { tehlikeli: 'Tehlikeli', riskli: 'Riskli', dikkat: 'Dikkat', normal: 'Normal', guvenli: 'Güvenli' };
+                const map = { tehlikeli: 'Tehlikeli', riskli: 'Riskli', dikkat: 'Dikkat', guvenli: 'Güvenli' };
                 return map[risk] || risk;
             };
             const loadBarClass = (ratio) => ratio > 100 ? 'high' : (ratio > 70 ? 'high' : (ratio > 50 ? 'medium' : 'low'));

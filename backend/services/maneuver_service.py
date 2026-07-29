@@ -565,7 +565,7 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         asset.alternative_transformer_id = old_trafo_id
         asset.current_transformer_id = target_trafo_id
 
-        impact = "Kritik (Aşırı Yüklü)" if target_stats and (target_stats["total_feeder_load"] + asset.simulated_load_kw) / target_stats["power_kw"] > 1 else "Orta"
+        impact = "Kritik (Aşırı Yüklü)" if target_stats and target_stats.get("power_kw", 0) > 0 and (target_stats["total_feeder_load"] + asset.simulated_load_kw) / target_stats["power_kw"] > 1 else "Orta"
 
         log = models.ManeuverLog(
             action_type="feeder_transfer",

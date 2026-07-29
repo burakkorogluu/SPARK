@@ -172,6 +172,7 @@ const ScadaSldUI = (() => {
 
         // Kesici, Ayırıcı ve Etiket Tıklamaları
         container.addEventListener('click', (e) => {
+            console.log("[SCADA CLICK] Clicked on:", e.target.className || e.target.tagName);
             
             // Eğer kuplaj veya fider yazılarına (butonlarına) tıklandıysa:
             const bayBtn = e.target.closest('.bay-btn-label');
@@ -276,6 +277,8 @@ const ScadaSldUI = (() => {
 
         const actionStr = targetState ? '<strong style="color:#22c55e;">KAPATMA (Enerji Verme)</strong>' : '<strong style="color:#ef4444;">AÇMA (Enerji Kesme)</strong>';
         
+        console.log(`[SCADA] requestBreakerToggle -> ID: ${breakerId}, TargetState: ${targetState}`);
+        
         pendingManeuver = { breakerId, targetState, trafoId };
 
         const modal = document.getElementById('scada-confirm-breaker-modal');
@@ -287,7 +290,13 @@ const ScadaSldUI = (() => {
         }
         if (reasonInput) reasonInput.value = '';
 
-        if (modal) modal.style.display = 'flex';
+        console.log(`[SCADA] Modal element found:`, !!modal);
+        if (modal) {
+            modal.style.display = 'flex';
+            console.log(`[SCADA] Modal display set to flex.`);
+        } else {
+            console.error(`[SCADA] Modal element NOT FOUND in the DOM!`);
+        }
     }
 
     async function ackAlarm(alarmId) {

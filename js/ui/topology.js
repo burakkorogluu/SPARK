@@ -228,7 +228,7 @@ const TopolojiModulu = (() => {
         }
 
         // Eski durum sınıflarını temizle
-        cardEl.classList.remove('status-guvenli', 'status-normal', 'status-dikkat', 'status-riskli', 'status-tehlikeli');
+        cardEl.classList.remove('status-guvenli', 'status-dikkat', 'status-riskli', 'status-tehlikeli');
         cardEl.classList.add(`status-${ozet.kapasitifRisk.seviye}`);
 
         // Progress bar genişliği (maks %20 referans alınır)

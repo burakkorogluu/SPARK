@@ -269,7 +269,7 @@ const DashboardUI = (() => {
             toplamEnduktif  += ozet.toplamEnduktif;
             toplamKapasitif += ozet.toplamKapasitif;
 
-            const _RISK_SIRA = { guvenli: 0, normal: 0, dikkat: 1, riskli: 2, tehlikeli: 3 };
+            const _RISK_SIRA = { guvenli: 0, dikkat: 1, riskli: 2, tehlikeli: 3 };
             const kapSev = ozet.kapasitifRisk ? ozet.kapasitifRisk.seviye : 'guvenli';
             const endSev = ozet.enduktifRisk  ? ozet.enduktifRisk.seviye  : 'guvenli';
             const sev = (_RISK_SIRA[kapSev] >= _RISK_SIRA[endSev]) ? kapSev : endSev;
@@ -323,7 +323,7 @@ const DashboardUI = (() => {
         gridEl.innerHTML = ozetler.map(({ trafo, ozet, tahminOzet }, idx) => {
             if (!ozet) return '';
 
-            const _RISK_SIRA = { guvenli: 0, normal: 0, dikkat: 1, riskli: 2, tehlikeli: 3 };
+            const _RISK_SIRA = { guvenli: 0, dikkat: 1, riskli: 2, tehlikeli: 3 };
             const kapRisk = ozet.kapasitifRisk || HesaplamaModulu.riskSeviyesiBelirle(ozet.kapasitifOran || 0, 'kapasitif');
             const endRisk = ozet.enduktifRisk  || HesaplamaModulu.riskSeviyesiBelirle(ozet.enduktifOran  || 0, 'enduktif');
             const risk = (_RISK_SIRA[kapRisk.seviye] >= _RISK_SIRA[endRisk.seviye]) ? kapRisk : endRisk;

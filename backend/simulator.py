@@ -1,5 +1,6 @@
 import random
 from datetime import datetime, timedelta
+from typing import cast, Optional, Tuple
 # pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 from database import SessionLocal
@@ -8,6 +9,63 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def get_historical_baseline(db: Session, transformer_id: str, target_time: datetime) -> Optional[Tuple[int, int, int]]:
+    """
+    Looks back 52 weeks (364 days) to find real 2025 measurement data as baseline.
+    Handles maintenance periods (where active_kwh <= 100) by searching back week-by-week up to 4 weeks.
+    """
+    ref_time = target_time - timedelta(days=364)
+    for _ in range(4): # Check up to 4 weeks prior if maintenance (active_kwh <= 100)
+        baseline = db.query(models.Measurement).filter(
+            models.Measurement.transformer_id == transformer_id,
+            models.Measurement.timestamp == ref_time
+        ).first()
+        
+        if baseline and (baseline.active_kwh or 0) > 100:
+            return int(baseline.active_kwh), int(baseline.inductive_kvarh), int(baseline.capacitive_kvarh)
+        
+        ref_time -= timedelta(days=7)
+        
+    return None
+
+def generate_measurement_values(db: Session, trafo: models.Transformer, target_time: datetime) -> Tuple[int, int, int]:
+    """
+    Generates measurement values (active_kwh, inductive_kvarh, capacitive_kvarh)
+    using historical 2025 baseline data if available, or falls back to random logic.
+    """
+    baseline = get_historical_baseline(db, str(trafo.id), target_time)
+    if baseline:
+        b_active, b_inductive, b_capacitive = baseline
+        noise = random.uniform(0.97, 1.03)  # ±3% natural variation noise
+        active = int(b_active * noise)
+        inductive = int(b_inductive * noise)
+        capacitive = int(b_capacitive * noise)
+    else:
+        # Fallback to random mathematical generation if no historical baseline exists
+        power_mva = cast(float, trafo.power_mva)
+        base_active = (power_mva / 100) * random.randint(20000, 50000)
+        hour = target_time.hour
+        if 0 <= hour < 7:
+            multiplier = random.uniform(0.4, 0.6)
+        elif 7 <= hour < 18:
+            multiplier = random.uniform(0.9, 1.2)
+        else:
+            multiplier = random.uniform(0.7, 0.9)
+
+        active = int(base_active * multiplier)
+        is_capacitive = random.random() < (0.7 if trafo.id == "UMR-TRB" else 0.2)
+        if is_capacitive:
+            inductive = 0
+            if trafo.id == "UMR-TRB":
+                capacitive = int(active * random.uniform(0.12, 0.18))
+            else:
+                capacitive = int(active * random.uniform(0.05, 0.10))
+        else:
+            capacitive = 0
+            inductive = int(active * random.uniform(0.10, 0.15))
+
+    return active, inductive, capacitive
 
 def generate_hourly_data():
     """
@@ -32,7 +90,7 @@ def generate_hourly_data():
             elif not last_measurement:
                 start_hour = current_hour
             else:
-                start_hour = current_hour + timedelta(hours=1) # Already up to date
+                start_hour = current_hour + timedelta(hours=1)  # Already up to date
 
             # Generate data for all missing hours up to current_hour
             temp_hour = start_hour
@@ -46,22 +104,7 @@ def generate_hourly_data():
                     temp_hour += timedelta(hours=1)
                     continue
 
-                base_active = (trafo.power_mva / 100) * random.randint(20000, 50000)
-                hour = temp_hour.hour
-                if 0 <= hour < 7:
-                    multiplier = random.uniform(0.4, 0.6)
-                elif 7 <= hour < 18:
-                    multiplier = random.uniform(0.9, 1.2)
-                else:
-                    multiplier = random.uniform(0.7, 0.9)
-
-                active = int(base_active * multiplier)
-                inductive = int(active * random.uniform(0.10, 0.15))
-
-                if trafo.id == "UMR-TRB":
-                    capacitive = int(active * random.uniform(0.12, 0.18))
-                else:
-                    capacitive = int(active * random.uniform(0.05, 0.10))
+                active, inductive, capacitive = generate_measurement_values(db, trafo, temp_hour)
 
                 measurement = models.Measurement(
                     transformer_id=trafo.id,
@@ -110,21 +153,7 @@ def generate_historical_data(days=30):
                 if existing:
                     continue
 
-                base_active = (trafo.power_mva / 100) * random.randint(20000, 50000)
-                hour = timestamp.hour
-                if 0 <= hour < 7:
-                    multiplier = random.uniform(0.4, 0.6)
-                elif 7 <= hour < 18:
-                    multiplier = random.uniform(0.9, 1.2)
-                else:
-                    multiplier = random.uniform(0.7, 0.9)
-
-                active = int(base_active * multiplier)
-                inductive = int(active * random.uniform(0.10, 0.15))
-                if trafo.id == "UMR-TRB":
-                    capacitive = int(active * random.uniform(0.12, 0.18))
-                else:
-                    capacitive = int(active * random.uniform(0.05, 0.10))
+                active, inductive, capacitive = generate_measurement_values(db, trafo, timestamp)
 
                 measurement = models.Measurement(
                     transformer_id=trafo.id,
