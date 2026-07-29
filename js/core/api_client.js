@@ -76,13 +76,13 @@ const ApiClient = (() => {
     async function fetchTransformers() {
         return _fetch(`${API_BASE_URL}/transformers`);
     }
-    
+
     async function fetchAnalysisSummary(year, month, transformerId = null) {
         let url = `${API_BASE_URL}/analysis/summary?year=${year}&month=${month}`;
         if (transformerId) url += `&transformer_id=${transformerId}`;
         return _fetch(url);
     }
-    
+
     async function fetchForecast(transformerId, year, month, method = 'ensemble') {
         const url = `${API_BASE_URL}/forecast?transformer_id=${transformerId}&year=${year}&month=${month}&method=${method}`;
         return _fetch(url);

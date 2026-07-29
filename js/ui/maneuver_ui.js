@@ -22,6 +22,31 @@ const ManeuverUI = (() => {
                 await fetchAndRenderManevraSuggestions();
             });
         }
+        
+        bindSuggestionTabs();
+    }
+    
+    function bindSuggestionTabs() {
+        const btnNormal = document.getElementById('btn-sug-tab-normal');
+        const btnPred = document.getElementById('btn-sug-tab-predictive');
+        const contNormal = document.getElementById('manevra-onerileri-container-normal');
+        const contPred = document.getElementById('manevra-onerileri-container-predictive');
+        
+        if (btnNormal && btnPred) {
+            btnNormal.addEventListener('click', () => {
+                btnNormal.classList.add('active');
+                btnPred.classList.remove('active');
+                contNormal.style.display = 'block';
+                contPred.style.display = 'none';
+            });
+            
+            btnPred.addEventListener('click', () => {
+                btnPred.classList.add('active');
+                btnNormal.classList.remove('active');
+                contPred.style.display = 'block';
+                contNormal.style.display = 'none';
+            });
+        }
     }
 
     function bindManevraSubTabs() {
@@ -138,83 +163,98 @@ const ManeuverUI = (() => {
     }
 
     async function fetchAndRenderManevraSuggestions() {
-        const container = document.getElementById('manevra-onerileri-container');
-        if (!container) return;
+        const contNormal = document.getElementById('manevra-onerileri-container-normal');
+        const contPred = document.getElementById('manevra-onerileri-container-predictive');
+        if (!contNormal || !contPred) return;
 
-        container.innerHTML = `
+        const loadingHtml = `
             <div style="padding: 20px; text-align: center;">
                 <div class="loading-spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto 10px auto;"></div>
                 <span>Akıllı Manevra Önerileri Analiz Ediliyor...</span>
             </div>
         `;
+        contNormal.innerHTML = loadingHtml;
+        contPred.innerHTML = loadingHtml;
 
         try {
             const suggestions = await ApiClient.fetchManeuverSuggestions();
             _cachedSuggestions = suggestions;
+            
+            const normalSuggs = suggestions ? suggestions.filter(s => !s.is_predictive) : [];
+            const predSuggs = suggestions ? suggestions.filter(s => s.is_predictive) : [];
 
             const suggestionCount = document.getElementById('stat-suggestion-count');
-            if (suggestionCount) suggestionCount.textContent = suggestions ? suggestions.length : 0;
-
-            if (!suggestions || suggestions.length === 0) {
-                container.innerHTML = `<div style="padding: 16px; border-radius: 8px; background: rgba(46, 125, 50, 0.06); border: 1px solid rgba(46, 125, 50, 0.15); color: var(--text-secondary); font-size: 14px;">Şu anda yapılması gereken kritik bir manevra önerisi bulunmamaktadır. Tüm trafolar dengeli çalışıyor.</div>`;
-                return;
+            if (suggestionCount) suggestionCount.textContent = normalSuggs.length; // Sadece kesinleşenleri ana sayaca ekle
+            
+            const badgePred = document.getElementById('badge-predictive-count');
+            if (badgePred) {
+                badgePred.textContent = predSuggs.length;
+                badgePred.style.display = predSuggs.length > 0 ? 'inline-block' : 'none';
             }
 
-            container.innerHTML = suggestions.map((s, idx) => {
-                const assetType = s.feeder_id ? 'feeder' : 'reactor';
-                const assetId = s.feeder_id || s.reactor_id;
-                const impactClass = s.impact === 'Yüksek' ? 'impact-high' : (s.impact === 'Orta' ? 'impact-medium' : 'impact-low');
-                const preview = s.simulation_preview || {};
+            const renderCards = (suggs, emptyMsg) => {
+                if (suggs.length === 0) return `<div style="padding: 16px; border-radius: 8px; background: rgba(46, 125, 50, 0.06); border: 1px solid rgba(46, 125, 50, 0.15); color: var(--text-secondary); font-size: 14px;">${emptyMsg}</div>`;
+                
+                return suggs.map((s, idx) => {
+                    const assetType = s.feeder_id ? 'feeder' : 'reactor';
+                    const assetId = s.feeder_id || s.reactor_id;
+                    const impactClass = s.impact === 'Yüksek' ? 'impact-high' : (s.impact === 'Orta' ? 'impact-medium' : 'impact-low');
+                    const preview = s.simulation_preview || {};
 
-                return `
-                <div class="suggestion-card ${idx === 0 ? 'highlight' : ''}" style="animation-delay: ${idx * 0.1}s;">
-                    <div class="suggestion-card-top">
-                        <div style="display: flex; gap: 16px; align-items: flex-start; flex: 1;">
-                            ${renderScoreGauge(s.score || 50)}
-                            <div class="suggestion-card-info">
-                                <div class="suggestion-card-badges">
-                                    <span class="maneuver-badge ${impactClass}">Öncelik: ${App.escapeHTML(s.impact)}</span>
-                                    <span class="maneuver-badge" style="background: rgba(49, 116, 246, 0.1); color: var(--color-primary); border: 1px solid rgba(49, 116, 246, 0.3);">${App.escapeHTML(s.id)}</span>
+                    return `
+                    <div class="suggestion-card ${idx === 0 && !s.is_predictive ? 'highlight' : ''}" style="animation-delay: ${idx * 0.1}s; ${s.is_predictive ? 'border-left-color: var(--color-warning);' : ''}">
+                        <div class="suggestion-card-top">
+                            <div style="display: flex; gap: 16px; align-items: flex-start; flex: 1;">
+                                ${renderScoreGauge(s.score || 50)}
+                                <div class="suggestion-card-info">
+                                    <div class="suggestion-card-badges">
+                                        <span class="maneuver-badge ${impactClass}">Öncelik: ${App.escapeHTML(s.impact)}</span>
+                                        ${s.is_predictive ? `<span class="maneuver-badge" style="background: var(--color-warning); color: white;">Proaktif</span>` : ''}
+                                        <span class="maneuver-badge" style="background: rgba(49, 116, 246, 0.1); color: var(--color-primary); border: 1px solid rgba(49, 116, 246, 0.3);">${App.escapeHTML(s.id)}</span>
+                                    </div>
+                                    <h4>${App.escapeHTML(s.title)}</h4>
+                                    <p class="suggestion-card-desc">${App.escapeHTML(s.description)}</p>
+                                    <div class="suggestion-card-meta">
+                                        <span><b>Kaynak:</b> ${App.escapeHTML(s.source_trafo_name)}</span>
+                                        <span><b>Hedef:</b> ${App.escapeHTML(s.target_trafo_name)}</span>
+                                    </div>
                                 </div>
-                                <h4>${App.escapeHTML(s.title)}</h4>
-                                <p class="suggestion-card-desc">${App.escapeHTML(s.description)}</p>
-                                <div class="suggestion-card-meta">
-                                    <span><b>Kaynak:</b> ${App.escapeHTML(s.source_trafo_name)}</span>
-                                    <span><b>Hedef:</b> ${App.escapeHTML(s.target_trafo_name)}</span>
+                            </div>
+                            <div class="suggestion-card-actions">
+                                <button class="btn-simulate btn-sim-open"
+                                        data-asset-type="${assetType}"
+                                        data-asset-id="${assetId}"
+                                        data-target="${s.target_trafo_id}">Simüle Et</button>
+                            </div>
+                        </div>
+                        ${preview.source_load_before !== undefined ? `
+                        <div class="sim-preview">
+                            <div class="sim-preview-item">
+                                <span class="sim-preview-label">Kaynak Yük</span>
+                                <div class="sim-preview-values">
+                                    <span class="sim-preview-val before">%${preview.source_load_before}</span>
+                                    <span class="sim-preview-arrow">→</span>
+                                    <span class="sim-preview-val after ${preview.source_load_after > preview.source_load_before ? 'worse' : ''}">%${preview.source_load_after}</span>
+                                </div>
+                            </div>
+                            <div class="sim-preview-item">
+                                <span class="sim-preview-label">Hedef Yük</span>
+                                <div class="sim-preview-values">
+                                    <span class="sim-preview-val before">%${preview.target_load_before}</span>
+                                    <span class="sim-preview-arrow">→</span>
+                                    <span class="sim-preview-val after ${preview.target_load_after > 80 ? 'worse' : ''}">%${preview.target_load_after}</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="suggestion-card-actions">
-                            <button class="btn-simulate btn-sim-open"
-                                    data-asset-type="${assetType}"
-                                    data-asset-id="${assetId}"
-                                    data-target="${s.target_trafo_id}">Simüle Et</button>
-                        </div>
-                    </div>
-                    ${preview.source_load_before !== undefined ? `
-                    <div class="sim-preview">
-                        <div class="sim-preview-item">
-                            <span class="sim-preview-label">Kaynak Yük</span>
-                            <div class="sim-preview-values">
-                                <span class="sim-preview-val before">%${preview.source_load_before}</span>
-                                <span class="sim-preview-arrow">→</span>
-                                <span class="sim-preview-val after ${preview.source_load_after > preview.source_load_before ? 'worse' : ''}">%${preview.source_load_after}</span>
-                            </div>
-                        </div>
-                        <div class="sim-preview-item">
-                            <span class="sim-preview-label">Hedef Yük</span>
-                            <div class="sim-preview-values">
-                                <span class="sim-preview-val before">%${preview.target_load_before}</span>
-                                <span class="sim-preview-arrow">→</span>
-                                <span class="sim-preview-val after ${preview.target_load_after > 80 ? 'worse' : ''}">%${preview.target_load_after}</span>
-                            </div>
-                        </div>
-                    </div>
-                    ` : ''}
-                </div>`;
-            }).join('');
+                        ` : ''}
+                    </div>`;
+                }).join('');
+            };
 
-            container.querySelectorAll('.btn-sim-open').forEach(btn => {
+            contNormal.innerHTML = renderCards(normalSuggs, "Şu anda yapılması gereken kritik (kesinleşmiş) bir manevra önerisi bulunmamaktadır. Tüm trafolar dengeli çalışıyor.");
+            contPred.innerHTML = renderCards(predSuggs, "Ay sonu projeksiyonlarına göre proaktif bir manevra ihtiyacı öngörülmemiştir.");
+
+            document.querySelectorAll('.btn-sim-open').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const type = btn.dataset.assetType;
                     const id = btn.dataset.assetId;
@@ -225,7 +265,9 @@ const ManeuverUI = (() => {
 
         } catch (err) {
             console.error("Manevra önerileri çekilirken hata:", err);
-            container.innerHTML = `<div style="padding: 16px; border-radius: 8px; background: rgba(198, 40, 40, 0.06); border: 1px solid rgba(198, 40, 40, 0.15); color: var(--color-danger-light); font-size: 14px;">Öneriler alınırken sunucu hatası oluştu.</div>`;
+            const errHtml = `<div style="padding: 16px; border-radius: 8px; background: rgba(198, 40, 40, 0.06); border: 1px solid rgba(198, 40, 40, 0.15); color: var(--color-danger-light); font-size: 14px;">Öneriler alınırken sunucu hatası oluştu.</div>`;
+            contNormal.innerHTML = errHtml;
+            contPred.innerHTML = errHtml;
         }
     }
 

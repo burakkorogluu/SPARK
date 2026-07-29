@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 import models
 from datetime import datetime, timedelta
 import logging
+from services.forecast_service import get_cached_forecast
+from services.analysis_service import get_monthly_summary
 
 logger = logging.getLogger("spark.maneuver")
 
@@ -133,6 +135,42 @@ def _calculate_suggestion_score(stats, alt_stats, load_diff, is_reactive=False):
             score += 2
 
     return min(100, max(0, score))
+
+
+def _get_projected_monthly_ratios(db: Session, trafo_id: str):
+    """
+    Calculate the projected end-of-month capacitive and inductive ratios
+    by combining historical monthly totals with ensemble forecasts.
+    """
+    now = datetime.now()
+    year, month = now.year, now.month
+    
+    # 1. Get current month's historical totals
+    summaries = get_monthly_summary(db, year, month, transformer_id=trafo_id)
+    if not summaries:
+        return 0, 0
+    
+    ozet = summaries[0]["ozet"]
+    hist_aktif = ozet["toplamAktif"]
+    hist_kap = ozet["toplamKapasitif"]
+    hist_end = ozet["toplamEnduktif"]
+    
+    # 2. Get ensemble forecasts from now to end of month
+    forecast_data = get_cached_forecast(db, trafo_id, year, month, "ensemble")
+    preds = forecast_data.get("predictions", [])
+    
+    pred_aktif = sum(p["active_kwh"] for p in preds)
+    pred_kap = sum(p["capacitive_kvarh"] for p in preds)
+    pred_end = sum(p["inductive_kvarh"] for p in preds)
+    
+    total_aktif = hist_aktif + pred_aktif
+    total_kap = hist_kap + pred_kap
+    total_end = hist_end + pred_end
+    
+    proj_kap_ratio = (total_kap / max(1, total_aktif)) * 100
+    proj_end_ratio = (total_end / max(1, total_aktif)) * 100
+    
+    return proj_kap_ratio, proj_end_ratio
 
 
 def analyze_and_suggest_maneuvers(db: Session):
@@ -284,6 +322,75 @@ def analyze_and_suggest_maneuvers(db: Session):
                         }
                     })
                     suggestion_id += 1
+
+        # 4. Predictive Maneuvers (Tahmine Dayalı Öneriler)
+        proj_kap_ratio, proj_end_ratio = _get_projected_monthly_ratios(db, trafo.id)
+        
+        # Predictive scoring base: scale based on how much it exceeds the threshold (15 for cap, 20 for ind)
+        if proj_kap_ratio > 14.5:
+            # Score: 60 base + up to 40 points based on severity
+            pred_score = min(100, 60 + int((proj_kap_ratio - 14.5) * 10))
+            for reactor in stats["reactors"]:
+                if reactor.status == "inactive":
+                    suggestions.append({
+                        "id": f"MAN-PRED-{suggestion_id:03d}",
+                        "title": f"Proaktif Uyarı (Kapasitif): {reactor.name}",
+                        "action_type": "predictive_reactor_switch",
+                        "impact": "Yüksek" if proj_kap_ratio > 15.0 else "Orta",
+                        "score": pred_score,
+                        "source_trafo_id": trafo.id,
+                        "source_trafo_name": trafo.name,
+                        "target_trafo_id": trafo.id,
+                        "target_trafo_name": trafo.name,
+                        "target_asset": reactor.name,
+                        "is_predictive": True,
+                        "description": (
+                            f"Tahmin algoritmalarına (Ensemble) göre {trafo.name} trafosunda ay sonu kapasitif oranının "
+                            f"%{proj_kap_ratio:.1f} seviyesine ulaşması öngörülüyor. "
+                            f"Önlem olarak '{reactor.name}' reaktörünün devreye alınması tavsiye edilir."
+                        ),
+                        "reactor_id": reactor.id,
+                        "simulation_preview": {
+                            "source_load_before": round(stats["load_ratio"], 1),
+                            "source_load_after": round(stats["load_ratio"], 1),
+                            "target_load_before": round(stats["load_ratio"], 1),
+                            "target_load_after": round(stats["load_ratio"], 1),
+                        }
+                    })
+                    suggestion_id += 1
+                    break # Suggest one reactor is enough for predictive
+                    
+        if proj_end_ratio > 19.5:
+            pred_score = min(100, 60 + int((proj_end_ratio - 19.5) * 10))
+            for reactor in stats["reactors"]:
+                if reactor.alternative_transformer_id and reactor.alternative_transformer_id in trafo_stats:
+                    suggestions.append({
+                        "id": f"MAN-PRED-{suggestion_id:03d}",
+                        "title": f"Proaktif Uyarı (Endüktif): {reactor.name}",
+                        "action_type": "predictive_reactor_switch",
+                        "impact": "Yüksek" if proj_end_ratio > 20.0 else "Orta",
+                        "score": pred_score,
+                        "source_trafo_id": trafo.id,
+                        "source_trafo_name": trafo.name,
+                        "target_trafo_id": reactor.alternative_transformer_id,
+                        "target_trafo_name": trafo_stats[reactor.alternative_transformer_id]["model"].name,
+                        "target_asset": reactor.name,
+                        "is_predictive": True,
+                        "description": (
+                            f"Tahmin algoritmalarına (Ensemble) göre {trafo.name} trafosunda ay sonu endüktif oranının "
+                            f"%{proj_end_ratio:.1f} seviyesine ulaşması öngörülüyor. "
+                            f"Önlem olarak '{reactor.name}' reaktörünün alternatif trafoya aktarılması / incelenmesi tavsiye edilir."
+                        ),
+                        "reactor_id": reactor.id,
+                        "simulation_preview": {
+                            "source_load_before": round(stats["load_ratio"], 1),
+                            "source_load_after": round(stats["load_ratio"], 1),
+                            "target_load_before": round(trafo_stats[reactor.alternative_transformer_id]["load_ratio"], 1),
+                            "target_load_after": round(trafo_stats[reactor.alternative_transformer_id]["load_ratio"], 1),
+                        }
+                    })
+                    suggestion_id += 1
+                    break
 
     # Fallback: if no suggestions, generate a preventive one
     if not suggestions:

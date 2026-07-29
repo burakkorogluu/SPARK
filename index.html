@@ -680,7 +680,16 @@
                             </button>
                         </div>
                     </div>
-                    <div class="suggestion-cards-container" id="manevra-onerileri-container">
+                    <div class="suggestion-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
+                        <button class="btn btn-outline active" id="btn-sug-tab-normal" style="flex: 1;">Kesinleşmiş Manevralar</button>
+                        <button class="btn btn-outline" id="btn-sug-tab-predictive" style="flex: 1; border-color: var(--color-warning); color: var(--color-warning);">Proaktif (Tahmini) Manevralar <span id="badge-predictive-count" class="badge" style="background: var(--color-warning); color: white; display: none;">0</span></button>
+                    </div>
+                    <div class="suggestion-cards-container" id="manevra-onerileri-container-normal">
+                        <div style="padding: 16px; border-radius: 8px; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
+                            Manevra önerilerini hesaplamak için yukarıdaki <b>"Öneri Analizi Çalıştır"</b> butonuna basınız.
+                        </div>
+                    </div>
+                    <div class="suggestion-cards-container" id="manevra-onerileri-container-predictive" style="display: none;">
                         <div style="padding: 16px; border-radius: 8px; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
                             Manevra önerilerini hesaplamak için yukarıdaki <b>"Öneri Analizi Çalıştır"</b> butonuna basınız.
                         </div>
@@ -968,7 +977,7 @@
     <script src="js/ui/data_entry.js?v=6"></script>
     <script src="js/ui/detail.js?v=6"></script>
     <script src="js/ui/forecast_ui.js?v=6"></script>
-    <script src="js/ui/maneuver_ui.js?v=6"></script>
+    <script src="js/ui/maneuver_ui.js?v=7"></script>
     <script src="js/ui/alerts.js?v=6"></script>
     <script src="js/core/app.js?v=6"></script>
 </body>
