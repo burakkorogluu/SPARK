@@ -54,16 +54,15 @@ def generate_measurement_values(db: Session, trafo: models.Transformer, target_t
             multiplier = random.uniform(0.7, 0.9)
 
         active = int(base_active * multiplier)
-        is_capacitive = random.random() < (0.7 if trafo.id == "UMR-TRB" else 0.2)
-        if is_capacitive:
-            inductive = 0
-            if trafo.id == "UMR-TRB":
-                capacitive = int(active * random.uniform(0.12, 0.18))
-            else:
-                capacitive = int(active * random.uniform(0.05, 0.10))
+        # Real transformers have both inductive and capacitive energy simultaneously
+        if trafo.id == "UMR-TRB":
+            # UMR-TRB is known to be highly capacitive in this scenario
+            capacitive = int(active * random.uniform(0.12, 0.18))
+            inductive = int(active * random.uniform(0.02, 0.08))
         else:
-            capacitive = 0
+            # Others are typically more inductive
             inductive = int(active * random.uniform(0.10, 0.15))
+            capacitive = int(active * random.uniform(0.02, 0.06))
 
     return active, inductive, capacitive
 
