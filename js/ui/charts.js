@@ -141,8 +141,8 @@ const GrafikModulu = (() => {
             
             const gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
             if (colorStr.startsWith('#')) {
-                gradient.addColorStop(0, colorStr + (isLight ? '20' : '10')); 
-                gradient.addColorStop(1, colorStr + (isLight ? 'E6' : 'CC')); 
+                gradient.addColorStop(0, colorStr + (isLight ? '66' : '10')); 
+                gradient.addColorStop(1, colorStr + (isLight ? 'FF' : 'CC')); 
             } else {
                 gradient.addColorStop(0, colorStr);
                 gradient.addColorStop(1, colorStr);
