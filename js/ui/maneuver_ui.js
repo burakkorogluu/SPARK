@@ -1299,6 +1299,18 @@ const ManeuverUI = (() => {
             document.addEventListener('fullscreenchange', () => {
                 _isFullscreen = !!document.fullscreenElement;
                 updateFullscreenUI();
+                
+                const modalsToMove = ['add-trafo-modal', 'add-feeder-modal', 'add-reactor-modal', 'edit-connection-modal', 'topology-save-confirm-modal'];
+                modalsToMove.forEach(id => {
+                    const m = document.getElementById(id);
+                    if (m) {
+                        if (_isFullscreen) {
+                            topologyContainer.appendChild(m);
+                        } else {
+                            document.body.appendChild(m);
+                        }
+                    }
+                });
             });
 
             document.addEventListener('keydown', (e) => {
