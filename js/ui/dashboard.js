@@ -184,7 +184,7 @@ const DashboardUI = (() => {
                             <b>${topSuggestion.title}</b>: ${topSuggestion.description}
                         </div>
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="App.navigate('maneuver')">Manevra Paneline Git</button>
+                    <button class="btn btn-primary btn-sm" onclick="App.navigate('manevra')">Manevra Paneline Git</button>
                 </div>
             `;
             

@@ -486,36 +486,59 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     target_ratio_before = target_stats["load_ratio"]
     target_ratio_after = (target_load_after / target_stats["power_kw"] * 100) if target_stats["power_kw"] > 0 else 0
 
-    source_cap_ratio_before = source_stats["cap_ratio"]
-    target_cap_ratio_before = target_stats["cap_ratio"]
+    import calendar
+    now = datetime.now()
+    _, last_day = calendar.monthrange(now.year, now.month)
+    end_of_month = now.replace(day=last_day, hour=23, minute=59, second=59, microsecond=999999)
+    future_hours_delta = end_of_month - now
+    future_hours = max(0, int(future_hours_delta.total_seconds() / 3600))
+    
+    def get_eom_projection(trafo_id, stats):
+        forecast = get_cached_forecast(db, trafo_id, now.year, now.month, "xgboost")
+        if forecast and forecast.get("predictions"):
+            f_active = sum(p["active_kwh"] for p in forecast["predictions"])
+            f_cap = sum(p["capacitive_kvarh"] for p in forecast["predictions"])
+            return f_active, f_cap
+        else:
+            hours_so_far = stats.get("measurement_count", 1) or 1
+            hourly_active = stats["active_sum"] / hours_so_far
+            hourly_cap = stats["cap_sum"] / hours_so_far
+            return hourly_active * future_hours, hourly_cap * future_hours
+
+    src_future_active, src_future_cap = get_eom_projection(source_id, source_stats)
+    tgt_future_active, tgt_future_cap = get_eom_projection(target_trafo_id, target_stats)
+    
+    src_eom_active_before = source_stats["active_sum"] + src_future_active
+    src_eom_cap_before = source_stats["cap_sum"] + src_future_cap
+    source_cap_ratio_before = (src_eom_cap_before / src_eom_active_before * 100) if src_eom_active_before > 0 else 0
+
+    tgt_eom_active_before = target_stats["active_sum"] + tgt_future_active
+    tgt_eom_cap_before = target_stats["cap_sum"] + tgt_future_cap
+    target_cap_ratio_before = (tgt_eom_cap_before / tgt_eom_active_before * 100) if tgt_eom_active_before > 0 else 0
+
     source_cap_ratio_after = source_cap_ratio_before
     target_cap_ratio_after = target_cap_ratio_before
 
-    hours = source_stats.get("measurement_count", 1) or 1
-    
     if asset_type == "feeder":
-        feeder_active = asset_load * hours
-        # Assume a nominal 4% capacitive ratio for a standard feeder
-        feeder_cap = feeder_active * 0.04
+        future_feeder_active = asset_load * future_hours
+        future_feeder_cap = future_feeder_active * 0.04
         
-        if source_stats["active_sum"] > 0:
-            new_source_active = max(1, source_stats["active_sum"] - feeder_active)
-            new_source_cap = max(0, source_stats["cap_sum"] - feeder_cap)
-            source_cap_ratio_after = (new_source_cap / new_source_active) * 100
-            
-        if target_stats["active_sum"] > 0 or feeder_active > 0:
-            new_target_active = target_stats["active_sum"] + feeder_active
-            new_target_cap = target_stats["cap_sum"] + feeder_cap
-            target_cap_ratio_after = (new_target_cap / new_target_active) * 100
+        src_eom_active_after = max(1, src_eom_active_before - future_feeder_active)
+        src_eom_cap_after = max(0, src_eom_cap_before - future_feeder_cap)
+        source_cap_ratio_after = (src_eom_cap_after / src_eom_active_after) * 100 if src_eom_active_after > 0 else 0
+        
+        tgt_eom_active_after = tgt_eom_active_before + future_feeder_active
+        tgt_eom_cap_after = tgt_eom_cap_before + future_feeder_cap
+        target_cap_ratio_after = (tgt_eom_cap_after / tgt_eom_active_after) * 100 if tgt_eom_active_after > 0 else 0
 
     elif asset_type == "reactor":
-        if source_stats["active_sum"] > 0:
-            cap_diff = asset.capacity_kvar * hours
-            source_cap_ratio_after = ((source_stats["cap_sum"] + cap_diff) / source_stats["active_sum"]) * 100
-        if target_stats["active_sum"] > 0:
-            cap_diff = asset.capacity_kvar * hours
-            new_cap_sum = max(0, target_stats["cap_sum"] - cap_diff)
-            target_cap_ratio_after = (new_cap_sum / target_stats["active_sum"]) * 100
+        cap_diff = asset.capacity_kvar * future_hours
+        
+        src_eom_cap_after = src_eom_cap_before + cap_diff
+        source_cap_ratio_after = (src_eom_cap_after / src_eom_active_before) * 100 if src_eom_active_before > 0 else 0
+        
+        tgt_eom_cap_after = max(0, tgt_eom_cap_before - cap_diff)
+        target_cap_ratio_after = (tgt_eom_cap_after / tgt_eom_active_before) * 100 if tgt_eom_active_before > 0 else 0
 
     is_overload = target_ratio_after > 100
     overload_warning = None
@@ -533,7 +556,7 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     elif source_stats["cap_ratio"] > 10:
         reactive_msg = (
             f"Kaynak trafodan {asset_load:.0f} kW yük çıkarılması, aktif enerji azalmasına bağlı olarak "
-            f"kapasitif oranı artırabilir. Mevcut oran: %{source_stats['cap_ratio']:.1f}"
+            f"kapasitif oranı artırabilir. Ay sonu tahmini (müdahalesiz): %{source_cap_ratio_before:.1f}"
         )
 
     return {
