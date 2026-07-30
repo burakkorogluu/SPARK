@@ -87,7 +87,9 @@ const ScadaSldUI = (() => {
     }
 
     function connectWebSocket() {
-        const wsUrl = `ws://${window.location.hostname}:8000/ws`;
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const wsUrl = `${protocol}//${host}/ws`;
         try {
             ws = new WebSocket(wsUrl);
 
@@ -141,6 +143,15 @@ const ScadaSldUI = (() => {
         if (title1) title1.textContent = trafolar.length >= 1 ? trafolar[0].adi : 'Trafo 1 (Yok)';
         if (title2) title2.textContent = trafolar.length >= 2 ? trafolar[1].adi : 'Trafo 2 (Yok)';
 
+        const b1 = document.getElementById('sld-t101-q1');
+        if (b1) {
+            b1.dataset.breaker = trafolar.length >= 1 ? `${trafolar[0].id.toLowerCase()}-q1` : 't101-q1';
+        }
+        const b2 = document.getElementById('sld-t102-q1');
+        if (b2) {
+            b2.dataset.breaker = trafolar.length >= 2 ? `${trafolar[1].id.toLowerCase()}-q1` : 't102-q1';
+        }
+
         render();
     }
 
@@ -172,8 +183,6 @@ const ScadaSldUI = (() => {
 
         // Kesici, Ayırıcı ve Etiket Tıklamaları
         container.addEventListener('click', (e) => {
-            console.log("[SCADA CLICK] Clicked on:", e.target.className || e.target.tagName);
-            
             // Eğer kuplaj veya fider yazılarına (butonlarına) tıklandıysa:
             const bayBtn = e.target.closest('.bay-btn-label');
             if (bayBtn) {
@@ -272,12 +281,14 @@ const ScadaSldUI = (() => {
         const targetState = !currentState;
         
         const trafolar = trafolarByBolge[state.selectedBolge] || [];
-        const trafoId = trafolar.length > 0 ? trafolar[0].id : 'UMR-TRA';
-        const trafoName = trafolar.length > 0 ? trafolar[0].adi : 'Trafo';
+        let targetTrafo = trafolar.find(t => breakerId.startsWith(t.id.toLowerCase()));
+        if (!targetTrafo && trafolar.length > 0) {
+            targetTrafo = trafolar[0];
+        }
+        const trafoId = targetTrafo ? targetTrafo.id : 'UMR-TRA';
+        const trafoName = targetTrafo ? targetTrafo.adi : 'Trafo';
 
         const actionStr = targetState ? '<strong style="color:#22c55e;">KAPATMA (Enerji Verme)</strong>' : '<strong style="color:#ef4444;">AÇMA (Enerji Kesme)</strong>';
-        
-        console.log(`[SCADA] requestBreakerToggle -> ID: ${breakerId}, TargetState: ${targetState}`);
         
         pendingManeuver = { breakerId, targetState, trafoId };
 
@@ -286,16 +297,12 @@ const ScadaSldUI = (() => {
         const reasonInput = document.getElementById('scada-confirm-reason');
 
         if (confirmText) {
-            confirmText.innerHTML = `<strong>${trafoName}</strong> bünyesindeki <strong>Kesici ${breakerId.toUpperCase()}</strong> için ${actionStr} manevrası uygulamak istediğinize emin misiniz?<br><br><small style="color:#94a3b8;">Bu işlem sunucuya gönderilecek, şebeke durumunu değiştirecek ve manevra loglarına kaydedilecektir.</small>`;
+            confirmText.innerHTML = `<strong>${App.escapeHTML(trafoName)}</strong> bünyesindeki <strong>Kesici ${App.escapeHTML(breakerId).toUpperCase()}</strong> için ${actionStr} manevrası uygulamak istediğinize emin misiniz?<br><br><small style="color:#94a3b8;">Bu işlem sunucuya gönderilecek, şebeke durumunu değiştirecek ve manevra loglarına kaydedilecektir.</small>`;
         }
         if (reasonInput) reasonInput.value = '';
 
-        console.log(`[SCADA] Modal element found:`, !!modal);
         if (modal) {
             modal.style.display = 'flex';
-            console.log(`[SCADA] Modal display set to flex.`);
-        } else {
-            console.error(`[SCADA] Modal element NOT FOUND in the DOM!`);
         }
     }
 

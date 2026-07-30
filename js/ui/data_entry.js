@@ -216,15 +216,16 @@ const DataEntryUI = (() => {
 
             let count = 0;
             let skipped = 0;
+            let negativeSkipped = 0;
             const yeniVeriler = [];
 
             for (let i = 1; i < lines.length; i++) {
                 const parts = lines[i].split(/[,;\t]/).map(s => s.trim());
                 if (parts.length >= 5) {
                     const [trafoId, tarih, aktifStr, enduktifStr, kapasitifStr] = parts;
-                    const aktif = parseInt(aktifStr, 10);
-                    const enduktif = parseInt(enduktifStr, 10);
-                    const kapasitif = parseInt(kapasitifStr, 10);
+                    const aktif = parseFloat(aktifStr);
+                    const enduktif = parseFloat(enduktifStr);
+                    const kapasitif = parseFloat(kapasitifStr);
                     const dateMatch = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])( ([01]\d|2[0-3]):[0-5]\d)?$/.test(tarih);
 
                     if (!trafoMap.has(trafoId) || !dateMatch || isNaN(aktif) || isNaN(enduktif) || isNaN(kapasitif)) {
@@ -233,7 +234,7 @@ const DataEntryUI = (() => {
                     }
 
                     if (aktif < 0 || enduktif < 0 || kapasitif < 0) {
-                        skipped++;
+                        negativeSkipped++;
                         continue;
                     }
 
@@ -263,11 +264,20 @@ const DataEntryUI = (() => {
                 VeriModulu.veriEkleToplu(yeniVeriler);
             }
 
+            const totalSkipped = skipped + negativeSkipped;
+            let skipMsg = '';
+            if (totalSkipped > 0) {
+                const details = [];
+                if (skipped > 0) details.push(`${skipped} biçim/trafo hatası`);
+                if (negativeSkipped > 0) details.push(`${negativeSkipped} negatif değer/işaret kuralı ihlali`);
+                skipMsg = ` (${details.join(', ')} atlandı)`;
+            }
+
             if (count > 0) {
-                App.showToast(`${count} adet veri başarıyla yüklendi!${skipped > 0 ? ` (${skipped} satır atlandı)` : ''}`, 'success');
+                App.showToast(`${count} adet veri başarıyla yüklendi!${skipMsg}`, 'success');
                 renderVeriTablosu();
             } else {
-                App.showToast(`Yüklenecek geçerli veri bulunamadı.${skipped > 0 ? ` (${skipped} hatalı satır atlandı)` : ''}`, 'error');
+                App.showToast(`Yüklenecek geçerli veri bulunamadı.${skipMsg}`, 'error');
             }
         };
         reader.readAsText(file);

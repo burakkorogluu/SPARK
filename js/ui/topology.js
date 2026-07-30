@@ -238,7 +238,7 @@ const TopolojiModulu = (() => {
             <div class="trafo-card-top">
                 <div class="trafo-title-area">
                     <h4>${escapeHTML(trafo.adi)}</h4>
-                    <span>${trafo.tip} • ${trafo.kapasite} MVA</span>
+                    <span>${escapeHTML(trafo.tip)} • ${trafo.kapasite} MVA</span>
                 </div>
                 <div class="trafo-badges">
                     <span class="badge" style="background: ${ozet.kapasitifRisk.bg}; color: ${ozet.kapasitifRisk.renk}; border: 1px solid ${ozet.kapasitifRisk.renk}; font-size: 11px;">

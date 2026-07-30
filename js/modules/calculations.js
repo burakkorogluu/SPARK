@@ -144,23 +144,44 @@ const HesaplamaModulu = (() => {
     }
 
     // ─── Uyarı Mesajı Üretme ───
-    function uyariMesajiUret(trafoAdi, kapasitifOran, tahminOran) {
-        const risk = riskSeviyesiBelirle(kapasitifOran, 'kapasitif');
+    function uyariMesajiUret(trafoAdi, kapasitifOran, enduktifOran = 0, tahminKapOran = null, tahminEndOran = null) {
+        const kapRisk = riskSeviyesiBelirle(kapasitifOran, 'kapasitif');
+        const endRisk = riskSeviyesiBelirle(enduktifOran, 'enduktif');
 
-        if (risk.seviye === 'guvenli') {
-            return `${trafoAdi} trafosunda kapasitif oran %${formatSayi(kapasitifOran)} seviyesinde olup güvenli bölgededir.`;
-        } else if (risk.seviye === 'normal') {
-            return `${trafoAdi} trafosunda kapasitif oran %${formatSayi(kapasitifOran)} seviyesindedir. Normal aralıkta, izlemeye devam ediniz.`;
-        } else if (risk.seviye === 'dikkat') {
+        const riskSira = { 'tehlikeli': 4, 'riskli': 3, 'dikkat': 2, 'normal': 1, 'guvenli': 0 };
+        const kapSira = riskSira[kapRisk.seviye] || 0;
+        const endSira = riskSira[endRisk.seviye] || 0;
+
+        if (endSira > kapSira) {
+            if (endRisk.seviye === 'dikkat') {
+                let msg = `${trafoAdi} trafosunda endüktif oran %${formatSayi(enduktifOran)} seviyesindedir ve dikkat eşiğine yaklaşmaktadır.`;
+                if (tahminEndOran != null) msg += ` Ay sonunda %${formatSayi(tahminEndOran)} beklenmektedir.`;
+                return msg;
+            } else if (endRisk.seviye === 'riskli') {
+                let msg = `⚠️ ${trafoAdi} trafosunda endüktif oran %${formatSayi(enduktifOran)} seviyesindedir.`;
+                if (tahminEndOran != null && tahminEndOran >= SINIRLAR.enduktif) {
+                    msg += ` Ay sonunda %${formatSayi(tahminEndOran)} ile %${SINIRLAR.enduktif} sınırının aşılması beklenmektedir.`;
+                }
+                return msg;
+            } else if (endRisk.seviye === 'tehlikeli') {
+                return `🔴 ${trafoAdi} trafosunda endüktif oran %${formatSayi(enduktifOran)} ile %${SINIRLAR.enduktif} yasal sınırını AŞMIŞ durumdadır! Acil müdahale gereklidir.`;
+            }
+        }
+
+        if (kapRisk.seviye === 'guvenli') {
+            return `${trafoAdi} trafosunda kapasitif (%${formatSayi(kapasitifOran)}) ve endüktif (%${formatSayi(enduktifOran)}) oranlar güvenli bölgededir.`;
+        } else if (kapRisk.seviye === 'normal') {
+            return `${trafoAdi} trafosunda oranlar normal aralıkta, izlemeye devam ediniz.`;
+        } else if (kapRisk.seviye === 'dikkat') {
             let msg = `${trafoAdi} trafosunda kapasitif oran %${formatSayi(kapasitifOran)} seviyesindedir ve dikkat eşiğine yaklaşmaktadır.`;
-            if (tahminOran != null) {
-                msg += ` Mevcut trend devam ederse ay sonunda %${formatSayi(tahminOran)} seviyesine ulaşması beklenmektedir.`;
+            if (tahminKapOran != null) {
+                msg += ` Mevcut trend devam ederse ay sonunda %${formatSayi(tahminKapOran)} seviyesine ulaşması beklenmektedir.`;
             }
             return msg;
-        } else if (risk.seviye === 'riskli') {
+        } else if (kapRisk.seviye === 'riskli') {
             let msg = `⚠️ ${trafoAdi} trafosunda kapasitif oran %${formatSayi(kapasitifOran)} seviyesindedir.`;
-            if (tahminOran != null && tahminOran >= SINIRLAR.kapasitif) {
-                msg += ` Mevcut yük profili devam ederse ay sonunda %${formatSayi(tahminOran)} ile %${SINIRLAR.kapasitif} sınırının aşılması beklenmektedir.`;
+            if (tahminKapOran != null && tahminKapOran >= SINIRLAR.kapasitif) {
+                msg += ` Mevcut yük profili devam ederse ay sonunda %${formatSayi(tahminKapOran)} ile %${SINIRLAR.kapasitif} sınırının aşılması beklenmektedir.`;
             }
             return msg;
         } else {

@@ -89,9 +89,14 @@ def generate_telemetry_snapshot(db: Session):
     telemetry = {}
     
     for t in trafos:
-        # Trafo Q1 kesicisi kapalı mı?
-        # Basit eşleştirme: UMR-TRA -> t101-q1, UMR-TRB -> t102-q1
-        is_q1_closed = SCADA_BREAKER_STATES.get("t101-q1", True) if "TRA" in t.id else SCADA_BREAKER_STATES.get("t102-q1", True)
+        # Trafo kesicisi eşleştirmesi
+        breaker_key = f"{t.id.lower()}-q1"
+        if breaker_key in SCADA_BREAKER_STATES:
+            is_q1_closed = SCADA_BREAKER_STATES[breaker_key]
+        elif t.id.endswith("TRA") or "-TRA" in t.id or "TRA" in t.id.upper():
+            is_q1_closed = SCADA_BREAKER_STATES.get("t101-q1", True)
+        else:
+            is_q1_closed = SCADA_BREAKER_STATES.get("t102-q1", True)
         
         if is_q1_closed:
             pmva = getattr(t, "power_mva", None)

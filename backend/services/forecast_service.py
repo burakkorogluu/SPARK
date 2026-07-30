@@ -746,8 +746,11 @@ def get_cached_forecast(db: Session, transformer_id: str, year: int, month: int,
         rf_preds, rf_conf = forecast_random_forest(db, transformer_id, steps)
         
         data = []
-        for i in range(len(xgb_preds)):
-            if i < len(rf_preds):
+        max_len = max(len(xgb_preds or []), len(rf_preds or []))
+        for i in range(max_len):
+            has_xgb = i < len(xgb_preds or [])
+            has_rf = i < len(rf_preds or [])
+            if has_xgb and has_rf:
                 data.append({
                     "transformer_id": transformer_id,
                     "timestamp": xgb_preds[i]["timestamp"],
@@ -756,8 +759,10 @@ def get_cached_forecast(db: Session, transformer_id: str, year: int, month: int,
                     "inductive_kvarh": int((xgb_preds[i]["inductive_kvarh"] + rf_preds[i]["inductive_kvarh"]) / 2),
                     "is_forecast": True
                 })
-            else:
+            elif has_xgb:
                 data.append(xgb_preds[i])
+            elif has_rf:
+                data.append(rf_preds[i])
         confidence = round((xgb_conf + rf_conf) / 2, 1) if xgb_conf and rf_conf else (xgb_conf or rf_conf or 90.0)
         
     result = {"predictions": data, "confidence_score": confidence}
@@ -778,8 +783,11 @@ def _run_forecast_algorithm(db, transformer_id, method, steps):
         rf_preds, rf_conf = forecast_random_forest(db, transformer_id, steps)
         
         data = []
-        for i in range(len(xgb_preds)):
-            if i < len(rf_preds):
+        max_len = max(len(xgb_preds or []), len(rf_preds or []))
+        for i in range(max_len):
+            has_xgb = i < len(xgb_preds or [])
+            has_rf = i < len(rf_preds or [])
+            if has_xgb and has_rf:
                 data.append({
                     "transformer_id": transformer_id,
                     "timestamp": xgb_preds[i]["timestamp"],
@@ -790,8 +798,10 @@ def _run_forecast_algorithm(db, transformer_id, method, steps):
                     "end_reason": xgb_preds[i].get("end_reason"),
                     "is_forecast": True
                 })
-            else:
+            elif has_xgb:
                 data.append(xgb_preds[i])
+            elif has_rf:
+                data.append(rf_preds[i])
         confidence = round((xgb_conf + rf_conf) / 2, 1) if xgb_conf and rf_conf else (xgb_conf or rf_conf or 90.0)
         return data, confidence
 

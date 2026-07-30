@@ -20,10 +20,14 @@ class ConnectionManager:
             logger.info(f"WebSocket istemcisi ayrıldı. Kalan: {len(self.active_connections)}")
 
     async def broadcast(self, message: Dict):
+        disconnected = []
         for connection in self.active_connections:
             try:
                 await connection.send_json(message)
             except Exception as e:
                 logger.error(f"WebSocket yayın hatası: {e}")
+                disconnected.append(connection)
+        for conn in disconnected:
+            self.disconnect(conn)
 
 ws_manager = ConnectionManager()

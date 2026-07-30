@@ -2,7 +2,7 @@
 from typing import Optional
 from sqlalchemy.orm import Session
 import models
-from services.analysis_service import get_monthly_summary
+from services.analysis_service import get_monthly_summary, SINIRLAR
 from datetime import datetime
 import logging
 
@@ -28,8 +28,8 @@ def check_and_generate_alerts(db: Session, year: Optional[int] = None, month: Op
         end_oran = ozet.get("enduktifOran", 0)
 
         # Kapasitif ceza sınırı aşımı (%15)
-        if kap_oran >= 15.0:
-            msg = f"{trafo_name} ({trafo_id}) trafosunda kapasitif oran %{kap_oran:.2f} ile %15 EPDK ceza sınırını AŞTI!"
+        if kap_oran >= SINIRLAR["kapasitif"]:
+            msg = f"{trafo_name} ({trafo_id}) trafosunda kapasitif oran %{kap_oran:.2f} ile %{SINIRLAR['kapasitif']:.0f} EPDK ceza sınırını AŞTI!"
             alert = models.SystemAlert(
                 transformer_id=trafo_id,
                 alert_type="capacitive_penalty",
@@ -39,10 +39,20 @@ def check_and_generate_alerts(db: Session, year: Optional[int] = None, month: Op
             db.add(alert)
             generated.append(alert)
             logger.warning(msg)
+        elif kap_oran >= SINIRLAR["kapasitifUyari"]:
+            msg = f"{trafo_name} ({trafo_id}) trafosunda kapasitif oran %{kap_oran:.2f} ile dikkat eşiğine (%{SINIRLAR['kapasitifUyari']:.0f}) ulaştı."
+            alert = models.SystemAlert(
+                transformer_id=trafo_id,
+                alert_type="warning",
+                severity="warning",
+                message=msg
+            )
+            db.add(alert)
+            generated.append(alert)
 
         # Endüktif ceza sınırı aşımı (%20)
-        elif end_oran >= 20.0:
-            msg = f"{trafo_name} ({trafo_id}) trafosunda endüktif oran %{end_oran:.2f} ile %20 EPDK ceza sınırını AŞTI!"
+        if end_oran >= SINIRLAR["enduktif"]:
+            msg = f"{trafo_name} ({trafo_id}) trafosunda endüktif oran %{end_oran:.2f} ile %{SINIRLAR['enduktif']:.0f} EPDK ceza sınırını AŞTI!"
             alert = models.SystemAlert(
                 transformer_id=trafo_id,
                 alert_type="inductive_penalty",
@@ -52,10 +62,8 @@ def check_and_generate_alerts(db: Session, year: Optional[int] = None, month: Op
             db.add(alert)
             generated.append(alert)
             logger.warning(msg)
-
-        # Kapasitif uyarı eşiği (%12)
-        elif kap_oran >= 12.0:
-            msg = f"{trafo_name} ({trafo_id}) trafosunda kapasitif oran %{kap_oran:.2f} ile dikkat eşiğine (%12) ulaştı."
+        elif end_oran >= SINIRLAR["enduktifUyari"]:
+            msg = f"{trafo_name} ({trafo_id}) trafosunda endüktif oran %{end_oran:.2f} ile dikkat eşiğine (%{SINIRLAR['enduktifUyari']:.0f}) ulaştı."
             alert = models.SystemAlert(
                 transformer_id=trafo_id,
                 alert_type="warning",

@@ -44,11 +44,13 @@ def main():
     print("Veri seti özellikleri (features) hazırlanıyor...")
     df = prepare_dataframe(measurements, weather_map, tr_holidays)
     
-    # Create lag features
+    # Create lag and rolling features to match forecast_service.py
     for c in ['aktif', 'kapasitif', 'enduktif']:
         df[f'{c}_lag_1'] = df[f'y_{c}'].shift(1)
         df[f'{c}_lag_24'] = df[f'y_{c}'].shift(24)
         df[f'{c}_lag_168'] = df[f'y_{c}'].shift(168)
+        df[f'{c}_roll_mean_6'] = df[f'y_{c}'].shift(1).rolling(6).mean()
+        df[f'{c}_roll_mean_24'] = df[f'y_{c}'].shift(1).rolling(24).mean()
         
     df.dropna(inplace=True)
     
@@ -57,18 +59,18 @@ def main():
     train_df = df.iloc[:split_idx]
     test_df = df.iloc[split_idx:]
     
-    features = ['is_weekend', 'is_holiday', 'hour', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi', 
-                'aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168']
+    base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi']
+    features_aktif = base_features + ['aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168', 'aktif_roll_mean_6', 'aktif_roll_mean_24']
     
-    X_train = train_df[features]
+    X_train = train_df[features_aktif]
     y_train = train_df['y_aktif']
-    X_test = test_df[features]
+    X_test = test_df[features_aktif]
     y_test = test_df['y_aktif']
     
     print(f"Eğitim Seti: {len(X_train)} kayıt, Test Seti: {len(X_test)} kayıt")
     print("XGBoost Modeli Eğitiliyor (Aktif Güç)...")
     
-    model = xgb.XGBRegressor(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42)
+    model = xgb.XGBRegressor(n_estimators=150, max_depth=5, learning_rate=0.05, subsample=0.85, colsample_bytree=0.85, reg_alpha=0.1, reg_lambda=1.0, random_state=42)
     model.fit(X_train, y_train)
     
     print("Test seti üzerinde tahmin yapılıyor...")
@@ -88,14 +90,13 @@ def main():
     print("="*40)
     
     # Kapasitif için aynı işlemi yapalım
-    features_kap = ['is_weekend', 'is_holiday', 'hour', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi', 
-                    'kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168']
+    features_kap = base_features + ['kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_6', 'kapasitif_roll_mean_24']
     X_train_kap = train_df[features_kap]
     y_train_kap = train_df['y_kapasitif']
     X_test_kap = test_df[features_kap]
     y_test_kap = test_df['y_kapasitif']
     
-    model_kap = xgb.XGBRegressor(n_estimators=100, max_depth=6, learning_rate=0.1, random_state=42)
+    model_kap = xgb.XGBRegressor(n_estimators=150, max_depth=5, learning_rate=0.05, subsample=0.85, colsample_bytree=0.85, reg_alpha=0.1, reg_lambda=1.0, random_state=42)
     model_kap.fit(X_train_kap, y_train_kap)
     y_pred_kap = model_kap.predict(X_test_kap)
     

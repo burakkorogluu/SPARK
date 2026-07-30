@@ -456,9 +456,10 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     else:
         return None
 
-    # Edge Case 1: Same Transformer Transfer (No-Op)
+    # Edge Case 1: Same Transformer Transfer (No-Op unless activating inactive reactor)
     if source_id == target_trafo_id:
-        raise ValueError(f"'{asset_name}' zaten '{target_trafo_id}' trafosuna bağlı.")
+        if not (asset_type == "reactor" and getattr(asset, 'status', 'active') == "inactive"):
+            raise ValueError(f"'{asset_name}' zaten '{target_trafo_id}' trafosuna bağlı ve aktif durumda.")
 
     # Edge Case 2: Topology / Physical Line Check
     if asset.alternative_transformer_id and target_trafo_id != asset.alternative_transformer_id:
@@ -653,9 +654,12 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         old_trafo_id = asset.current_transformer_id
         
         if old_trafo_id == target_trafo_id:
-            raise ValueError(f"Reaktör zaten '{target_trafo_id}' trafosuna bağlı.")
+            if asset.status == "inactive":
+                asset.status = "active"
+            else:
+                raise ValueError(f"Reaktör zaten '{target_trafo_id}' trafosuna bağlı ve aktif durumda.")
             
-        if asset.alternative_transformer_id and target_trafo_id != asset.alternative_transformer_id:
+        if asset.alternative_transformer_id and target_trafo_id != asset.alternative_transformer_id and old_trafo_id != target_trafo_id:
             raise ValueError(f"Reaktör sadece alternatif trafosuna ({asset.alternative_transformer_id}) aktarılabilir.")
 
         old_trafo = db.query(models.Transformer).filter(models.Transformer.id == old_trafo_id).first()
@@ -663,8 +667,9 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         if not new_trafo:
             return None
 
-        asset.alternative_transformer_id = old_trafo_id
-        asset.current_transformer_id = target_trafo_id
+        if old_trafo_id != target_trafo_id:
+            asset.alternative_transformer_id = old_trafo_id
+            asset.current_transformer_id = target_trafo_id
 
         log = models.ManeuverLog(
             action_type="reactor_switch",

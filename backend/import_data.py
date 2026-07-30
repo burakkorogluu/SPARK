@@ -114,8 +114,8 @@ def generate_synthetic_2026():
     
     for h in range(delta_hours + 1):
         current_ts = start_time + timedelta(hours=h)
-        # Shift back exactly 365 days (2025 and 2026 are not leap years)
-        past_ts = current_ts - timedelta(days=365)
+        # Shift back exactly 364 days (52 weeks) to preserve day of week seasonality
+        past_ts = current_ts - timedelta(days=364)
         
         for trafo in transformers:
             # Find the corresponding data in 2025

@@ -161,7 +161,7 @@ const DetailUI = (() => {
                 }).join('');
             }
         } catch (e) {
-            document.getElementById('detay-summary').innerHTML = `<p class="text-danger">Hata: ${e.message}</p>`;
+            document.getElementById('detay-summary').innerHTML = `<p class="text-danger">Hata: ${App.escapeHTML(e.message)}</p>`;
         }
     }
 

@@ -35,8 +35,15 @@ const ForecastUI = (() => {
                 return;
             }
 
-            const mevcutRisk = mevcutOzet.kapasitifRisk;
-            const tahminRisk = tahminOzet.kapasitifRisk;
+            const _RISK_SIRA = { guvenli: 0, dikkat: 1, riskli: 2, tehlikeli: 3 };
+            const mKapRisk = mevcutOzet.kapasitifRisk;
+            const mEndRisk = mevcutOzet.enduktifRisk;
+            const mevcutRisk = (_RISK_SIRA[mKapRisk.seviye] >= _RISK_SIRA[mEndRisk.seviye]) ? mKapRisk : mEndRisk;
+
+            const tKapRisk = tahminOzet.kapasitifRisk;
+            const tEndRisk = tahminOzet.enduktifRisk;
+            const tahminRisk = (_RISK_SIRA[tKapRisk.seviye] >= _RISK_SIRA[tEndRisk.seviye]) ? tKapRisk : tEndRisk;
+
             const fark = tahminOzet.kapasitifOran - mevcutOzet.kapasitifOran;
             const farkStr = fark >= 0 ? `+${HesaplamaModulu.formatSayi(fark)}` : HesaplamaModulu.formatSayi(fark);
             const bilgi = tahmin.modelBilgi || { adi: 'Seçilen Model', skor: null, aciklama: 'Aylık tahmin projeksiyonu.' };

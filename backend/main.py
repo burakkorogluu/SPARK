@@ -62,6 +62,19 @@ async def lifespan(app: FastAPI):
     # Schedule the simulator to run every hour at minute 1
     scheduler.add_job(simulator.generate_hourly_data, 'cron', minute=1)
 
+    # Schedule automatic system alert generation every hour at minute 5
+    def run_alert_check_job():
+        db_job = SessionLocal()
+        try:
+            from services.alert_service import check_and_generate_alerts
+            check_and_generate_alerts(db_job)
+        except Exception as err:
+            print(f"Alert check job error: {err}")
+        finally:
+            db_job.close()
+            
+    scheduler.add_job(run_alert_check_job, 'cron', minute=5)
+
     # Schedule the batch forecast to run once a week (e.g., Sunday at 02:00)
     from services.forecast_service import run_weekly_batch_forecast
     scheduler.add_job(run_weekly_batch_forecast, 'cron', day_of_week='sun', hour=2, minute=0)
