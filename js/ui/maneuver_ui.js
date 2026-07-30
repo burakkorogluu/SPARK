@@ -1105,7 +1105,7 @@ const ManeuverUI = (() => {
                     if (allowed.length === 0) {
                         targetSelect.innerHTML = '<option value="">Uygun alternatif trafo bulunamadı</option>';
                     } else {
-                        targetSelect.innerHTML = allowed.map(t => `<option value="${t.id}">${t.name} (${t.id})</option>`).join('');
+                        targetSelect.innerHTML = allowed.map(t => `<option value="${t.id}">${App.escapeHTML(t.name)} (${t.id})</option>`).join('');
                     }
                 }
             };
@@ -1114,7 +1114,7 @@ const ManeuverUI = (() => {
                 if (!_cachedAssets) return;
                 const assets = type === 'feeder' ? _cachedAssets.feeders : _cachedAssets.reactors;
                 selectAssetId.innerHTML = '<option value="">Seçiniz...</option>' + 
-                    (assets || []).map(a => `<option value="${a.id}">${a.name} (${a.current_transformer_id})</option>`).join('');
+                    (assets || []).map(a => `<option value="${a.id}">${App.escapeHTML(a.name)} (${a.current_transformer_id})</option>`).join('');
                 await filterTargetTrafos();
             };
 
@@ -1421,16 +1421,16 @@ const ManeuverUI = (() => {
                 if (connAssetSel) {
                     connAssetSel.innerHTML = '<option value="">— Varlık Seçin —</option>';
                     if (allF.length > 0) {
-                        connAssetSel.innerHTML += '<optgroup label="Fiderler">' + allF.map(f => `<option value="${f.id}" data-type="feeder" data-primary="${f.current_transformer_id}" data-alt="${f.alternative_transformer_id || ''}">${f.name} (${f.id})</option>`).join('') + '</optgroup>';
+                        connAssetSel.innerHTML += '<optgroup label="Fiderler">' + allF.map(f => `<option value="${f.id}" data-type="feeder" data-primary="${f.current_transformer_id}" data-alt="${f.alternative_transformer_id || ''}">${App.escapeHTML(f.name)} (${f.id})</option>`).join('') + '</optgroup>';
                     }
                     if (allR.length > 0) {
-                        connAssetSel.innerHTML += '<optgroup label="Reaktörler">' + allR.map(r => `<option value="${r.id}" data-type="reactor" data-primary="${r.current_transformer_id}" data-alt="${r.alternative_transformer_id || ''}">${r.name} (${r.id})</option>`).join('') + '</optgroup>';
+                        connAssetSel.innerHTML += '<optgroup label="Reaktörler">' + allR.map(r => `<option value="${r.id}" data-type="reactor" data-primary="${r.current_transformer_id}" data-alt="${r.alternative_transformer_id || ''}">${App.escapeHTML(r.name)} (${r.id})</option>`).join('') + '</optgroup>';
                     }
                 }
 
                 if (connPrimarySel && connAltSel) {
-                    connPrimarySel.innerHTML = allT.map(t => `<option value="${t.id}">${t.name} (${t.id})</option>`).join('');
-                    connAltSel.innerHTML = '<option value="">— Yok —</option>' + allT.map(t => `<option value="${t.id}">${t.name} (${t.id})</option>`).join('');
+                    connPrimarySel.innerHTML = allT.map(t => `<option value="${t.id}">${App.escapeHTML(t.name)} (${t.id})</option>`).join('');
+                    connAltSel.innerHTML = '<option value="">— Yok —</option>' + allT.map(t => `<option value="${t.id}">${App.escapeHTML(t.name)} (${t.id})</option>`).join('');
                 }
             };
 
@@ -1609,7 +1609,7 @@ const ManeuverUI = (() => {
                 const isAlt = selectId.includes('alt');
                 sel.innerHTML = isAlt ? '<option value="">— Yok —</option>' : '';
                 trafolar.forEach(t => {
-                    sel.innerHTML += `<option value="${t.id}">${t.name} (${t.id})</option>`;
+                    sel.innerHTML += `<option value="${t.id}">${App.escapeHTML(t.name)} (${t.id})</option>`;
                 });
             });
         } catch (err) {

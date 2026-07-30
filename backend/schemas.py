@@ -118,7 +118,7 @@ class ManeuverSimulationResponse(BaseModel):
 # ── Fider/Reaktör CRUD Schemas ──
 class FeederCreate(BaseModel):
     id: str = Field(..., max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
-    name: str
+    name: str = Field(..., max_length=100, pattern=r"^[^<>]+$")
     current_transformer_id: str
     alternative_transformer_id: Optional[str] = None
     simulated_load_kw: float = 500.0
@@ -127,7 +127,7 @@ class FeederCreate(BaseModel):
 
 class ReactorCreate(BaseModel):
     id: str = Field(..., max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
-    name: str
+    name: str = Field(..., max_length=100, pattern=r"^[^<>]+$")
     current_transformer_id: str
     alternative_transformer_id: Optional[str] = None
     capacity_kvar: float = 250.0
@@ -137,7 +137,7 @@ class ReactorCreate(BaseModel):
 
 class TransformerCreate(BaseModel):
     id: str = Field(..., max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
-    name: str
+    name: str = Field(..., max_length=100, pattern=r"^[^<>]+$")
     region: str = "İstanbul-Anadolu"
     power_mva: int = 50
     status: str = "active"

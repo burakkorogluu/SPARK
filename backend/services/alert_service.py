@@ -61,7 +61,7 @@ def check_and_generate_alerts(db: Session, year: Optional[int] = None, month: Op
             logger.warning(msg)
         elif kap_oran >= SINIRLAR["kapasitifUyari"]:
             msg = f"{trafo_name} ({trafo_id}) trafosunda kapasitif oran %{kap_oran:.2f} ile dikkat eşiğine (%{SINIRLAR['kapasitifUyari']:.0f}) ulaştı."
-            _add_or_update_alert("warning", "warning", msg)
+            _add_or_update_alert("capacitive_warning", "warning", msg)
 
         # Endüktif ceza sınırı aşımı (%20)
         if end_oran >= SINIRLAR["enduktif"]:
@@ -70,7 +70,7 @@ def check_and_generate_alerts(db: Session, year: Optional[int] = None, month: Op
             logger.warning(msg)
         elif end_oran >= SINIRLAR["enduktifUyari"]:
             msg = f"{trafo_name} ({trafo_id}) trafosunda endüktif oran %{end_oran:.2f} ile dikkat eşiğine (%{SINIRLAR['enduktifUyari']:.0f}) ulaştı."
-            _add_or_update_alert("warning", "warning", msg)
+            _add_or_update_alert("inductive_warning", "warning", msg)
 
     db.commit()
     return generated

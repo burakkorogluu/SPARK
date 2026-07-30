@@ -360,7 +360,7 @@ const DataEntryUI = (() => {
 
                 return `
                     <tr class="${rowClass}">
-                        <td>${v.tarih}</td>
+                        <td>${App.escapeHTML(v.tarih)}</td>
                         <td>${App.escapeHTML(trafo ? (trafo.adi.split(' – ').length > 1 ? trafo.adi.split(' – ')[0] + ' (' + trafo.adi.split(' – ')[1] + ')' : trafo.adi) : v.trafoId)}</td>
                         <td class="text-right">${HesaplamaModulu.formatEnerji(v.aktifEnerji)}</td>
                         <td class="text-right">${HesaplamaModulu.formatEnerji(v.enduktifEnerji)}</td>
@@ -369,7 +369,7 @@ const DataEntryUI = (() => {
                             %${HesaplamaModulu.formatSayi(oran)}
                         </td>
                         <td class="text-center">
-                            <button class="btn btn-sm btn-ghost" onclick="App.silVeri('${App.escapeHTML(v.trafoId)}','${v.tarih}')">Sil</button>
+                            <button class="btn btn-sm btn-ghost" onclick="App.silVeri('${App.escapeHTML(v.trafoId)}','${App.escapeHTML(v.tarih)}')">Sil</button>
                         </td>
                     </tr>
                 `;

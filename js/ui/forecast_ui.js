@@ -91,7 +91,7 @@ const ForecastUI = (() => {
                 );
             }
         } catch (e) {
-            document.getElementById('tahmin-summary').innerHTML = `<p class="text-danger">Hata: ${e.message}</p>`;
+            document.getElementById('tahmin-summary').innerHTML = `<p class="text-danger">Hata: ${App.escapeHTML(e.message)}</p>`;
         }
     }
 
@@ -136,6 +136,8 @@ const ForecastUI = (() => {
             return;
         }
 
+        let sonucEl = null;
+
         try {
             const tahmin = await TahminModulu.aySonuTahminiYap(trafoId, state.selectedYil, state.selectedAy, yontem);
             const orijinalVeriler = tahmin.tumVeriler;
@@ -147,7 +149,7 @@ const ForecastUI = (() => {
                 return;
             }
 
-            const sonucEl = document.getElementById('senaryo-sonuc');
+            sonucEl = document.getElementById('senaryo-sonuc');
             if (sonucEl) sonucEl.style.display = '';
 
             const orijRisk = karsilastirma.orijinal.kapasitifRisk;
