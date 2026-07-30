@@ -114,12 +114,14 @@ def _extract_series_features(last_168, col_name):
     return [lag_1, lag_24, lag_168, roll_6, roll_24]
 
 def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps, transformer_id, future_dates, method_name="regression", weather_map=None, tr_holidays=None):
+    if df is None or (isinstance(df, pd.DataFrame) and df.empty) or not future_dates:
+        return []
     predictions = []
     last_168 = df[['y_aktif', 'y_kapasitif', 'y_enduktif']].tail(168).to_dict('records')
 
-    cols_aktif = list(getattr(model_aktif, "feature_names_in_", ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168', 'aktif_roll_mean_6', 'aktif_roll_mean_24']))
-    cols_kap   = list(getattr(model_kap, "feature_names_in_", ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_6', 'kapasitif_roll_mean_24']))
-    cols_end   = list(getattr(model_end, "feature_names_in_", ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168', 'enduktif_roll_mean_6', 'enduktif_roll_mean_24']))
+    cols_aktif = list(getattr(model_aktif, "feature_names_in_", None) or ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168', 'aktif_roll_mean_6', 'aktif_roll_mean_24'])
+    cols_kap   = list(getattr(model_kap, "feature_names_in_", None) or ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_6', 'kapasitif_roll_mean_24'])
+    cols_end   = list(getattr(model_end, "feature_names_in_", None) or ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168', 'enduktif_roll_mean_6', 'enduktif_roll_mean_24'])
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -187,7 +189,7 @@ def _prepare_training_data(db: Session, measurements, steps: int, base_features=
     if base_features is None:
         base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp']
 
-    tr_holidays = holidays.TR(years=[
+    tr_holidays = holidays.country_holidays("TR", years=[
         measurements[0].timestamp.year,
         measurements[-1].timestamp.year,
         (measurements[-1].timestamp + datetime.timedelta(days=30)).year
@@ -215,6 +217,8 @@ def _prepare_training_data(db: Session, measurements, steps: int, base_features=
         df[f'{c}_roll_mean_24'] = df[f'y_{c}'].shift(1).rolling(24).mean()
 
     df.dropna(inplace=True)
+    if df.empty:
+        return None, None, None, None, None, None, None
 
     lag_cols_aktif = ['aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168', 'aktif_roll_mean_6', 'aktif_roll_mean_24']
     lag_cols_kap   = ['kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_6', 'kapasitif_roll_mean_24']
@@ -282,7 +286,13 @@ def _get_or_train_models(db: Session, transformer_id: str, model_type: str, step
     
     if cache_key in TRAINED_MODELS_CACHE:
         cached = TRAINED_MODELS_CACHE[cache_key]
-        if now_ts - cached["timestamp"] < MODEL_CACHE_TTL:
+        if (now_ts - cached.get("timestamp", 0) < MODEL_CACHE_TTL and
+            cached.get("m_aktif") is not None and
+            cached.get("m_kap") is not None and
+            cached.get("m_end") is not None and
+            cached.get("X_aktif") is not None and
+            cached.get("X_kap") is not None and
+            cached.get("X_end") is not None):
             return (
                 cached["m_aktif"], cached["m_kap"], cached["m_end"],
                 cached["confidence"], cached["df"], cached["X_aktif"],
@@ -297,6 +307,8 @@ def _get_or_train_models(db: Session, transformer_id: str, model_type: str, step
     df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates = _prepare_training_data(
         db, measurements, steps, base_features
     )
+    if df is None or df.empty:
+        return None, None, None, 0, None, None, None, None, None, None, None
 
     m_a_init, m_k_init, m_e_init = create_models_fn()
     
@@ -345,7 +357,11 @@ def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
     xgb_aktif, xgb_kap, xgb_end, confidence, df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates = _get_or_train_models(
         db, transformer_id, "xgboost", steps, base_features, _create_xgb
     )
-    if xgb_aktif is None: return [], 0
+    if (
+        xgb_aktif is None or xgb_kap is None or xgb_end is None or
+        df is None or df.empty or X_aktif is None or X_kap is None or X_end is None or not future_dates
+    ):
+        return [], 0
     
     predictions = []
     last_168 = df[['y_aktif', 'y_kapasitif', 'y_enduktif']].tail(168).to_dict('records')
@@ -431,7 +447,11 @@ def forecast_random_forest(db: Session, transformer_id: str, steps: int = 168):
     rf_aktif, rf_kap, rf_end, confidence, df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates = _get_or_train_models(
         db, transformer_id, "random_forest", steps, base_features, _create_rf
     )
-    if rf_aktif is None: return [], 0
+    if (
+        rf_aktif is None or rf_kap is None or rf_end is None or
+        df is None or df.empty or not future_dates
+    ):
+        return [], 0
 
     preds = generate_predictions_from_model(
         rf_aktif, rf_kap, rf_end, df, steps, transformer_id, future_dates,
@@ -449,7 +469,11 @@ def forecast_regression(db: Session, transformer_id: str, steps: int = 168):
     lr_aktif, lr_kap, lr_end, confidence, df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates = _get_or_train_models(
         db, transformer_id, "regression", steps, base_features, _create_lr
     )
-    if lr_aktif is None: return [], 0
+    if (
+        lr_aktif is None or lr_kap is None or lr_end is None or
+        df is None or df.empty or not future_dates
+    ):
+        return [], 0
 
     preds = generate_predictions_from_model(
         lr_aktif, lr_kap, lr_end, df, steps, transformer_id, future_dates,

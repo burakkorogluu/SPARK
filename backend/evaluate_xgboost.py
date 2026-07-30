@@ -39,7 +39,7 @@ def main():
     print("Hava durumu verileri hazırlanıyor (Eksikse Open-Meteo'dan çekilir)...")
     weather_map = get_weather_data(start_str, end_str, db)
     
-    tr_holidays = holidays.TR(years=[2025])
+    tr_holidays = holidays.country_holidays("TR", years=[2025])
     
     print("Veri seti özellikleri (features) hazırlanıyor...")
     df = prepare_dataframe(measurements, weather_map, tr_holidays)
