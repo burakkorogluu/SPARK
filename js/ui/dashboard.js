@@ -98,7 +98,7 @@ const DashboardUI = (() => {
                             <div class="forecast-alert-metric-label">Ay Sonu Kapasitif Tahmin</div>
                             <div class="forecast-alert-metric-val" style="color: var(--color-danger)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
                         </div>
-                        <button class="forecast-alert-btn btn btn-primary" onclick="App.navigateToTrafo('${riskliTahminTrafolar[0].trafo.id}')" style="background: var(--color-danger); border: none;">
+                        <button class="forecast-alert-btn btn btn-primary" onclick="App.navigateToTrafo('${App.escapeHTML(riskliTahminTrafolar[0].trafo.id)}')" style="background: var(--color-danger); border: none;">
                             Riskli Trafoyu İncele
                         </button>
                     </div>
@@ -129,7 +129,7 @@ const DashboardUI = (() => {
                             <div class="forecast-alert-metric-label">Ay Sonu Kapasitif Tahmin</div>
                             <div class="forecast-alert-metric-val" style="color: var(--color-warning)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
                         </div>
-                        <button class="forecast-alert-btn btn btn-outline" onclick="App.navigateToTrafo('${dikkatTahminTrafolar[0].trafo.id}')">
+                        <button class="forecast-alert-btn btn btn-outline" onclick="App.navigateToTrafo('${App.escapeHTML(dikkatTahminTrafolar[0].trafo.id)}')">
                             Detayları Gör
                         </button>
                     </div>
@@ -354,7 +354,7 @@ const DashboardUI = (() => {
 
             return `
                 <div class="trafo-card risk-${risk.seviye}" style="animation-delay: ${idx * 0.06}s"
-                     onclick="App.navigateToTrafo('${trafo.id}')">
+                     onclick="App.navigateToTrafo('${App.escapeHTML(trafo.id)}')">
                     <div class="trafo-card-header">
                         <div style="flex: 1; min-width: 0; padding-right: 8px;">
                             <h3 style="margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${App.escapeHTML(trafo.adi)}">
@@ -397,8 +397,8 @@ const DashboardUI = (() => {
                         </div>
                     </div>
                     <div class="trafo-card-footer" style="margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px;" onclick="event.stopPropagation();">
-                        <button class="btn btn-sm btn-outline" onclick="App.navigateToTrafo('${trafo.id}')" style="font-size: 11px; padding: 4px 10px;">Detaylar</button>
-                        <button class="btn btn-sm btn-primary" onclick="if(typeof TopolojiModulu !== 'undefined') TopolojiModulu.openPowerTriangleModal('${trafo.id}')" style="font-size: 11px; padding: 4px 10px;">Güç Üçgeni Analizi</button>
+                        <button class="btn btn-sm btn-outline" onclick="App.navigateToTrafo('${App.escapeHTML(trafo.id)}')" style="font-size: 11px; padding: 4px 10px;">Detaylar</button>
+                        <button class="btn btn-sm btn-primary" onclick="if(typeof TopolojiModulu !== 'undefined') TopolojiModulu.openPowerTriangleModal('${App.escapeHTML(trafo.id)}')" style="font-size: 11px; padding: 4px 10px;">Güç Üçgeni Analizi</button>
                     </div>
                 </div>
             `;

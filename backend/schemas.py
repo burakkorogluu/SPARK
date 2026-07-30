@@ -117,7 +117,7 @@ class ManeuverSimulationResponse(BaseModel):
 
 # ── Fider/Reaktör CRUD Schemas ──
 class FeederCreate(BaseModel):
-    id: str
+    id: str = Field(..., max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
     name: str
     current_transformer_id: str
     alternative_transformer_id: Optional[str] = None
@@ -126,7 +126,7 @@ class FeederCreate(BaseModel):
     pos_y: Optional[float] = None
 
 class ReactorCreate(BaseModel):
-    id: str
+    id: str = Field(..., max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
     name: str
     current_transformer_id: str
     alternative_transformer_id: Optional[str] = None
@@ -136,7 +136,7 @@ class ReactorCreate(BaseModel):
     pos_y: Optional[float] = None
 
 class TransformerCreate(BaseModel):
-    id: str
+    id: str = Field(..., max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
     name: str
     region: str = "İstanbul-Anadolu"
     power_mva: int = 50

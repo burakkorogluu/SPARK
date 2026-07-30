@@ -765,33 +765,37 @@ def get_cached_forecast(db: Session, transformer_id: str, year: int, month: int,
     elif method == "gecenAy":
         data, confidence = forecast_gecen_ay(db, transformer_id, steps)
     else:
-        # ensemble (XGBoost + Random Forest)
         xgb_preds, xgb_conf = forecast_xgboost(db, transformer_id, steps)
         rf_preds, rf_conf = forecast_random_forest(db, transformer_id, steps)
-        
-        data = []
-        max_len = max(len(xgb_preds or []), len(rf_preds or []))
-        for i in range(max_len):
-            has_xgb = i < len(xgb_preds or [])
-            has_rf = i < len(rf_preds or [])
-            if has_xgb and has_rf:
-                data.append({
-                    "transformer_id": transformer_id,
-                    "timestamp": xgb_preds[i]["timestamp"],
-                    "active_kwh": int((xgb_preds[i]["active_kwh"] + rf_preds[i]["active_kwh"]) / 2),
-                    "capacitive_kvarh": int((xgb_preds[i]["capacitive_kvarh"] + rf_preds[i]["capacitive_kvarh"]) / 2),
-                    "inductive_kvarh": int((xgb_preds[i]["inductive_kvarh"] + rf_preds[i]["inductive_kvarh"]) / 2),
-                    "is_forecast": True
-                })
-            elif has_xgb:
-                data.append(xgb_preds[i])
-            elif has_rf:
-                data.append(rf_preds[i])
-        confidence = round((xgb_conf + rf_conf) / 2, 1) if xgb_conf and rf_conf else (xgb_conf or rf_conf or 90.0)
+        data, confidence = _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, transformer_id)
         
     result = {"predictions": data, "confidence_score": confidence}
     FORECAST_CACHE[cache_key] = (now, result)
     return result
+
+def _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, transformer_id):
+    data = []
+    max_len = max(len(xgb_preds or []), len(rf_preds or []))
+    for i in range(max_len):
+        has_xgb = i < len(xgb_preds or [])
+        has_rf = i < len(rf_preds or [])
+        if has_xgb and has_rf:
+            data.append({
+                "transformer_id": transformer_id,
+                "timestamp": xgb_preds[i]["timestamp"],
+                "active_kwh": int((xgb_preds[i]["active_kwh"] + rf_preds[i]["active_kwh"]) / 2),
+                "capacitive_kvarh": int((xgb_preds[i]["capacitive_kvarh"] + rf_preds[i]["capacitive_kvarh"]) / 2),
+                "inductive_kvarh": int((xgb_preds[i]["inductive_kvarh"] + rf_preds[i]["inductive_kvarh"]) / 2),
+                "kap_reason": xgb_preds[i].get("kap_reason"),
+                "end_reason": xgb_preds[i].get("end_reason"),
+                "is_forecast": True
+            })
+        elif has_xgb:
+            data.append(xgb_preds[i])
+        elif has_rf:
+            data.append(rf_preds[i])
+    confidence = round((xgb_conf + rf_conf) / 2, 1) if xgb_conf and rf_conf else (xgb_conf or rf_conf or 90.0)
+    return data, confidence
 
 def _run_forecast_algorithm(db, transformer_id, method, steps):
     if method == "xgboost": return forecast_xgboost(db, transformer_id, steps)
@@ -802,32 +806,9 @@ def _run_forecast_algorithm(db, transformer_id, method, steps):
     elif method == "persistence": return forecast_persistence(db, transformer_id, steps)
     elif method == "gecenAy": return forecast_gecen_ay(db, transformer_id, steps)
     else:
-        # ensemble (XGBoost + Random Forest)
         xgb_preds, xgb_conf = forecast_xgboost(db, transformer_id, steps)
         rf_preds, rf_conf = forecast_random_forest(db, transformer_id, steps)
-        
-        data = []
-        max_len = max(len(xgb_preds or []), len(rf_preds or []))
-        for i in range(max_len):
-            has_xgb = i < len(xgb_preds or [])
-            has_rf = i < len(rf_preds or [])
-            if has_xgb and has_rf:
-                data.append({
-                    "transformer_id": transformer_id,
-                    "timestamp": xgb_preds[i]["timestamp"],
-                    "active_kwh": int((xgb_preds[i]["active_kwh"] + rf_preds[i]["active_kwh"]) / 2),
-                    "capacitive_kvarh": int((xgb_preds[i]["capacitive_kvarh"] + rf_preds[i]["capacitive_kvarh"]) / 2),
-                    "inductive_kvarh": int((xgb_preds[i]["inductive_kvarh"] + rf_preds[i]["inductive_kvarh"]) / 2),
-                    "kap_reason": xgb_preds[i].get("kap_reason"),
-                    "end_reason": xgb_preds[i].get("end_reason"),
-                    "is_forecast": True
-                })
-            elif has_xgb:
-                data.append(xgb_preds[i])
-            elif has_rf:
-                data.append(rf_preds[i])
-        confidence = round((xgb_conf + rf_conf) / 2, 1) if xgb_conf and rf_conf else (xgb_conf or rf_conf or 90.0)
-        return data, confidence
+        return _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, transformer_id)
 
 
 def run_weekly_batch_forecast():

@@ -369,7 +369,7 @@ const DataEntryUI = (() => {
                             %${HesaplamaModulu.formatSayi(oran)}
                         </td>
                         <td class="text-center">
-                            <button class="btn btn-sm btn-ghost" onclick="App.silVeri('${v.trafoId}','${v.tarih}')">Sil</button>
+                            <button class="btn btn-sm btn-ghost" onclick="App.silVeri('${App.escapeHTML(v.trafoId)}','${v.tarih}')">Sil</button>
                         </td>
                     </tr>
                 `;

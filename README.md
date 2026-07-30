@@ -64,33 +64,54 @@ SPARK, **Python FastAPI** sunucusu ve **Vanilla JS** ön yüzünden (Frontend) o
 
 ```text
 SPARK/
-├── index.html                  # Ana uygulama iskeleti ve arayüz
+├── index.html                  # Ana uygulama iskeleti ve giriş noktası (DOM yapılandırması)
 ├── backend/
-│   ├── main.py                 # FastAPI sunucu kökü & APScheduler Görev Yöneticisi
-│   ├── database.py             # SQLite veritabanı bağlantı ayarları
-│   ├── models.py               # SQLAlchemy ORM modelleri (Measurement, ForecastMeasurement vb.)
-│   ├── schemas.py              # Pydantic veri doğrulama şemaları
-│   ├── init_db.py              # Veritabanı ilklendirme scripti
-│   ├── simulator.py            # OSOS Simülatörü ve Gerçek Veri Entegrasyonu
-│   ├── osos_sim.db             # Uygulama veritabanı
-│   └── services/
-│       ├── weather_service.py  # Open-Meteo Entegrasyonu ve Backfill Mekanizması
-│       ├── analysis_service.py # Veri analizi ve aylık oran hesaplamaları
-│       └── forecast_service.py # ML tahmin motoru ve Batch Prediction Mantığı
+│   ├── main.py                 # FastAPI sunucu kökü, Router tanımları ve APScheduler görev yöneticisi
+│   ├── database.py             # SQLAlchemy veritabanı motoru ve oturum (Session) konfigürasyonu
+│   ├── models.py               # Veritabanı tablolarının SQLAlchemy ORM model tanımları (Measurement, vb.)
+│   ├── schemas.py              # İstek/Yanıt doğrulaması için Pydantic veri şemaları
+│   ├── init_db.py              # Veritabanı tablolarını sıfırdan oluşturan ilklendirme scripti
+│   ├── simulator.py            # Test amaçlı sentetik OSOS verisi üreten ve DB'ye yazan simülatör
+│   ├── import_data.py          # Harici Excel/CSV verilerini SQLite veritabanına aktaran araç
+│   ├── evaluate_xgboost.py     # XGBoost modelinin performansını test eden bağımsız değerlendirme betiği
+│   ├── ws_handler.py           # Frontend ile gerçek zamanlı veri senkronizasyonu sağlayan WebSocket yöneticisi
+│   ├── osos_sim.db             # Uygulamanın ana SQLite veritabanı dosyası
+│   ├── services/               # İş Mantığı (Business Logic) Katmanı
+│   │   ├── weather_service.py  # Open-Meteo API entegrasyonu ve geçmiş/gelecek hava durumu verilerinin çekilmesi
+│   │   ├── analysis_service.py # Gelen verilerin toplanması, aylık kümülatif oranların ve cezaların hesaplanması
+│   │   ├── forecast_service.py # XGBoost ve Ensemble ML modelleri ile saatlik tahmin motoru (Batch Prediction)
+│   │   ├── maneuver_service.py # Yük aktarımı ve şönt reaktör devreye alma (What-If) senaryolarının simülasyonu
+│   │   ├── alert_service.py    # Reaktif ceza sınırlarına yaklaşıldığında uyarı (alert) üreten servis
+│   │   ├── scada_service.py    # Trafoların durumunu ve şebeke topolojisi verilerini sağlayan servis
+│   │   └── model_eval_service.py# Farklı ML modellerinin (RF, Holt-Winters, XGBoost) hata oranlarını (MAPE) değerlendiren servis
+│   └── tests/                  # Pytest Birim ve Entegrasyon Testleri
+│       ├── conftest.py         # Test veritabanı ve fixture yapılandırmaları
+│       ├── test_api_endpoints.py # FastAPI endpointlerinin entegrasyon testleri
+│       ├── test_analysis_service.py # Analiz ve oran hesaplama testleri
+│       ├── test_forecast_service.py # Tahmin motoru birim testleri
+│       └── test_suite.py       # Toplu test çalıştırıcı ve konfigürasyon
 ├── css/
-│   └── style.css               # Tasarım sistemi
+│   └── style.css               # Tüm sistemin görsel tasarım sistemi (Dark mode destekli)
 └── js/
-    ├── core/
-    │   ├── app.js              # Uygulama denetleyicisi ve UI senkronizasyonu
-    │   ├── api_client.js       # Backend ile iletişim kuran Fetch katmanı
-    │   └── data.js             # İstemci tarafı veri yönetimi ve ön bellek
-    ├── modules/
-    │   ├── calculations.js     # İstemci taraflı oran hesaplamaları
-    │   ├── forecast.js         # API tahmin istekleri 
-    │   └── scenarios.js        # Reaktör/Yük simülasyonları
-    └── ui/
-        ├── charts.js           # Chart.js ve Plugin yapılandırmaları
-        └── topology.js         # SCADA, SVG ve Canvas çizimleri
+    ├── core/                   # Temel İstemci Katmanı (Core)
+    │   ├── app.js              # Sayfa yönlendirmeleri (Routing), sekme yönetimi ve genel UI durumu
+    │   ├── api_client.js       # Backend ile iletişim kuran, fetch çağrılarını sarmalayan HTTP modülü
+    │   ├── data.js             # İstemci tarafı veri önbelleği ve trafo sabitlerinin (TRAFOLAR) tutulduğu modül
+    │   └── theme.js            # Aydınlık/Karanlık (Light/Dark) tema geçişleri ve CSS değişken yönetimi
+    ├── modules/                # Hesaplama ve Entegrasyon Modülleri
+    │   ├── calculations.js     # Endüktif/Kapasitif oranları istemci tarafında anlık hesaplayan mantık
+    │   ├── forecast.js         # Backend'deki AI tahmin servisleriyle konuşan köprü modül
+    │   └── scenarios.js        # Reaktör/Yük simülasyonlarının mantıksal durum yönetimi
+    └── ui/                     # Görsel Bileşenler (UI Components)
+        ├── alerts.js           # Sistem uyarılarını ve bildirim banner'larını DOM'a çizen modül
+        ├── charts.js           # Chart.js kullanarak kümülatif ve saatlik tahmin grafiklerini oluşturan modül
+        ├── dashboard.js        # Ana özet ekranını (Dashboard) ve genel metrik kartlarını yöneten modül
+        ├── data_entry.js       # Manuel veri girişi formunu ve validasyonları kontrol eden modül
+        ├── detail.js           # Trafo detay sayfasındaki veri tablolarını ve sekmeleri yöneten modül
+        ├── forecast_ui.js      # Yapay zeka tahmin sonuçlarını ve güvenilirlik (SHAP vb.) skorlarını görselleştiren modül
+        ├── maneuver_ui.js      # Manevra (Sürükle-Bırak) ve simülasyon (What-If) arayüz etkileşimlerini yöneten modül
+        ├── scada_sld_v4.js     # SCADA Tek Hat Şeması'nın (Single Line Diagram) gelişmiş render motoru
+        └── topology.js         # Ağ topolojisini çizen ve enerji akış animasyonlarını çalıştıran modül
 ```
 
 ---

@@ -354,7 +354,7 @@ const App = (() => {
         if (!container) return;
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
-        toast.innerHTML = `${message}`;
+        toast.innerHTML = `${escapeHTML(message)}`;
         container.appendChild(toast);
 
         setTimeout(() => {

@@ -20,6 +20,12 @@ def check_and_generate_alerts(db: Session, year: Optional[int] = None, month: Op
     summaries = get_monthly_summary(db, req_year, req_month)
     generated = []
 
+    start_of_month = datetime(req_year, req_month, 1)
+    if req_month == 12:
+        end_of_month = datetime(req_year + 1, 1, 1)
+    else:
+        end_of_month = datetime(req_year, req_month + 1, 1)
+
     for item in summaries:
         trafo_id = item["trafo"]["id"]
         trafo_name = item["trafo"]["adi"]
@@ -27,51 +33,44 @@ def check_and_generate_alerts(db: Session, year: Optional[int] = None, month: Op
         kap_oran = ozet.get("kapasitifOran", 0)
         end_oran = ozet.get("enduktifOran", 0)
 
+        def _add_or_update_alert(alert_type, severity, msg):
+            existing = db.query(models.SystemAlert).filter(
+                models.SystemAlert.transformer_id == trafo_id,
+                models.SystemAlert.alert_type == alert_type,
+                models.SystemAlert.timestamp >= start_of_month,
+                models.SystemAlert.timestamp < end_of_month
+            ).first()
+            
+            if existing:
+                existing.timestamp = datetime.now()
+                existing.message = msg
+            else:
+                alert = models.SystemAlert(
+                    transformer_id=trafo_id,
+                    alert_type=alert_type,
+                    severity=severity,
+                    message=msg
+                )
+                db.add(alert)
+                generated.append(alert)
+
         # Kapasitif ceza sınırı aşımı (%15)
         if kap_oran >= SINIRLAR["kapasitif"]:
             msg = f"{trafo_name} ({trafo_id}) trafosunda kapasitif oran %{kap_oran:.2f} ile %{SINIRLAR['kapasitif']:.0f} EPDK ceza sınırını AŞTI!"
-            alert = models.SystemAlert(
-                transformer_id=trafo_id,
-                alert_type="capacitive_penalty",
-                severity="critical",
-                message=msg
-            )
-            db.add(alert)
-            generated.append(alert)
+            _add_or_update_alert("capacitive_penalty", "critical", msg)
             logger.warning(msg)
         elif kap_oran >= SINIRLAR["kapasitifUyari"]:
             msg = f"{trafo_name} ({trafo_id}) trafosunda kapasitif oran %{kap_oran:.2f} ile dikkat eşiğine (%{SINIRLAR['kapasitifUyari']:.0f}) ulaştı."
-            alert = models.SystemAlert(
-                transformer_id=trafo_id,
-                alert_type="warning",
-                severity="warning",
-                message=msg
-            )
-            db.add(alert)
-            generated.append(alert)
+            _add_or_update_alert("warning", "warning", msg)
 
         # Endüktif ceza sınırı aşımı (%20)
         if end_oran >= SINIRLAR["enduktif"]:
             msg = f"{trafo_name} ({trafo_id}) trafosunda endüktif oran %{end_oran:.2f} ile %{SINIRLAR['enduktif']:.0f} EPDK ceza sınırını AŞTI!"
-            alert = models.SystemAlert(
-                transformer_id=trafo_id,
-                alert_type="inductive_penalty",
-                severity="critical",
-                message=msg
-            )
-            db.add(alert)
-            generated.append(alert)
+            _add_or_update_alert("inductive_penalty", "critical", msg)
             logger.warning(msg)
         elif end_oran >= SINIRLAR["enduktifUyari"]:
             msg = f"{trafo_name} ({trafo_id}) trafosunda endüktif oran %{end_oran:.2f} ile dikkat eşiğine (%{SINIRLAR['enduktifUyari']:.0f}) ulaştı."
-            alert = models.SystemAlert(
-                transformer_id=trafo_id,
-                alert_type="warning",
-                severity="warning",
-                message=msg
-            )
-            db.add(alert)
-            generated.append(alert)
+            _add_or_update_alert("warning", "warning", msg)
 
     db.commit()
     return generated

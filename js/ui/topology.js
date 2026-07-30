@@ -273,7 +273,7 @@ const TopolojiModulu = (() => {
                 </div>
             </div>
 
-            <button class="btn-trafo-action" onclick="TopolojiModulu.openPowerTriangleModal('${trafo.id}')">
+            <button class="btn-trafo-action" onclick="TopolojiModulu.openPowerTriangleModal('${App.escapeHTML(trafo.id)}')">
                 <span>Güç Üçgeni Analizi</span>
             </button>
         `;

@@ -64,7 +64,7 @@ def get_weather_data(start_date: str, end_date: str, db: Session = None):
                 if any(getattr(rec, attr, None) is None for attr in ("wind_speed", "cloud_cover", "humidity", "precipitation", "wind_direction")):
                     needs_api = True
         except Exception as e:
-            print(f"Weather DB Query Error: {e}")
+            logger.error(f"Weather DB Query Error: {e}")
             needs_api = True
 
     # -24h toleransı: Son 24 saatlik veriler Open-Meteo arşivinde henüz yayınlanmamış olabileceğinden 
@@ -140,10 +140,10 @@ def get_weather_data(start_date: str, end_date: str, db: Session = None):
                     try:
                         db.add_all(to_add)
                         db.commit()
-                        print(f"Cached/Updated weather records in database.")
+                        logger.info("Cached/Updated weather records in database.")
                     except Exception as commit_err:
                         db.rollback()
-                        print(f"Weather DB Commit Error: {commit_err}")
+                        logger.error(f"Weather DB Commit Error: {commit_err}")
             else:
                 for i, t in enumerate(times):
                     dt_str = t.replace("T", " ")
@@ -158,7 +158,7 @@ def get_weather_data(start_date: str, end_date: str, db: Session = None):
 
         return weather_map
     except Exception as e:
-        print(f"Weather API Error: {e}")
+        logger.error(f"Weather API Error: {e}")
         return weather_map
 
 def get_weather_features_for_timestamp(weather_map, dt: datetime.datetime):

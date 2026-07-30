@@ -148,7 +148,7 @@ const HesaplamaModulu = (() => {
         const kapRisk = riskSeviyesiBelirle(kapasitifOran, 'kapasitif');
         const endRisk = riskSeviyesiBelirle(enduktifOran, 'enduktif');
 
-        const riskSira = { 'tehlikeli': 4, 'riskli': 3, 'dikkat': 2, 'normal': 1, 'guvenli': 0 };
+        const riskSira = { 'tehlikeli': 4, 'riskli': 3, 'dikkat': 2, 'guvenli': 0 };
         const kapSira = riskSira[kapRisk.seviye] || 0;
         const endSira = riskSira[endRisk.seviye] || 0;
 
@@ -170,8 +170,6 @@ const HesaplamaModulu = (() => {
 
         if (kapRisk.seviye === 'guvenli') {
             return `${trafoAdi} trafosunda kapasitif (%${formatSayi(kapasitifOran)}) ve endüktif (%${formatSayi(enduktifOran)}) oranlar güvenli bölgededir.`;
-        } else if (kapRisk.seviye === 'normal') {
-            return `${trafoAdi} trafosunda oranlar normal aralıkta, izlemeye devam ediniz.`;
         } else if (kapRisk.seviye === 'dikkat') {
             let msg = `${trafoAdi} trafosunda kapasitif oran %${formatSayi(kapasitifOran)} seviyesindedir ve dikkat eşiğine yaklaşmaktadır.`;
             if (tahminKapOran != null) {

@@ -68,7 +68,7 @@ const ApiClient = (() => {
     async function fetchMeasurements(startDate, endDate, transformerId = null) {
         let url = `${API_BASE_URL}/osos/fetch?start_date=${startDate}&end_date=${endDate}`;
         if (transformerId) {
-            url += `&transformer_id=${transformerId}`;
+            url += `&transformer_id=${encodeURIComponent(transformerId)}`;
         }
         return _fetch(url, { cache: 'no-store' });
     }
@@ -79,12 +79,12 @@ const ApiClient = (() => {
 
     async function fetchAnalysisSummary(year, month, transformerId = null) {
         let url = `${API_BASE_URL}/analysis/summary?year=${year}&month=${month}`;
-        if (transformerId) url += `&transformer_id=${transformerId}`;
+        if (transformerId) url += `&transformer_id=${encodeURIComponent(transformerId)}`;
         return _fetch(url);
     }
 
     async function fetchForecast(transformerId, year, month, method = 'ensemble') {
-        const url = `${API_BASE_URL}/forecast?transformer_id=${transformerId}&year=${year}&month=${month}&method=${method}`;
+        const url = `${API_BASE_URL}/forecast?transformer_id=${encodeURIComponent(transformerId)}&year=${year}&month=${month}&method=${method}`;
         return _fetch(url);
     }
 
@@ -97,7 +97,7 @@ const ApiClient = (() => {
     }
 
     async function simulateManeuver(assetType, assetId, targetTrafoId) {
-        const url = `${API_BASE_URL}/maneuver/simulate?asset_type=${assetType}&asset_id=${assetId}&target_trafo_id=${targetTrafoId}`;
+        const url = `${API_BASE_URL}/maneuver/simulate?asset_type=${encodeURIComponent(assetType)}&asset_id=${encodeURIComponent(assetId)}&target_trafo_id=${encodeURIComponent(targetTrafoId)}`;
         return _fetch(url, { method: 'POST' });
     }
 

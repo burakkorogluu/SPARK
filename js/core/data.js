@@ -175,7 +175,7 @@ const VeriModulu = (() => {
             console.log(`VeriModulu: ${monthKey} dönemi için ${yeniVeriler.length} ölçüm başarıyla yüklendi.`);
         } catch (e) {
             console.error(`VeriModulu: ${monthKey} verileri çekilemedi:`, e);
-            document.body.insertAdjacentHTML('afterbegin', `<div style="background:red;color:white;padding:10px;z-index:99999;position:fixed;top:0;left:0;width:100%;">API GET ERROR: ${e.message}</div>`);
+            document.body.insertAdjacentHTML('afterbegin', `<div style="background:red;color:white;padding:10px;z-index:99999;position:fixed;top:0;left:0;width:100%;">API GET ERROR: ${App.escapeHTML(e.message)}</div>`);
         }
     }
 

@@ -148,6 +148,15 @@ def fetch_osos_measurements(
     measurements = query.order_by(models.Measurement.timestamp.asc()).all()
     return measurements
 
+def invalidate_caches_for_transformer(transformer_id: str):
+    from services.forecast_service import FORECAST_CACHE, TRAINED_MODELS_CACHE
+    forecast_keys = [k for k in FORECAST_CACHE.keys() if k.startswith(transformer_id)]
+    for k in forecast_keys:
+        del FORECAST_CACHE[k]
+    model_keys = [k for k in TRAINED_MODELS_CACHE.keys() if k.startswith(transformer_id)]
+    for k in model_keys:
+        del TRAINED_MODELS_CACHE[k]
+
 @app.post("/api/osos/measurements", response_model=schemas.Measurement)
 def add_osos_measurement(
     measurement: schemas.MeasurementCreate,
@@ -164,6 +173,7 @@ def add_osos_measurement(
         existing.capacitive_kvarh = measurement.capacitive_kvarh  # pyrefly: ignore
         db.commit()
         db.refresh(existing)
+        invalidate_caches_for_transformer(measurement.transformer_id)
         return existing
     else:
         new_m = models.Measurement(
@@ -176,6 +186,7 @@ def add_osos_measurement(
         db.add(new_m)
         db.commit()
         db.refresh(new_m)
+        invalidate_caches_for_transformer(measurement.transformer_id)
         return new_m
 
 @app.delete("/api/osos/measurements")
@@ -205,6 +216,7 @@ def delete_osos_measurement(
     if deleted_count == 0:
         raise HTTPException(status_code=404, detail="Measurement record not found")
 
+    invalidate_caches_for_transformer(transformer_id)
     return {"status": "success", "message": f"{deleted_count} record(s) deleted."}
 
 @app.get("/api/analysis/summary")
