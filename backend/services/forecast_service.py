@@ -119,9 +119,15 @@ def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps
     predictions = []
     last_168 = df[['y_aktif', 'y_kapasitif', 'y_enduktif']].tail(168).to_dict('records')
 
-    cols_aktif = list(getattr(model_aktif, "feature_names_in_", None) or ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168', 'aktif_roll_mean_6', 'aktif_roll_mean_24'])
-    cols_kap   = list(getattr(model_kap, "feature_names_in_", None) or ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_6', 'kapasitif_roll_mean_24'])
-    cols_end   = list(getattr(model_end, "feature_names_in_", None) or ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168', 'enduktif_roll_mean_6', 'enduktif_roll_mean_24'])
+    def _get_feat_cols(m, fallback):
+        val = getattr(m, "feature_names_in_", None)
+        if val is not None:
+            return list(val)
+        return fallback
+
+    cols_aktif = _get_feat_cols(model_aktif, ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168', 'aktif_roll_mean_6', 'aktif_roll_mean_24'])
+    cols_kap   = _get_feat_cols(model_kap, ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_6', 'kapasitif_roll_mean_24'])
+    cols_end   = _get_feat_cols(model_end, ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168', 'enduktif_roll_mean_6', 'enduktif_roll_mean_24'])
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
