@@ -23,7 +23,7 @@ def get_historical_baseline(db: Session, transformer_id: str, target_time: datet
         ).first()
         
         if baseline and (baseline.active_kwh or 0) > 100:
-            return int(baseline.active_kwh), int(baseline.inductive_kvarh), int(baseline.capacitive_kvarh)
+            return cast(int, baseline.active_kwh), cast(int, baseline.inductive_kvarh), cast(int, baseline.capacitive_kvarh)
         
         ref_time -= timedelta(days=7)
         
@@ -76,7 +76,7 @@ def generate_measurement_values(db: Session, trafo: models.Transformer, target_t
             res = (b_active * noise, b_inductive * noise, b_capacitive * noise)
         else:
             orig_trafo = db.query(models.Transformer).filter(models.Transformer.id == t_id).first()
-            power_mva = float(orig_trafo.power_mva) if orig_trafo else 100.0
+            power_mva = float(cast(int, orig_trafo.power_mva)) if orig_trafo and orig_trafo.power_mva is not None else 100.0
             base_active = (power_mva / 100) * random.randint(20000, 50000)
             hour = target_time.hour
             if 0 <= hour < 7: multiplier = random.uniform(0.4, 0.6)
@@ -97,7 +97,7 @@ def generate_measurement_values(db: Session, trafo: models.Transformer, target_t
 
     # Aggregate physical loads from all currently connected feeders
     for feeder in current_feeders:
-        mapping = ORIGINAL_FEEDER_MAPPING.get(feeder.id)
+        mapping = ORIGINAL_FEEDER_MAPPING.get(str(feeder.id))
         if not mapping:
             continue
             
@@ -106,7 +106,7 @@ def generate_measurement_values(db: Session, trafo: models.Transformer, target_t
         
         b_act, b_ind, b_cap = get_trafo_baseline(orig_t_id)
         
-        share = mapping["weight"] / orig_weight if orig_weight > 0 else 0
+        share = float(mapping["weight"]) / orig_weight if orig_weight > 0 else 0
         total_active += b_act * share
         total_inductive += b_ind * share
         total_capacitive += b_cap * share
@@ -120,8 +120,8 @@ def generate_measurement_values(db: Session, trafo: models.Transformer, target_t
         models.Reactor.current_transformer_id == trafo.id,
         models.Reactor.status == "active"
     ).all()
-    current_reactor_comp = sum(r.capacity_kvar for r in current_reactors)
-    original_reactor_comp = ORIGINAL_REACTOR_COMPENSATION.get(trafo.id, 0.0)
+    current_reactor_comp = sum(cast(float, r.capacity_kvar) for r in current_reactors)
+    original_reactor_comp = ORIGINAL_REACTOR_COMPENSATION.get(str(trafo.id), 0.0)
     
     reactor_delta = current_reactor_comp - original_reactor_comp
     
@@ -136,7 +136,7 @@ def generate_measurement_values(db: Session, trafo: models.Transformer, target_t
         inductive -= ind_reduction
         capacitive += (lost_comp - ind_reduction)
 
-    return int(active), int(inductive), int(capacitive)
+    return active, inductive, capacitive
 
 def generate_hourly_data():
     """
@@ -175,7 +175,7 @@ def generate_hourly_data():
                     temp_hour += timedelta(hours=1)
                     continue
 
-                active, inductive, capacitive = generate_measurement_values(db, trafo, temp_hour)
+                active, inductive, capacitive = generate_measurement_values(db, trafo, cast(datetime, temp_hour))
 
                 measurement = models.Measurement(
                     transformer_id=trafo.id,
