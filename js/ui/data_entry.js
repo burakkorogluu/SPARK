@@ -57,7 +57,13 @@ const DataEntryUI = (() => {
         document.getElementById('csv-file-input')?.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            handleCSVUpload(file);
+            if (file.name.endsWith('.csv')) {
+                handleCSVUpload(file);
+            } else if (file.name.match(/\.xlsx?$/)) {
+                handleExcelUpload(file);
+            } else {
+                App.showToast('Lütfen geçerli bir Excel veya CSV dosyası seçin.', 'error');
+            }
         });
 
         // Drag & drop
@@ -78,8 +84,14 @@ const DataEntryUI = (() => {
             dropArea.addEventListener('drop', (e) => {
                 e.preventDefault();
                 const file = e.dataTransfer.files[0];
-                if (file && file.name.endsWith('.csv')) {
-                    handleCSVUpload(file);
+                if (file) {
+                    if (file.name.endsWith('.csv')) {
+                        handleCSVUpload(file);
+                    } else if (file.name.match(/\.xlsx?$/)) {
+                        handleExcelUpload(file);
+                    } else {
+                        App.showToast('Lütfen geçerli bir Excel veya CSV dosyası seçin.', 'error');
+                    }
                 }
             });
         }
@@ -129,7 +141,83 @@ const DataEntryUI = (() => {
             });
         }
 
-        // OSOS Veri Çekme
+        // OSOS Veri Çekme - Trafo Filter
+        let ososSelectedTrafos = new Set();
+        (async function initOsosFilter() {
+            const btn = document.getElementById('btn-osos-trafo-filter');
+            const menu = document.getElementById('osos-trafo-filter-menu');
+            const container = document.getElementById('osos-trafo-filter-container');
+            const list = document.getElementById('osos-trafo-filter-list');
+            const cbAll = document.getElementById('osos-trafo-filter-all');
+            const btnText = document.getElementById('osos-trafo-filter-text');
+            
+            if (!btn || !menu || !container || !list) return;
+            
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'block' : 'none';
+            });
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) menu.style.display = 'none';
+            });
+            
+            try {
+                const trafos = await ApiClient.fetchTransformers();
+                
+                trafos.forEach(t => {
+                    ososSelectedTrafos.add(t.id); // Select all by default
+                    const div = document.createElement('div');
+                    const escapeFn = (typeof App !== 'undefined' && App.escapeHTML) ? App.escapeHTML : (s => s);
+                    
+                    div.innerHTML = `<label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                        <input type="checkbox" class="osos-filter-cb" value="${escapeFn(t.id)}" checked>
+                        ${escapeFn(t.name || t.id)}
+                    </label>`;
+                    list.appendChild(div);
+                });
+                
+                const updateButtonText = () => {
+                    const allCbs = document.querySelectorAll('.osos-filter-cb');
+                    const checkedCbs = document.querySelectorAll('.osos-filter-cb:checked');
+                    if (checkedCbs.length === allCbs.length) {
+                        btnText.textContent = "Tüm Trafolar";
+                    } else if (checkedCbs.length === 0) {
+                        btnText.textContent = "Seçim Yapılmadı";
+                    } else {
+                        btnText.textContent = `${checkedCbs.length} Trafo Seçili`;
+                    }
+                };
+                
+                cbAll?.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    document.querySelectorAll('.osos-filter-cb').forEach(cb => cb.checked = isChecked);
+                    if (isChecked) {
+                        trafos.forEach(t => ososSelectedTrafos.add(t.id));
+                    } else {
+                        ososSelectedTrafos.clear();
+                    }
+                    updateButtonText();
+                });
+                
+                list.addEventListener('change', (e) => {
+                    if (e.target.classList.contains('osos-filter-cb')) {
+                        const id = e.target.value;
+                        if (e.target.checked) ososSelectedTrafos.add(id);
+                        else ososSelectedTrafos.delete(id);
+                        
+                        const allCbs = document.querySelectorAll('.osos-filter-cb');
+                        const allChecked = Array.from(allCbs).every(cb => cb.checked);
+                        if (cbAll) cbAll.checked = allChecked;
+                        updateButtonText();
+                    }
+                });
+                
+            } catch (err) {
+                console.error("OSOS trafo filtre listesi yüklenemedi:", err);
+            }
+        })();
+
+        // OSOS Veri Çekme Action
         const btnOsosFetch = document.getElementById('btn-osos-fetch');
         if (btnOsosFetch) {
             btnOsosFetch.addEventListener('click', async () => {
@@ -141,11 +229,19 @@ const DataEntryUI = (() => {
                     return;
                 }
 
+                if (ososSelectedTrafos.size === 0) {
+                    App.showToast('Lütfen veri çekmek için en az bir Trafo Merkezi seçin.', 'warning');
+                    return;
+                }
+
                 try {
                     btnOsosFetch.disabled = true;
                     btnOsosFetch.innerHTML = 'Çekiliyor...';
 
-                    const data = await ApiClient.fetchMeasurements(start, end);
+                    // Convert Set to comma separated string, skip if all are selected to not exceed url max length maybe?
+                    // Actually passing them all is fine for this demo.
+                    const trafoList = Array.from(ososSelectedTrafos).join(',');
+                    const data = await ApiClient.fetchMeasurements(start, end, trafoList);
                     if (data && data.length > 0) {
                         for (const m of data) {
                             const d = new Date(m.timestamp);
@@ -173,6 +269,57 @@ const DataEntryUI = (() => {
                     btnOsosFetch.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Verileri Çek';
                 }
             });
+        }
+    }
+
+    async function handleExcelUpload(file) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        App.showToast('Excel dosyası yükleniyor ve işleniyor, lütfen bekleyin...', 'info');
+        
+        try {
+            const response = await fetch('http://localhost:8000/api/upload-excel', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            
+            if (response.ok) {
+                App.showToast(result.message, 'success');
+                if (result.new_transformers && result.new_transformers.length > 0) {
+                    App.showToast(`Yeni trafolar eklendi: ${result.new_transformers.join(', ')}`, 'info');
+                }
+                
+                // Mevcut seçili yıl ve ay için verileri baştan çek
+                if (typeof VeriModulu !== 'undefined') {
+                    // Trafoları da güncelle
+                    await fetch('http://localhost:8000/api/transformers')
+                        .then(r => r.json())
+                        .then(traflar => {
+                            traflar.forEach(t => VeriModulu.trafoEkle({
+                                id: t.id, adi: t.name, bolge: t.region, tip: 'Dağıtım', kapasite: t.power_mva, aciklama: 'Sistemden yüklendi'
+                            }));
+                        }).catch(e => console.error("Trafo listesi güncellenemedi:", e));
+
+                    App.populateTrafoSelects();
+                    // State üzerinden yıl ay alarak verileri yenile
+                    try {
+                        const appState = App.getState();
+                        await VeriModulu.loadAylikVeriler(appState.selectedYil, appState.selectedAy);
+                    } catch (err) {
+                        const now = new Date();
+                        await VeriModulu.loadAylikVeriler(now.getFullYear(), now.getMonth() + 1);
+                    }
+                    renderVeriTablosu();
+                }
+            } else {
+                App.showToast(result.detail || 'Dosya yüklenirken hata oluştu.', 'error');
+            }
+        } catch (error) {
+            console.error('Excel Yükleme Hatası:', error);
+            App.showToast('Sunucu ile bağlantı hatası oluştu.', 'error');
         }
     }
 

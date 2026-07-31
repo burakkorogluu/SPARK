@@ -11,7 +11,7 @@ const ApiClient = (() => {
     'use strict';
 
     const API_BASE_URL = 'http://127.0.0.1:8000/api';
-    const DEFAULT_TIMEOUT_MS = 15000;  // 15 saniye
+    const DEFAULT_TIMEOUT_MS = 60000;  // 60 saniye
     const MAX_RETRIES = 2;
     const RETRY_BASE_DELAY_MS = 500;
 

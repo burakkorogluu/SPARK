@@ -88,8 +88,8 @@ const ScadaSldUI = (() => {
 
     function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host;
-        const wsUrl = `${protocol}//${host}/ws`;
+        // Backend sunucusu 8000 portunda çalıştığı için oraya bağlanıyoruz
+        const wsUrl = `${protocol}//127.0.0.1:8000/ws`;
         try {
             ws = new WebSocket(wsUrl);
 

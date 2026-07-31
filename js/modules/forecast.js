@@ -26,26 +26,31 @@ const TahminModulu = (() => {
             tahminVerilerBackend = responseData;
         }
         
-        // Mevcut verileri Backend'den al
-        const startDate = `${yil}-${String(ay).padStart(2, '0')}-01`;
-        const lastDay = new Date(yil, ay, 0).getDate();
-        const endDate = `${yil}-${String(ay).padStart(2, '0')}-${lastDay}`;
-        
-        const mevcutVerilerBackend = await ApiClient.fetchMeasurements(startDate, endDate, trafoId);
-        
-        // Map to frontend format
-        const mapData = (arr, isTahmin) => arr.map(v => ({
-            trafoId: v.transformer_id,
-            tarih: v.timestamp.replace('T', ' '),
-            aktifEnerji: v.active_kwh,
-            enduktifEnerji: v.inductive_kvarh,
-            kapasitifEnerji: v.capacitive_kvarh,
-            kap_reason: v.kap_reason || null,
-            end_reason: v.end_reason || null,
-            isTahmin
-        }));
+        // Mevcut verileri zaten yüklü olan bellekten (VeriModulu) al (Gereksiz API isteklerini önler)
+        let mevcutVeriler = [];
+        if (typeof VeriModulu !== 'undefined') {
+            mevcutVeriler = VeriModulu.getAylikVeriler(trafoId, yil, ay).map(v => ({...v, isTahmin: false}));
+        } else {
+            const startDate = `${yil}-${String(ay).padStart(2, '0')}-01`;
+            const lastDay = new Date(yil, ay, 0).getDate();
+            const endDate = `${yil}-${String(ay).padStart(2, '0')}-${lastDay}`;
+            const mevcutVerilerBackend = await ApiClient.fetchMeasurements(startDate, endDate, trafoId);
+            mevcutVeriler = mapData(mevcutVerilerBackend, false);
+        }
 
-        const mevcutVeriler = mapData(mevcutVerilerBackend, false);
+        // Map to frontend format
+        function mapData(arr, isTahmin) {
+            return arr.map(v => ({
+                trafoId: v.transformer_id || v.trafoId,
+                tarih: v.timestamp ? v.timestamp.replace('T', ' ') : v.tarih,
+                aktifEnerji: v.active_kwh !== undefined ? v.active_kwh : v.aktifEnerji,
+                enduktifEnerji: v.inductive_kvarh !== undefined ? v.inductive_kvarh : v.enduktifEnerji,
+                kapasitifEnerji: v.capacitive_kvarh !== undefined ? v.capacitive_kvarh : v.kapasitifEnerji,
+                kap_reason: v.kap_reason || null,
+                end_reason: v.end_reason || null,
+                isTahmin
+            }));
+        }
         const tahminVeriler = mapData(tahminVerilerBackend || [], true);
 
         let detayliAciklama = "Python Backend üzerinden hesaplandı.";

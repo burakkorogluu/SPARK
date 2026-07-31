@@ -39,9 +39,12 @@ Trafoların kümülatif durumlarının, güvenlik rozetlerinin (Yeşil/Sarı/Kı
 
 ### 2. 🔌 Trafo Detay Analizi & Saatlik Veri
 Seçilen trafonun saat saat tüketim geçmişi, kümülatif ilerleyiş grafikleri ve manuel operatör müdahalesine imkan tanıyan veri tablosu.
+* **Excel Veri Yükleme (Upload Excel):** Geçmişe dönük trafo verilerini sisteme topluca aktarmak için Excel yükleme arayüzü sunar.
 
 ### 3. 🌐 Şebeke Topolojisi & SCADA
 Trafolar arası enerji akışını animasyonlarla gösteren endüstriyel şema. Trafolara tıklandığında Canvas üzerinde çizilen **Anlık Fazör & Güç Üçgeni**.
+* **Kesici Kontrolü (Toggle Breaker):** SCADA ekranı üzerinden trafoların veya hatların enerjisi kesilip verilebilir (SCADA Toggle Breaker Endpoint).
+* **Alarm Yönetimi (Ack Alarm):** Limit aşımlarında üretilen SCADA alarmları operatör tarafından onaylanabilir (SCADA Ack Alarm Endpoint).
 
 ### 4. 📈 Saatlik Ay Sonu Tahminci & Yapay Zeka (XGBoost + SHAP)
 Python Backend'de çalışan 8 farklı tahmin algoritması:

@@ -755,6 +755,33 @@ def get_cached_forecast(db: Session, transformer_id: str, year: int, month: int,
         return result
 
     # FALLBACK: Veritabanında hazır yoksa On-the-fly (anlık) hesapla
+    # BATCH PREDICTION FETCH FALLBACK: Eğer ensemble yoksa ama xgboost varsa, hizli olmasi icin xgboost'u dondur!
+    if method == "ensemble":
+        fallback_forecasts = db.query(models.ForecastMeasurement).filter(
+            models.ForecastMeasurement.transformer_id == transformer_id,
+            models.ForecastMeasurement.model_type == "xgboost",
+            models.ForecastMeasurement.timestamp > last_m.timestamp,
+            models.ForecastMeasurement.timestamp <= end_of_month
+        ).order_by(models.ForecastMeasurement.timestamp.asc()).all()
+        
+        if fallback_forecasts and len(fallback_forecasts) >= (steps * 0.9):
+            data = []
+            confidence = fallback_forecasts[0].confidence_score or 80.0
+            for f in fallback_forecasts:
+                data.append({
+                    "transformer_id": f.transformer_id,
+                    "timestamp": f.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                    "active_kwh": f.active_kwh,
+                    "capacitive_kvarh": f.capacitive_kvarh,
+                    "inductive_kvarh": f.inductive_kvarh,
+                    "is_forecast": True,
+                    "kap_reason": f.kap_reason,
+                    "end_reason": f.end_reason
+                })
+            result = {"predictions": data, "confidence_score": confidence}
+            FORECAST_CACHE[cache_key] = (now, result)
+            return result
+
     confidence = 0
     if method == "xgboost":
         data, confidence = forecast_xgboost(db, transformer_id, steps)

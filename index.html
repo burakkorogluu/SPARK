@@ -184,17 +184,17 @@
                     </form>
                 </div>
 
-                <!-- CSV Yükleme -->
+                <!-- CSV / Excel Yükleme -->
                 <div class="card">
                     <div class="card-header">
-                        <h3>CSV Dosyası Yükleme</h3>
+                        <h3>Excel / CSV Dosyası Yükleme</h3>
                     </div>
                     <div class="csv-upload-area" id="csv-upload-area">
                         <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                        <p>CSV dosyanızı sürükleyip bırakın veya</p>
-                        <input type="file" id="csv-file-input" accept=".csv" hidden>
+                        <p>Excel veya CSV dosyanızı sürükleyip bırakın veya</p>
+                        <input type="file" id="csv-file-input" accept=".csv, .xlsx, .xls" hidden>
                         <button class="btn btn-outline" id="btn-csv-sec">Dosya Seçin</button>
-                        <p class="text-muted" style="font-size: 12px;">Format: TrafoID, Tarih, Aktif, Endüktif, Kapasitif</p>
+                        <p class="text-muted" style="font-size: 12px;">Format: Excel için (Tarih, Aktif 1, Reaktif 1...), CSV için (TrafoID, Tarih, Aktif, Endüktif, Kapasitif)</p>
                     </div>
                 </div>
 
@@ -204,10 +204,29 @@
                         <h3>TEİAŞ OSOS Veri Çekme</h3>
                     </div>
                     <div class="form-group" style="padding: 15px;">
-                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
-                            <input type="date" id="osos-date-start" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px;" title="Başlangıç">
+                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+                            <input type="datetime-local" id="osos-date-start" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px; flex: 1;" title="Başlangıç">
                             <span>-</span>
-                            <input type="date" id="osos-date-end" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px;" title="Bitiş">
+                            <input type="datetime-local" id="osos-date-end" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px; flex: 1;" title="Bitiş">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <div class="custom-dropdown" id="osos-trafo-filter-container" style="position: relative; width: 100%;">
+                                <button class="btn btn-sm btn-outline" id="btn-osos-trafo-filter" style="width: 100%; display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                                    <span id="osos-trafo-filter-text">Tüm Trafolar</span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </button>
+                                <div id="osos-trafo-filter-menu" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 5px; max-height: 250px; overflow-y: auto;">
+                                    <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-primary);">
+                                            <input type="checkbox" id="osos-trafo-filter-all" checked>
+                                            Tüm Trafoları Seç
+                                        </label>
+                                    </div>
+                                    <div id="osos-trafo-filter-list" style="display: flex; flex-direction: column; gap: 6px; color: var(--text-secondary);">
+                                        <!-- Checkboxes will be injected here via JS -->
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <button class="btn btn-primary" id="btn-osos-fetch" style="width: 100%;">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -520,6 +539,23 @@
                             Fider — Trafo Bağlantı Haritası
                         </h4>
                         <div style="display: flex; gap: 8px; align-items: center;">
+                            <div class="custom-dropdown" id="trafo-filter-dropdown-container" style="position: relative;">
+                                <button class="btn btn-sm btn-outline" id="btn-trafo-filter" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                                    TM Filtrele
+                                </button>
+                                <div id="trafo-filter-menu" style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-secondary, #1e293b); border: 1px solid var(--border-color, #334155); border-radius: 6px; padding: 10px; width: 220px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 5px; max-height: 300px; overflow-y: auto;">
+                                    <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color, #334155);">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-primary, #f8fafc);">
+                                            <input type="checkbox" id="trafo-filter-all" checked>
+                                            Tüm Merkezleri Göster
+                                        </label>
+                                    </div>
+                                    <div id="trafo-filter-list" style="display: flex; flex-direction: column; gap: 6px; color: var(--text-secondary, #94a3b8);">
+                                        <!-- Checkboxes will be injected here -->
+                                    </div>
+                                </div>
+                            </div>
                             <button class="btn btn-sm btn-outline" id="btn-toggle-edit-mode" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 <span id="txt-edit-mode">Düzenleme Modu</span>
@@ -1338,12 +1374,12 @@
     <script src="js/ui/charts.js?v=7"></script>
     <script src="js/ui/topology.js?v=6"></script>
     <script src="js/ui/dashboard.js?v=1000"></script>
-    <script src="js/ui/data_entry.js?v=6"></script>
+    <script src="js/ui/data_entry.js?v=8"></script>
     <script src="js/ui/detail.js?v=6"></script>
     <script src="js/ui/forecast_ui.js?v=6"></script>
-    <script src="js/ui/maneuver_ui.js?v=8"></script>
+    <script src="js/ui/maneuver_ui.js?v=10"></script>
     <script src="js/ui/alerts.js?v=6"></script>
-    <script src="js/ui/scada_sld_v4.js?v=1001"></script>
+    <script src="js/ui/scada_sld_v4.js?v=1002"></script>
     <script src="js/core/app.js?v=8"></script>
 </body>
 </html>

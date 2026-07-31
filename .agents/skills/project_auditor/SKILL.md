@@ -33,7 +33,15 @@ Bu yetenek (`Skill`), SPARK şebeke takip ve karar destek sisteminde dosyalarda 
 * IIFE modüllerinin (`return { ... }`) dışa aktardığı tüm API'leri doğrula (`VeriModulu`, `HesaplamaModulu`, vb.).
 * Çapraz modül çağrılarını (`ModulAdi.fonksiyon(...)`) denetleyerek eksik, yanlış yazılmış veya silinmiş fonksiyon çağrılarını tespit et.
 
-### 6. Çalıştırma Yöntemleri
+### 6. Sözdizimi (Syntax) ve Bağımlılık (Requirements) Denetimi
+* Projedeki tüm Python dosyalarını (syntax error) ve JSON konfigürasyonlarını sözdizimi açısından denetle.
+* `backend/requirements.txt` dosyasının projenin kullandığı dış kütüphanelerle uyumlu ve güncel olup olmadığını kontrol et.
+
+### 7. README ve Dokümantasyon Doğruluk Kontrolü
+* `README.md` içerisinde klasör yapısı (tree) ve listelenen tüm dosyaların diskte gerçekte mevcut olduğunu teyit et.
+* Sistem genelinde belirtilen mimari bileşenlerin eksiksiz çalıştığını/kod içerisinde tanımlı olduğunu doğrula.
+
+### 8. Çalıştırma Yöntemleri
 1. **Python CLI Denetimi (Önerilen Full-Stack Denetim):**
    Terminal üzerinden yeni denetim aracını çalıştırarak kapsamlı konsol raporu alabilirsiniz:
    ```bash

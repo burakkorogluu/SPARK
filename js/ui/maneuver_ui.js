@@ -582,6 +582,23 @@ const ManeuverUI = (() => {
         lastTime: 0
     };
     let _topologyCanvasBound = false;
+    let _trafoFiltersInitialized = false;
+    let _selectedTrafoFilters = new Set();
+    
+    (function bindTrafoDropdown() {
+        document.addEventListener('click', (e) => {
+            const btn = document.getElementById('btn-trafo-filter');
+            const menu = document.getElementById('trafo-filter-menu');
+            const container = document.getElementById('trafo-filter-dropdown-container');
+            if (!btn || !menu || !container) return;
+            
+            if (btn.contains(e.target)) {
+                menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+            } else if (!container.contains(e.target)) {
+                menu.style.display = 'none';
+            }
+        });
+    })();
 
     function drawManevraTopology(assets) {
         const canvas = document.getElementById('maneuver-topology-canvas');
@@ -621,9 +638,93 @@ const ManeuverUI = (() => {
         trafoObjects.forEach(t => trafoSet.add(t.id));
         
         const trafos = trafoObjects.length > 0 ? trafoObjects : Array.from(trafoSet).map(id => ({ id, name: id }));
-        const allTrafos = [...trafos, ..._pendingAdditions.transformers];
-        const allFeeders = [...(assets.feeders || []), ..._pendingAdditions.feeders];
-        const allReactors = [...(assets.reactors || []), ..._pendingAdditions.reactors];
+        const rawAllTrafos = [...trafos, ..._pendingAdditions.transformers];
+        const rawAllFeeders = [...(assets.feeders || []), ..._pendingAdditions.feeders];
+        const rawAllReactors = [...(assets.reactors || []), ..._pendingAdditions.reactors];
+
+        if (!_trafoFiltersInitialized) {
+            _trafoFiltersInitialized = true;
+            const filterList = document.getElementById('trafo-filter-list');
+            if (filterList) {
+                filterList.innerHTML = '';
+                
+                const tmGroups = new Map();
+                rawAllTrafos.forEach(t => {
+                    let tmName = "Bilinmeyen TM";
+                    if (t.name && t.name.includes(' – ')) {
+                        tmName = t.name.split(' – ')[0];
+                    } else if (t.region) {
+                        tmName = t.region + (t.region.endsWith('TM') ? '' : ' TM');
+                    } else if (t.id && t.id.includes('-')) {
+                        tmName = t.id.split('-')[0] + " TM";
+                    } else {
+                        tmName = t.name || t.id;
+                    }
+                    
+                    if (!tmGroups.has(tmName)) {
+                        tmGroups.set(tmName, []);
+                    }
+                    tmGroups.get(tmName).push(t.id);
+                });
+
+                tmGroups.forEach((trafoIds, tmName) => {
+                    trafoIds.forEach(id => _selectedTrafoFilters.add(id));
+                    
+                    const div = document.createElement('div');
+                    const escapeFn = (typeof App !== 'undefined' && App.escapeHTML) ? App.escapeHTML : (s => s);
+                    const idsJson = escapeFn(JSON.stringify(trafoIds));
+                    div.innerHTML = `<label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                        <input type="checkbox" class="trafo-filter-cb" data-trafos="${idsJson}" checked>
+                        ${escapeFn(tmName)}
+                    </label>`;
+                    filterList.appendChild(div);
+                });
+                
+                document.getElementById('trafo-filter-all')?.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    document.querySelectorAll('.trafo-filter-cb').forEach(cb => cb.checked = isChecked);
+                    if (isChecked) {
+                        rawAllTrafos.forEach(t => _selectedTrafoFilters.add(t.id));
+                    } else {
+                        _selectedTrafoFilters.clear();
+                    }
+                    if (typeof _cachedAssets !== 'undefined') drawManevraTopology(_cachedAssets);
+                });
+                
+                filterList.addEventListener('change', (e) => {
+                    if (e.target.classList.contains('trafo-filter-cb')) {
+                        let trafoIds = [];
+                        try {
+                            const dataAttr = e.target.getAttribute('data-trafos');
+                            // Decode html entities back if needed, but since we used escapeHTML, JSON.parse might fail on &quot;
+                            // Let's decode it safely or just use simple array format in value attribute if possible.
+                            // Actually it's better to just store raw string and unescape.
+                            // To avoid JSON parsing issues, we can just let DOM decode it since it's an attribute.
+                            trafoIds = JSON.parse(dataAttr || '[]');
+                        } catch (err) {
+                            console.error("Filtre parse hatası", err);
+                        }
+                        
+                        if (e.target.checked) {
+                            trafoIds.forEach(id => _selectedTrafoFilters.add(id));
+                        } else {
+                            trafoIds.forEach(id => _selectedTrafoFilters.delete(id));
+                        }
+                        
+                        const allCbs = document.querySelectorAll('.trafo-filter-cb');
+                        const allChecked = Array.from(allCbs).every(cb => cb.checked);
+                        const allCbBtn = document.getElementById('trafo-filter-all');
+                        if (allCbBtn) allCbBtn.checked = allChecked;
+                        
+                        if (typeof _cachedAssets !== 'undefined') drawManevraTopology(_cachedAssets);
+                    }
+                });
+            }
+        }
+
+        const allTrafos = rawAllTrafos.filter(t => _selectedTrafoFilters.has(t.id));
+        const allFeeders = rawAllFeeders.filter(f => _selectedTrafoFilters.has(f.current_transformer_id));
+        const allReactors = rawAllReactors.filter(r => _selectedTrafoFilters.has(r.current_transformer_id));
 
         const reactorY = Math.round(H * 0.18);
         const trafoY   = Math.round(H * 0.50);

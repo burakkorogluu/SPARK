@@ -1,5 +1,5 @@
 # pyrefly: ignore [missing-import]
-from fastapi import FastAPI, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, UploadFile, File
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 # pyrefly: ignore [missing-import]
@@ -11,7 +11,8 @@ import schemas
 from database import engine, SessionLocal
 from typing import List, Literal, Optional
 from ws_handler import ws_manager
-
+import pandas as pd
+import io
 FORECAST_METHODS = Literal["xgboost", "randomForest", "regression", "holtWinters", "ortalama", "persistence", "gecenAy", "ensemble"]
 from datetime import datetime, date
 import simulator
@@ -42,22 +43,33 @@ import asyncio
 
 scheduler = BackgroundScheduler()
 
+simulator_ready_event = asyncio.Event()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize DB & Seed Data
     import init_db
     init_db.seed_transformers()
     
-    # Generate 10 days of historical data if it doesn't exist
-    db = SessionLocal()
-    count = db.query(models.Measurement).count()
-    if count == 0:
-        print("Generating historical data for the first time...")
-        simulator.generate_historical_data(days=10)
-    db.close()
+    loop = asyncio.get_running_loop()
+    
+    def startup_data_generation():
+        db = SessionLocal()
+        try:
+            count = db.query(models.Measurement).count()
+            if count == 0:
+                print("Generating historical data for the first time...")
+                simulator.generate_historical_data(days=10)
+        finally:
+            db.close()
+        # Catch up any missing hours between last run and now
+        simulator.generate_hourly_data()
+            
+        loop.call_soon_threadsafe(simulator_ready_event.set)
 
-    # Catch up any missing hours between last run and now
-    simulator.generate_hourly_data()
+        
+    import threading
+    threading.Thread(target=startup_data_generation, daemon=True).start()
 
     # Schedule the simulator to run every hour at minute 1
     scheduler.add_job(simulator.generate_hourly_data, 'cron', minute=1)
@@ -105,6 +117,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="SPARK TEIAS OSOS API", lifespan=lifespan)
 
+from fastapi import Request
+
+@app.middleware("http")
+async def wait_for_simulator(request: Request, call_next):
+    # Eğer websocket isteği ise engelleme (SCADA telemetrisi vs. için)
+    if request.url.path == "/ws" or request.url.path.startswith("/docs") or request.url.path.startswith("/openapi"):
+        return await call_next(request)
+        
+    await simulator_ready_event.wait()
+    response = await call_next(request)
+    return response
+
+
 # CORS: .env'den oku, varsayılan olarak geliştirme adreslerine izin ver
 _cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:8080,http://localhost:8000,http://127.0.0.1:8080,http://127.0.0.1:8000")
 cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
@@ -129,11 +154,17 @@ def fetch_osos_measurements(
     db: Session = Depends(get_db)
 ):
     try:
-        start = datetime.strptime(start_date, "%Y-%m-%d")
-        # End of the day
-        end = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+        if "T" in start_date:
+            start = datetime.strptime(start_date, "%Y-%m-%dT%H:%M")
+        else:
+            start = datetime.strptime(start_date, "%Y-%m-%d")
+            
+        if "T" in end_date:
+            end = datetime.strptime(end_date, "%Y-%m-%dT%H:%M")
+        else:
+            end = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD or YYYY-MM-DDTHH:MM")
 
     SIM_NOW = datetime.now()
     actual_end = min(end, SIM_NOW)
@@ -143,7 +174,8 @@ def fetch_osos_measurements(
         models.Measurement.timestamp <= actual_end
     )
     if transformer_id:
-        query = query.filter(models.Measurement.transformer_id == transformer_id)
+        t_ids = [t.strip() for t in transformer_id.split(',')]
+        query = query.filter(models.Measurement.transformer_id.in_(t_ids))
         
     measurements = query.order_by(models.Measurement.timestamp.asc()).all()
     return measurements
@@ -218,6 +250,109 @@ def delete_osos_measurement(
 
     invalidate_caches_for_transformer(transformer_id)
     return {"status": "success", "message": f"{deleted_count} record(s) deleted."}
+
+@app.post("/api/upload-excel")
+async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Invalid file type. Only Excel files are accepted.")
+    
+    try:
+        contents = await file.read()
+        df = pd.read_excel(io.BytesIO(contents))
+        
+        # Check if first column exists
+        if df.empty or len(df.columns) < 2:
+            raise HTTPException(status_code=400, detail="Excel file is empty or invalid format.")
+            
+        measurements = []
+        new_transformers = []
+        
+        # Sütunları 1. sütundan itibaren ikişer ikişer işle (Aktif, Reaktif)
+        # 0. sütun Tarih sütunu
+        for i in range(1, len(df.columns), 2):
+            if i + 1 >= len(df.columns):
+                break # Reaktif eşi yoksa atla
+                
+            col_p = df.columns[i]
+            col_q = df.columns[i+1]
+            
+            # Başlıktan trafo adını çıkar (örn: "UMR-TRA Aktif" -> "UMR-TRA")
+            # En basit yöntemle, son boşluktan önceki kısmı isim olarak alabiliriz veya "(P)", "(Q)" yi temizleyebiliriz.
+            # "ÜMRANİYE TRA (P)" veya "ÜMRANİYE TRA Aktif" gibi olabilir.
+            trafo_name = str(col_p).replace(' (P)', '').replace(' Aktif', '').replace(' (Q)', '').replace(' Reaktif', '').strip()
+            
+            # Trafo veritabanında var mı kontrol et
+            trafo = db.query(models.Transformer).filter(models.Transformer.name == trafo_name).first()
+            if not trafo:
+                # Trafo ID'sini oluştur (boşlukları tire yap)
+                trafo_id = trafo_name.replace(' ', '-').upper()
+                trafo = models.Transformer(
+                    id=trafo_id,
+                    name=trafo_name,
+                    region="Bilinmiyor",
+                    power_mva=100
+                )
+                db.add(trafo)
+                db.commit()
+                db.refresh(trafo)
+                new_transformers.append(trafo_name)
+            else:
+                trafo_id = trafo.id
+                
+            for idx, row in df.iterrows():
+                ts = row.iloc[0]
+                if pd.isna(ts):
+                    continue
+                    
+                if isinstance(ts, str):
+                    try:
+                        ts = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+                    except ValueError:
+                        # try to parse just date or let pandas handle it
+                        ts = pd.to_datetime(ts).to_pydatetime()
+                elif isinstance(ts, pd.Timestamp):
+                    ts = ts.to_pydatetime()
+                    
+                p_val = row.iloc[i]
+                q_val = row.iloc[i+1]
+                
+                if pd.isna(p_val): p_val = 0
+                if pd.isna(q_val): q_val = 0
+                
+                active = max(0, int(p_val))
+                # Negatif reaktif = kapasitif, pozitif reaktif = endüktif
+                inductive = int(q_val) if q_val > 0 else 0
+                capacitive = int(abs(q_val)) if q_val < 0 else 0
+                
+                measurements.append(models.Measurement(
+                    transformer_id=trafo_id,
+                    timestamp=ts,
+                    active_kwh=active,
+                    inductive_kvarh=inductive,
+                    capacitive_kvarh=capacitive
+                ))
+                
+        # Batch insert
+        if measurements:
+            batch_size = 5000
+            for i in range(0, len(measurements), batch_size):
+                db.add_all(measurements[i:i+batch_size])
+            db.commit()
+            
+        # Cache'leri temizle
+        unique_trafos = list(set([m.transformer_id for m in measurements]))
+        for t_id in unique_trafos:
+            invalidate_caches_for_transformer(t_id)
+            
+        return {
+            "status": "success",
+            "message": f"Successfully imported {len(measurements)} records.",
+            "new_transformers": new_transformers
+        }
+    except Exception as e:
+        logger.error(f"Error importing excel: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {str(e)}")
+
 
 @app.get("/api/analysis/summary")
 def get_analysis_summary(
