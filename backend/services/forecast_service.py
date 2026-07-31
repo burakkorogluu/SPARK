@@ -869,13 +869,13 @@ def apply_topology_scaling_to_forecast(db, transformer_id, method, steps):
             if not mapping:
                 continue
                 
-            orig_t_id = mapping["trafo"]
+            orig_t_id = str(mapping["trafo"])
             orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1.0)
             
             raw_f = get_raw_forecast(orig_t_id)
             if i < len(raw_f["preds"]):
                 p = raw_f["preds"][i]
-                share = mapping["weight"] / orig_weight if orig_weight > 0 else 0
+                share = float(mapping["weight"]) / orig_weight if orig_weight > 0 else 0
                 total_active += p["active_kwh"] * share
                 total_inductive += p["inductive_kvarh"] * share
                 total_capacitive += p["capacitive_kvarh"] * share

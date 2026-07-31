@@ -101,7 +101,7 @@ def generate_measurement_values(db: Session, trafo: models.Transformer, target_t
         if not mapping:
             continue
             
-        orig_t_id = mapping["trafo"]
+        orig_t_id = str(mapping["trafo"])
         orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1.0)
         
         b_act, b_ind, b_cap = get_trafo_baseline(orig_t_id)

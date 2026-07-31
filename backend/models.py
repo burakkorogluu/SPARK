@@ -4,6 +4,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
+from typing import Any
 
 class Transformer(Base):
     __tablename__ = "transformers"
@@ -87,8 +88,8 @@ class ManeuverLog(Base):
     target_trafo_name = Column(String)
     reason = Column(String, nullable=True)              # Manevra gerekçesi
     impact_level = Column(String, default="Orta")       # "Yüksek" | "Orta" | "Düşük"
-    status = Column(String, default="applied")           # "applied" | "rolled_back"
-    rolled_back_at = Column(DateTime, nullable=True)
+    status: Any = Column(String, default="applied")           # "applied" | "rolled_back"
+    rolled_back_at: Any = Column(DateTime, nullable=True)
 
     source_transformer = relationship("Transformer", foreign_keys=[source_trafo_id])
     target_transformer = relationship("Transformer", foreign_keys=[target_trafo_id])

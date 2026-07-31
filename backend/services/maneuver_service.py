@@ -402,9 +402,13 @@ def analyze_and_suggest_maneuvers(db: Session):
     # Fallback: if no suggestions, generate a preventive one
     if not suggestions:
         first_trafo = transformers[0] if transformers else None
-        second_trafo = transformers[1] if len(transformers) > 1 else first_trafo
+        second_trafo = transformers[1] if len(transformers) > 1 and transformers[1] is not None else first_trafo
         if first_trafo and first_trafo.feeders:
             f = first_trafo.feeders[0]
+            
+            target_id = f.alternative_transformer_id or (second_trafo.id if second_trafo else None)
+            target_name = f.alternative_transformer.name if f.alternative_transformer else (second_trafo.name if second_trafo else "Bilinmeyen Trafo")
+
             suggestions.append({
                 "id": "MAN-001",
                 "title": f"Önleyici Yük Dengeleme: {f.name}",
@@ -413,8 +417,8 @@ def analyze_and_suggest_maneuvers(db: Session):
                 "score": 15,
                 "source_trafo_id": first_trafo.id,
                 "source_trafo_name": first_trafo.name,
-                "target_trafo_id": f.alternative_transformer_id or second_trafo.id,
-                "target_trafo_name": f.alternative_transformer.name if f.alternative_transformer else second_trafo.name,
+                "target_trafo_id": target_id,
+                "target_trafo_name": target_name,
                 "target_asset": f.name,
                 "description": (
                     f"Peak saatler öncesinde şebeke dengesini korumak için "
@@ -603,7 +607,7 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     }
 
 
-def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id: str, reason: str = None, override_overload: bool = False):
+def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id: str, reason: str | None = None, override_overload: bool = False):
     """
     Apply a maneuver and log it in ManeuverLog.
     Enforces edge-case protections (no-op, topology, overload confirmation).
@@ -637,8 +641,8 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
                 raise ValueError(f"Aşırı Yük Uyarısı: Bu manevra hedef trafoda ({target_trafo_id}) %{target_ratio_after:.1f} aşırı yük oluşturur. İlerlemeniz için 'Aşırı Yük Riskini Kabul Ediyorum' seçeneğini işaretlemelisiniz.")
 
         old_trafo = db.query(models.Transformer).filter(models.Transformer.id == old_trafo_id).first()
-        asset.alternative_transformer_id = old_trafo_id
-        asset.current_transformer_id = target_trafo_id
+        asset.alternative_transformer_id = old_trafo_id  # type: ignore
+        asset.current_transformer_id = target_trafo_id  # type: ignore
 
         impact = "Kritik (Aşırı Yüklü)" if target_stats and target_stats.get("power_kw", 0) > 0 and (target_stats["total_feeder_load"] + asset.simulated_load_kw) / target_stats["power_kw"] > 1 else "Orta"
 
@@ -673,8 +677,8 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         old_trafo_id = asset.current_transformer_id
         
         if old_trafo_id == target_trafo_id:
-            if asset.status == "inactive":
-                asset.status = "active"
+            if str(asset.status) == "inactive":
+                asset.status = "active"  # type: ignore
             else:
                 raise ValueError(f"Reaktör zaten '{target_trafo_id}' trafosuna bağlı ve aktif durumda.")
             
@@ -687,8 +691,8 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
             return None
 
         if old_trafo_id != target_trafo_id:
-            asset.alternative_transformer_id = old_trafo_id
-            asset.current_transformer_id = target_trafo_id
+            asset.alternative_transformer_id = old_trafo_id  # type: ignore
+            asset.current_transformer_id = target_trafo_id  # type: ignore
 
         log = models.ManeuverLog(
             action_type="reactor_transfer",
@@ -742,8 +746,8 @@ def rollback_maneuver(db: Session, log_id: int):
             asset.current_transformer_id = log.source_trafo_id
             asset.alternative_transformer_id = log.target_trafo_id
 
-    log.status = "rolled_back"
-    log.rolled_back_at = datetime.now()
+    log.status = "rolled_back"  # type: ignore
+    log.rolled_back_at = datetime.now()  # type: ignore
     db.commit()
     db.refresh(log)
     
