@@ -50,6 +50,10 @@ CACHE_TTL = int(os.getenv("FORECAST_CACHE_TTL", "3600"))  # Ortam değişkeninde
 TRAINED_MODELS_CACHE = {}
 MODEL_CACHE_TTL = int(os.getenv("MODEL_CACHE_TTL", "86400"))  # 24 saat
 
+def clear_caches():
+    FORECAST_CACHE.clear()
+    TRAINED_MODELS_CACHE.clear()
+
 import concurrent.futures
 
 def _fit_models_parallel(m_a, m_k, m_e, X_a, y_a, X_k, y_k, X_e, y_e):
@@ -830,26 +834,123 @@ def _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, transformer_id):
     confidence = round((xgb_conf + rf_conf) / 2, 1) if xgb_conf and rf_conf else (xgb_conf or rf_conf or 90.0)
     return data, confidence
 
-def _run_forecast_algorithm(db, transformer_id, method, steps):
-    if method == "xgboost": return forecast_xgboost(db, transformer_id, steps)
-    elif method == "randomForest": return forecast_random_forest(db, transformer_id, steps)
-    elif method == "regression": return forecast_regression(db, transformer_id, steps)
-    elif method == "holtWinters": return forecast_holt_winters(db, transformer_id, steps)
-    elif method == "ortalama": return forecast_ortalama(db, transformer_id, steps)
-    elif method == "persistence": return forecast_persistence(db, transformer_id, steps)
-    elif method == "gecenAy": return forecast_gecen_ay(db, transformer_id, steps)
+def apply_topology_scaling_to_forecast(db, transformer_id, method, steps):
+    from simulator import ORIGINAL_FEEDER_MAPPING, ORIGINAL_TRAFO_WEIGHTS, ORIGINAL_REACTOR_COMPENSATION
+    
+    current_feeders = db.query(models.Feeder).filter(models.Feeder.current_transformer_id == transformer_id).all()
+    
+    # Needs raw forecasts for all original transformers that have a feeder here
+    raw_forecasts = {}
+    
+    def get_raw_forecast(t_id):
+        if t_id not in raw_forecasts:
+            preds, conf = _run_raw_forecast_algorithm(db, t_id, method, steps)
+            raw_forecasts[t_id] = {"preds": preds, "conf": conf}
+        return raw_forecasts[t_id]
+
+    # Initialize empty scaled predictions array
+    scaled_preds = []
+    # Use the first fetched raw forecast to get timestamps
+    # If no feeders, we still need timestamps, so fetch for the current transformer itself just for timestamps
+    base_raw = get_raw_forecast(transformer_id)
+    if not base_raw["preds"]:
+        return [], 0
+        
+    for i in range(len(base_raw["preds"])):
+        timestamp = base_raw["preds"][i]["timestamp"]
+        total_active = 0.0
+        total_inductive = 0.0
+        total_capacitive = 0.0
+        kap_reason = None
+        end_reason = None
+        
+        for feeder in current_feeders:
+            mapping = ORIGINAL_FEEDER_MAPPING.get(feeder.id)
+            if not mapping:
+                continue
+                
+            orig_t_id = mapping["trafo"]
+            orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1.0)
+            
+            raw_f = get_raw_forecast(orig_t_id)
+            if i < len(raw_f["preds"]):
+                p = raw_f["preds"][i]
+                share = mapping["weight"] / orig_weight if orig_weight > 0 else 0
+                total_active += p["active_kwh"] * share
+                total_inductive += p["inductive_kvarh"] * share
+                total_capacitive += p["capacitive_kvarh"] * share
+                
+                # Carry over reasons if any
+                if p.get("kap_reason"): kap_reason = p["kap_reason"]
+                if p.get("end_reason"): end_reason = p["end_reason"]
+                
+        active = int(total_active)
+        inductive = int(total_inductive)
+        capacitive = int(total_capacitive)
+        
+        # Apply reactor compensation delta
+        current_reactors = db.query(models.Reactor).filter(
+            models.Reactor.current_transformer_id == transformer_id,
+            models.Reactor.status == "active"
+        ).all()
+        current_reactor_comp = sum(r.capacity_kvar for r in current_reactors)
+        original_reactor_comp = ORIGINAL_REACTOR_COMPENSATION.get(transformer_id, 0.0)
+        reactor_delta = current_reactor_comp - original_reactor_comp
+        
+        if reactor_delta > 0:
+            cap_reduction = min(capacitive, int(reactor_delta))
+            capacitive -= cap_reduction
+            inductive += (int(reactor_delta) - cap_reduction)
+        elif reactor_delta < 0:
+            lost_comp = int(abs(reactor_delta))
+            ind_reduction = min(inductive, lost_comp)
+            inductive -= ind_reduction
+            capacitive += (lost_comp - ind_reduction)
+            
+        scaled_preds.append({
+            "transformer_id": transformer_id,
+            "timestamp": timestamp,
+            "active_kwh": active,
+            "capacitive_kvarh": capacitive,
+            "inductive_kvarh": inductive,
+            "kap_reason": kap_reason,
+            "end_reason": end_reason,
+            "is_forecast": True
+        })
+        
+    return scaled_preds, base_raw["conf"]
+
+
+def _run_raw_forecast_algorithm(db, transformer_id, method, steps):
+    if method == "xgboost": preds, conf = forecast_xgboost(db, transformer_id, steps)
+    elif method == "randomForest": preds, conf = forecast_random_forest(db, transformer_id, steps)
+    elif method == "regression": preds, conf = forecast_regression(db, transformer_id, steps)
+    elif method == "holtWinters": preds, conf = forecast_holt_winters(db, transformer_id, steps)
+    elif method == "ortalama": preds, conf = forecast_ortalama(db, transformer_id, steps)
+    elif method == "persistence": preds, conf = forecast_persistence(db, transformer_id, steps)
+    elif method == "gecenAy": preds, conf = forecast_gecen_ay(db, transformer_id, steps)
     else:
         xgb_preds, xgb_conf = forecast_xgboost(db, transformer_id, steps)
         rf_preds, rf_conf = forecast_random_forest(db, transformer_id, steps)
-        return _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, transformer_id)
+        preds, conf = _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, transformer_id)
+        
+    return preds, conf
 
 
-def run_weekly_batch_forecast():
+def _run_forecast_algorithm(db, transformer_id, method, steps):
+    return apply_topology_scaling_to_forecast(db, transformer_id, method, steps)
+
+
+def run_weekly_batch_forecast(transformer_ids=None):
     """Asenkron arka plan görevi: 30 günlük tüm model tahminlerini üretip veritabanına kaydeder."""
     from database import SessionLocal
     db = SessionLocal()
     try:
-        transformers = db.query(models.Transformer).all()
+        if transformer_ids:
+            transformers = db.query(models.Transformer).filter(models.Transformer.id.in_(transformer_ids)).all()
+        else:
+            transformers = db.query(models.Transformer).all()
+            
         methods = ["ensemble", "xgboost", "randomForest", "regression", "holtWinters", "ortalama", "persistence", "gecenAy"]
         steps = 720 # 30 gün
         

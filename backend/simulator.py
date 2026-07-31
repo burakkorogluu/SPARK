@@ -29,42 +29,114 @@ def get_historical_baseline(db: Session, transformer_id: str, target_time: datet
         
     return None
 
+ORIGINAL_FEEDER_MAPPING = {
+    "FDR-UMR-1": {"trafo": "UMR-TRA", "weight": 1200.0},
+    "FDR-UMR-2": {"trafo": "UMR-TRA", "weight": 850.0},
+    "FDR-UMR-3": {"trafo": "UMR-TRB", "weight": 400.0},
+    "FDR-KRT-1": {"trafo": "KRT-TRA", "weight": 950.0},
+    "FDR-KRT-2": {"trafo": "KRT-TRB", "weight": 300.0},
+}
+
+ORIGINAL_TRAFO_WEIGHTS = {
+    "UMR-TRA": 2050.0,
+    "UMR-TRB": 400.0,
+    "KRT-TRA": 950.0,
+    "KRT-TRB": 300.0
+}
+
+ORIGINAL_REACTOR_COMPENSATION = {
+    "UMR-TRA": 500.0,
+    "UMR-TRB": 0.0,
+    "KRT-TRA": 0.0,
+    "KRT-TRB": 350.0
+}
+
 def generate_measurement_values(db: Session, trafo: models.Transformer, target_time: datetime) -> Tuple[int, int, int]:
     """
     Generates measurement values (active_kwh, inductive_kvarh, capacitive_kvarh)
     using historical 2025 baseline data if available, or falls back to random logic.
+    Applies real-time scaling based on current topology (maneuvers).
     """
-    baseline = get_historical_baseline(db, str(trafo.id), target_time)
-    if baseline:
-        b_active, b_inductive, b_capacitive = baseline
-        noise = random.uniform(0.97, 1.03)  # ±3% natural variation noise
-        active = int(b_active * noise)
-        inductive = int(b_inductive * noise)
-        capacitive = int(b_capacitive * noise)
-    else:
-        # Fallback to random mathematical generation if no historical baseline exists
-        power_mva = cast(float, trafo.power_mva)
-        base_active = (power_mva / 100) * random.randint(20000, 50000)
-        hour = target_time.hour
-        if 0 <= hour < 7:
-            multiplier = random.uniform(0.4, 0.6)
-        elif 7 <= hour < 18:
-            multiplier = random.uniform(0.9, 1.2)
+    current_feeders = db.query(models.Feeder).filter(models.Feeder.current_transformer_id == trafo.id).all()
+    
+    total_active = 0.0
+    total_inductive = 0.0
+    total_capacitive = 0.0
+    
+    baseline_cache = {}
+    
+    def get_trafo_baseline(t_id):
+        if t_id in baseline_cache:
+            return baseline_cache[t_id]
+            
+        baseline = get_historical_baseline(db, t_id, target_time)
+        if baseline:
+            b_active, b_inductive, b_capacitive = baseline
+            noise = random.uniform(0.97, 1.03)  # ±3% natural variation noise
+            res = (b_active * noise, b_inductive * noise, b_capacitive * noise)
         else:
-            multiplier = random.uniform(0.7, 0.9)
+            orig_trafo = db.query(models.Transformer).filter(models.Transformer.id == t_id).first()
+            power_mva = float(orig_trafo.power_mva) if orig_trafo else 100.0
+            base_active = (power_mva / 100) * random.randint(20000, 50000)
+            hour = target_time.hour
+            if 0 <= hour < 7: multiplier = random.uniform(0.4, 0.6)
+            elif 7 <= hour < 18: multiplier = random.uniform(0.9, 1.2)
+            else: multiplier = random.uniform(0.7, 0.9)
+            
+            active = base_active * multiplier
+            if t_id == "UMR-TRB":
+                capacitive = active * random.uniform(0.12, 0.18)
+                inductive = active * random.uniform(0.02, 0.08)
+            else:
+                inductive = active * random.uniform(0.10, 0.15)
+                capacitive = active * random.uniform(0.02, 0.06)
+            res = (active, inductive, capacitive)
+            
+        baseline_cache[t_id] = res
+        return res
 
-        active = int(base_active * multiplier)
-        # Real transformers have both inductive and capacitive energy simultaneously
-        if trafo.id == "UMR-TRB":
-            # UMR-TRB is known to be highly capacitive in this scenario
-            capacitive = int(active * random.uniform(0.12, 0.18))
-            inductive = int(active * random.uniform(0.02, 0.08))
-        else:
-            # Others are typically more inductive
-            inductive = int(active * random.uniform(0.10, 0.15))
-            capacitive = int(active * random.uniform(0.02, 0.06))
+    # Aggregate physical loads from all currently connected feeders
+    for feeder in current_feeders:
+        mapping = ORIGINAL_FEEDER_MAPPING.get(feeder.id)
+        if not mapping:
+            continue
+            
+        orig_t_id = mapping["trafo"]
+        orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1.0)
+        
+        b_act, b_ind, b_cap = get_trafo_baseline(orig_t_id)
+        
+        share = mapping["weight"] / orig_weight if orig_weight > 0 else 0
+        total_active += b_act * share
+        total_inductive += b_ind * share
+        total_capacitive += b_cap * share
 
-    return active, inductive, capacitive
+    active = int(total_active)
+    inductive = int(total_inductive)
+    capacitive = int(total_capacitive)
+
+    # Get current active reactor compensation
+    current_reactors = db.query(models.Reactor).filter(
+        models.Reactor.current_transformer_id == trafo.id,
+        models.Reactor.status == "active"
+    ).all()
+    current_reactor_comp = sum(r.capacity_kvar for r in current_reactors)
+    original_reactor_comp = ORIGINAL_REACTOR_COMPENSATION.get(trafo.id, 0.0)
+    
+    reactor_delta = current_reactor_comp - original_reactor_comp
+    
+    # Apply reactor compensation delta
+    if reactor_delta > 0:
+        cap_reduction = min(capacitive, int(reactor_delta))
+        capacitive -= cap_reduction
+        inductive += (int(reactor_delta) - cap_reduction)
+    elif reactor_delta < 0:
+        lost_comp = int(abs(reactor_delta))
+        ind_reduction = min(inductive, lost_comp)
+        inductive -= ind_reduction
+        capacitive += (lost_comp - ind_reduction)
+
+    return int(active), int(inductive), int(capacitive)
 
 def generate_hourly_data():
     """

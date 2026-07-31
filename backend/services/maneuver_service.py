@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 import models
 from datetime import datetime, timedelta
 import logging
-from services.forecast_service import get_cached_forecast
+from services.forecast_service import get_cached_forecast, clear_caches, run_weekly_batch_forecast
 from services.analysis_service import get_monthly_summary
 
 logger = logging.getLogger("spark.maneuver")
@@ -28,7 +28,10 @@ def _get_trafo_stats(db: Session):
 
         total_feeder_load = sum(f.simulated_load_kw for f in trafo.feeders)
         power_kw = trafo.power_mva * 1000  # Convert MVA to approximate kW
-        load_ratio = (total_feeder_load / power_kw * 100) if power_kw > 0 else 0
+        
+        hours_so_far = len(recent_measurements) or 1
+        avg_active = active_sum / hours_so_far
+        load_ratio = (avg_active / power_kw * 100) if power_kw > 0 else 0
 
         ind_ratio = (ind_sum / active_sum * 100) if active_sum > 0 else 0
         cap_ratio = (cap_sum / active_sum * 100) if active_sum > 0 else 0
@@ -195,11 +198,12 @@ def analyze_and_suggest_maneuvers(db: Session):
                     load_diff = stats["load_ratio"] - alt_stats["load_ratio"]
 
                     if load_diff > 15:
-                        new_source_load = stats["total_feeder_load"] - feeder.simulated_load_kw
-                        new_target_load = alt_stats["total_feeder_load"] + feeder.simulated_load_kw
-
-                        new_source_ratio = (new_source_load / stats["power_kw"] * 100) if stats["power_kw"] > 0 else 0
-                        new_target_ratio = (new_target_load / alt_stats["power_kw"] * 100) if alt_stats["power_kw"] > 0 else 0
+                        # Calculate physical kW load of the feeder based on its weight
+                        feeder_kw = (feeder.simulated_load_kw / stats["total_feeder_load"] * stats["avg_active"]) if stats["total_feeder_load"] > 0 else 0
+                        
+                        # New ratios based on physical kW transfer
+                        new_source_ratio = ((stats["avg_active"] - feeder_kw) / stats["power_kw"] * 100) if stats["power_kw"] > 0 else 0
+                        new_target_ratio = ((alt_stats["avg_active"] + feeder_kw) / alt_stats["power_kw"] * 100) if alt_stats["power_kw"] > 0 else 0
 
                         score = _calculate_suggestion_score(stats, alt_stats, load_diff, is_reactive=False)
 
@@ -483,9 +487,15 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
         target_load_after = target_load_before
 
     source_ratio_before = source_stats["load_ratio"]
-    source_ratio_after = (source_load_after / source_stats["power_kw"] * 100) if source_stats["power_kw"] > 0 else 0
     target_ratio_before = target_stats["load_ratio"]
-    target_ratio_after = (target_load_after / target_stats["power_kw"] * 100) if target_stats["power_kw"] > 0 else 0
+    
+    if asset_type == "feeder":
+        feeder_kw = (asset_load / source_load_before * source_stats["active_sum"]) if source_load_before > 0 else 0
+        source_ratio_after = ((source_stats["active_sum"] - feeder_kw) / source_stats["power_kw"] * 100) if source_stats["power_kw"] > 0 else 0
+        target_ratio_after = ((target_stats["active_sum"] + feeder_kw) / target_stats["power_kw"] * 100) if target_stats["power_kw"] > 0 else 0
+    else:
+        source_ratio_after = source_ratio_before
+        target_ratio_after = target_ratio_before
 
     import calendar
     now = datetime.now()
@@ -521,15 +531,18 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     target_cap_ratio_after = target_cap_ratio_before
 
     if asset_type == "feeder":
-        future_feeder_active = asset_load * future_hours
-        future_feeder_cap = future_feeder_active * 0.04
+        # Calculate the absolute physical EOM load of this feeder
+        # based on its weight relative to the source transformer's total weight
+        feeder_ratio = (asset_load / source_load_before) if source_load_before > 0 else 0
+        feeder_physical_eom_active = src_eom_active_before * feeder_ratio
+        feeder_physical_eom_cap = src_eom_cap_before * feeder_ratio
         
-        src_eom_active_after = max(1, src_eom_active_before - future_feeder_active)
-        src_eom_cap_after = max(0, src_eom_cap_before - future_feeder_cap)
+        src_eom_active_after = max(1, src_eom_active_before - feeder_physical_eom_active)
+        src_eom_cap_after = max(0, src_eom_cap_before - feeder_physical_eom_cap)
         source_cap_ratio_after = (src_eom_cap_after / src_eom_active_after) * 100 if src_eom_active_after > 0 else 0
         
-        tgt_eom_active_after = tgt_eom_active_before + future_feeder_active
-        tgt_eom_cap_after = tgt_eom_cap_before + future_feeder_cap
+        tgt_eom_active_after = tgt_eom_active_before + feeder_physical_eom_active
+        tgt_eom_cap_after = tgt_eom_cap_before + feeder_physical_eom_cap
         target_cap_ratio_after = (tgt_eom_cap_after / tgt_eom_active_after) * 100 if tgt_eom_active_after > 0 else 0
 
     elif asset_type == "reactor":
@@ -645,6 +658,12 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         db.add(log)
         db.commit()
         db.refresh(log)
+        
+        # Trigger forecast updates
+        clear_caches()
+        import threading
+        threading.Thread(target=run_weekly_batch_forecast, args=([old_trafo_id, target_trafo_id],)).start()
+        
         return log
 
     elif asset_type == "reactor":
@@ -672,7 +691,7 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
             asset.current_transformer_id = target_trafo_id
 
         log = models.ManeuverLog(
-            action_type="reactor_switch",
+            action_type="reactor_transfer",
             asset_type="reactor",
             asset_id=asset_id,
             asset_name=asset.name,
@@ -687,6 +706,12 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         db.add(log)
         db.commit()
         db.refresh(log)
+        
+        # Trigger forecast updates
+        clear_caches()
+        import threading
+        threading.Thread(target=run_weekly_batch_forecast, args=([old_trafo_id, target_trafo_id],)).start()
+        
         return log
 
     return None
@@ -721,6 +746,12 @@ def rollback_maneuver(db: Session, log_id: int):
     log.rolled_back_at = datetime.now()
     db.commit()
     db.refresh(log)
+    
+    # Trigger forecast updates
+    clear_caches()
+    import threading
+    threading.Thread(target=run_weekly_batch_forecast, args=([log.source_trafo_id, log.target_trafo_id],)).start()
+    
     return log
 
 

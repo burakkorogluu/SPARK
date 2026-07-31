@@ -279,7 +279,7 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
             # Başlıktan trafo adını çıkar (örn: "UMR-TRA Aktif" -> "UMR-TRA")
             # En basit yöntemle, son boşluktan önceki kısmı isim olarak alabiliriz veya "(P)", "(Q)" yi temizleyebiliriz.
             # "ÜMRANİYE TRA (P)" veya "ÜMRANİYE TRA Aktif" gibi olabilir.
-            trafo_name = str(col_p).replace(' (P)', '').replace(' Aktif', '').replace(' (Q)', '').replace(' Reaktif', '').strip()
+            trafo_name = col_p.replace(' (P)', '').replace(' Aktif', '').replace(' (Q)', '').replace(' Reaktif', '').strip()
             
             # Trafo veritabanında var mı kontrol et
             trafo = db.query(models.Transformer).filter(models.Transformer.name == trafo_name).first()
