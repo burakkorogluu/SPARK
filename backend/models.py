@@ -30,9 +30,9 @@ class Measurement(Base):
     id = Column(Integer, primary_key=True, index=True)
     transformer_id = Column(String, ForeignKey("transformers.id"))
     timestamp = Column(DateTime, index=True)
-    active_kwh = Column(Integer)
-    inductive_kvarh = Column(Integer)
-    capacitive_kvarh = Column(Integer)
+    active_kwh: Any = Column(Integer)
+    inductive_kvarh: Any = Column(Integer)
+    capacitive_kvarh: Any = Column(Integer)
 
     transformer = relationship("Transformer", back_populates="measurements")
 
