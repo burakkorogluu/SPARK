@@ -174,8 +174,8 @@ def _get_projected_monthly_ratios(db: Session, trafo_id: str):
     total_kap = hist_kap + pred_kap
     total_end = hist_end + pred_end
     
-    proj_kap_ratio = (total_kap / max(1, total_aktif)) * 100
-    proj_end_ratio = (total_end / max(1, total_aktif)) * 100
+    proj_kap_ratio = (total_kap / total_aktif * 100) if total_aktif > 0 else 0.0
+    proj_end_ratio = (total_end / total_aktif * 100) if total_aktif > 0 else 0.0
     
     return proj_kap_ratio, proj_end_ratio
 

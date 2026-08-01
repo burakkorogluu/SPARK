@@ -32,7 +32,7 @@ const HesaplamaModulu = (() => {
 
     // ─── Temel Oran Hesaplama ───
     function oranHesapla(reaktifEnerji, aktifEnerji) {
-        if (!aktifEnerji || aktifEnerji === 0) return 0;
+        if (!aktifEnerji || aktifEnerji <= 0) return 0;
         return (reaktifEnerji / aktifEnerji) * 100;
     }
 
