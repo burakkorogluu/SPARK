@@ -856,6 +856,15 @@ def apply_topology_scaling_to_forecast(db, transformer_id, method, steps):
     if not base_raw["preds"]:
         return [], 0
         
+    # Calculate reactor delta once outside the loop
+    current_reactors = db.query(models.Reactor).filter(
+        models.Reactor.current_transformer_id == transformer_id,
+        models.Reactor.status == "active"
+    ).all()
+    current_reactor_comp = sum(r.capacity_kvar for r in current_reactors)
+    original_reactor_comp = ORIGINAL_REACTOR_COMPENSATION.get(transformer_id, 0.0)
+    reactor_delta = current_reactor_comp - original_reactor_comp
+
     for i in range(len(base_raw["preds"])):
         timestamp = base_raw["preds"][i]["timestamp"]
         total_active = 0.0
@@ -867,15 +876,17 @@ def apply_topology_scaling_to_forecast(db, transformer_id, method, steps):
         for feeder in current_feeders:
             mapping = ORIGINAL_FEEDER_MAPPING.get(feeder.id)
             if not mapping:
-                continue
-                
-            orig_t_id = str(mapping["trafo"])
-            orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1.0)
+                orig_t_id = str(feeder.alternative_transformer_id) if hasattr(feeder, 'alternative_transformer_id') and feeder.alternative_transformer_id else str(feeder.current_transformer_id)
+                orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1000.0)
+                share = 500.0 / orig_weight
+            else:
+                orig_t_id = str(mapping["trafo"])
+                orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1.0)
+                share = float(mapping["weight"]) / orig_weight if orig_weight > 0 else 0
             
             raw_f = get_raw_forecast(orig_t_id)
             if i < len(raw_f["preds"]):
                 p = raw_f["preds"][i]
-                share = float(mapping["weight"]) / orig_weight if orig_weight > 0 else 0
                 total_active += p["active_kwh"] * share
                 total_inductive += p["inductive_kvarh"] * share
                 total_capacitive += p["capacitive_kvarh"] * share
@@ -889,13 +900,6 @@ def apply_topology_scaling_to_forecast(db, transformer_id, method, steps):
         capacitive = int(total_capacitive)
         
         # Apply reactor compensation delta
-        current_reactors = db.query(models.Reactor).filter(
-            models.Reactor.current_transformer_id == transformer_id,
-            models.Reactor.status == "active"
-        ).all()
-        current_reactor_comp = sum(r.capacity_kvar for r in current_reactors)
-        original_reactor_comp = ORIGINAL_REACTOR_COMPENSATION.get(transformer_id, 0.0)
-        reactor_delta = current_reactor_comp - original_reactor_comp
         
         if reactor_delta > 0:
             cap_reduction = min(capacitive, int(reactor_delta))

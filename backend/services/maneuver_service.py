@@ -245,7 +245,7 @@ def analyze_and_suggest_maneuvers(db: Session):
                     suggestions.append({
                         "id": f"MAN-{suggestion_id:03d}",
                         "title": f"Reaktör Devreye Alma: {reactor.name}",
-                        "action_type": "reactor_switch",
+                        "action_type": "reactor_transfer",
                         "impact": "Yüksek",
                         "score": score,
                         "source_trafo_id": trafo.id,
@@ -275,7 +275,7 @@ def analyze_and_suggest_maneuvers(db: Session):
                         suggestions.append({
                             "id": f"MAN-{suggestion_id:03d}",
                             "title": f"Reaktör Bağlantı Değişimi: {reactor.name}",
-                            "action_type": "reactor_switch",
+                            "action_type": "reactor_transfer",
                             "impact": "Orta",
                             "score": score,
                             "source_trafo_id": trafo.id,
@@ -306,7 +306,7 @@ def analyze_and_suggest_maneuvers(db: Session):
                     suggestions.append({
                         "id": f"MAN-{suggestion_id:03d}",
                         "title": f"Gece Kapasitif Risk — Reaktör Önerisi: {reactor.name}",
-                        "action_type": "reactor_switch",
+                        "action_type": "reactor_transfer",
                         "impact": "Yüksek" if stats["offpeak_cap_ratio"] > 15 else "Orta",
                         "score": score,
                         "source_trafo_id": trafo.id,
@@ -342,7 +342,7 @@ def analyze_and_suggest_maneuvers(db: Session):
                     suggestions.append({
                         "id": f"MAN-PRED-{suggestion_id:03d}",
                         "title": f"Proaktif Uyarı (Kapasitif): {reactor.name}",
-                        "action_type": "predictive_reactor_switch",
+                        "action_type": "predictive_reactor_transfer",
                         "impact": "Yüksek" if proj_kap_ratio > 15.0 else "Orta",
                         "score": pred_score,
                         "source_trafo_id": trafo.id,
@@ -374,7 +374,7 @@ def analyze_and_suggest_maneuvers(db: Session):
                     suggestions.append({
                         "id": f"MAN-PRED-{suggestion_id:03d}",
                         "title": f"Proaktif Uyarı (Endüktif): {reactor.name}",
-                        "action_type": "predictive_reactor_switch",
+                        "action_type": "predictive_reactor_transfer",
                         "impact": "Yüksek" if proj_end_ratio > 20.0 else "Orta",
                         "score": pred_score,
                         "source_trafo_id": trafo.id,

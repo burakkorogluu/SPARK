@@ -472,15 +472,20 @@ const GrafikModulu = (() => {
             const tahminKumValues = tahminDaily.map((d) => d.kumulatifKapasitifOran);
 
             // Köprü: son gerçek noktadan tahmin başlangıcına bağlantı
-            const bridgeKumData = new Array(mevcutValues.length - 1).fill(null);
-            bridgeKumData.push(mevcutValues[mevcutValues.length - 1]);
+            const bridgeLength = Math.max(0, mevcutValues.length - 1);
+            const bridgeKumData = new Array(bridgeLength).fill(null);
+            if (mevcutValues.length > 0) {
+                bridgeKumData.push(mevcutValues[mevcutValues.length - 1]);
+            }
             bridgeKumData.push(...tahminKumValues);
 
             allLabels = [...mevcutLabels, ...tahminLabels];
             allValuesForScale.push(...tahminKumValues);
 
-            const bridgeCustomReasons = new Array(mevcutValues.length - 1).fill(null);
-            bridgeCustomReasons.push(null);
+            const bridgeCustomReasons = new Array(bridgeLength).fill(null);
+            if (mevcutValues.length > 0) {
+                bridgeCustomReasons.push(null);
+            }
             bridgeCustomReasons.push(...tahminDaily.map(d => d.kap_reason || null));
 
             datasets.push({

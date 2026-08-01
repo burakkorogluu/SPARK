@@ -1,5 +1,5 @@
 # pyrefly: ignore [missing-import]
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, UniqueConstraint
 # pyrefly: ignore [missing-import]
 from sqlalchemy.orm import relationship
 from database import Base
@@ -23,6 +23,9 @@ class Transformer(Base):
 
 class Measurement(Base):
     __tablename__ = "measurements"
+    __table_args__ = (
+        UniqueConstraint('transformer_id', 'timestamp', name='_trafo_time_uc'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     transformer_id = Column(String, ForeignKey("transformers.id"))
@@ -78,7 +81,7 @@ class ManeuverLog(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp = Column(DateTime, default=datetime.datetime.now, index=True)
-    action_type = Column(String)         # "feeder_transfer" | "reactor_switch"
+    action_type = Column(String)         # "feeder_transfer" | "reactor_transfer"
     asset_type = Column(String)          # "feeder" | "reactor"
     asset_id = Column(String)            # Fider/Reaktör ID
     asset_name = Column(String)          # Fider/Reaktör adı
@@ -111,6 +114,9 @@ class SystemAlert(Base):
 
 class ForecastMeasurement(Base):
     __tablename__ = "forecast_measurements"
+    __table_args__ = (
+        UniqueConstraint('transformer_id', 'timestamp', 'model_type', name='_trafo_time_model_uc'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     transformer_id = Column(String, ForeignKey("transformers.id"))

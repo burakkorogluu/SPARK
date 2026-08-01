@@ -99,14 +99,17 @@ def generate_measurement_values(db: Session, trafo: models.Transformer, target_t
     for feeder in current_feeders:
         mapping = ORIGINAL_FEEDER_MAPPING.get(str(feeder.id))
         if not mapping:
-            continue
+            # Fallback for new feeders
+            orig_t_id = str(feeder.alternative_transformer_id) if hasattr(feeder, 'alternative_transformer_id') and feeder.alternative_transformer_id else str(feeder.current_transformer_id)
+            orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1000.0)
+            share = 500.0 / orig_weight
+        else:
+            orig_t_id = str(mapping["trafo"])
+            orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1.0)
+            share = float(mapping["weight"]) / orig_weight if orig_weight > 0 else 0
             
-        orig_t_id = str(mapping["trafo"])
-        orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1.0)
-        
         b_act, b_ind, b_cap = get_trafo_baseline(orig_t_id)
         
-        share = float(mapping["weight"]) / orig_weight if orig_weight > 0 else 0
         total_active += b_act * share
         total_inductive += b_ind * share
         total_capacitive += b_cap * share

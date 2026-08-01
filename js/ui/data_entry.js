@@ -279,53 +279,45 @@ const DataEntryUI = (() => {
         App.showToast('Excel dosyası yükleniyor ve işleniyor, lütfen bekleyin...', 'info');
         
         try {
-            const response = await fetch('http://localhost:8000/api/upload-excel', {
-                method: 'POST',
-                body: formData
-            });
+            const result = await ApiClient.uploadExcel(formData);
 
-            const result = await response.json();
+            App.showToast(result.message, 'success');
+            if (result.new_transformers && result.new_transformers.length > 0) {
+                App.showToast(`Yeni trafolar eklendi: ${result.new_transformers.join(', ')}`, 'info');
+            }
             
-            if (response.ok) {
-                App.showToast(result.message, 'success');
-                if (result.new_transformers && result.new_transformers.length > 0) {
-                    App.showToast(`Yeni trafolar eklendi: ${result.new_transformers.join(', ')}`, 'info');
+            // Mevcut seçili yıl ve ay için verileri baştan çek
+            if (typeof VeriModulu !== 'undefined') {
+                // Trafoları da güncelle
+                try {
+                    const traflar = await ApiClient.fetchTransformers();
+                    traflar.forEach(t => VeriModulu.trafoEkle({
+                        id: t.id, adi: t.name, bolge: t.region, tip: 'Dağıtım', kapasite: t.power_mva, aciklama: 'Sistemden yüklendi'
+                    }));
+                } catch (e) {
+                    console.error("Trafo listesi güncellenemedi:", e);
                 }
-                
-                // Mevcut seçili yıl ve ay için verileri baştan çek
-                if (typeof VeriModulu !== 'undefined') {
-                    // Trafoları da güncelle
-                    await fetch('http://localhost:8000/api/transformers')
-                        .then(r => r.json())
-                        .then(traflar => {
-                            traflar.forEach(t => VeriModulu.trafoEkle({
-                                id: t.id, adi: t.name, bolge: t.region, tip: 'Dağıtım', kapasite: t.power_mva, aciklama: 'Sistemden yüklendi'
-                            }));
-                        }).catch(e => console.error("Trafo listesi güncellenemedi:", e));
 
-                    App.populateTrafoSelects();
-                    // State üzerinden yıl ay alarak verileri yenile
-                    try {
-                        const appState = App.getState();
-                        await VeriModulu.loadAylikVeriler(appState.selectedYil, appState.selectedAy);
-                    } catch (err) {
-                        const now = new Date();
-                        await VeriModulu.loadAylikVeriler(now.getFullYear(), now.getMonth() + 1);
-                    }
-                    renderVeriTablosu();
+                App.populateTrafoSelects();
+                // State üzerinden yıl ay alarak verileri yenile
+                try {
+                    const appState = App.getState();
+                    await VeriModulu.loadAylikVeriler(appState.selectedYil, appState.selectedAy);
+                } catch (err) {
+                    const now = new Date();
+                    await VeriModulu.loadAylikVeriler(now.getFullYear(), now.getMonth() + 1);
                 }
-            } else {
-                App.showToast(result.detail || 'Dosya yüklenirken hata oluştu.', 'error');
+                renderVeriTablosu();
             }
         } catch (error) {
             console.error('Excel Yükleme Hatası:', error);
-            App.showToast('Sunucu ile bağlantı hatası oluştu.', 'error');
+            App.showToast(error.message || 'Sunucu ile bağlantı hatası oluştu.', 'error');
         }
     }
 
     function handleCSVUpload(file) {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const text = e.target.result;
             const lines = text.split('\n').filter(l => l.trim());
             const trafolar = VeriModulu.getTrafolar();
@@ -345,17 +337,22 @@ const DataEntryUI = (() => {
             if (yeniTrafolar.size > 0) {
                 const onay = confirm(`CSV dosyasında daha önce karşılaşılmamış şu yeni trafolar bulundu:\n${Array.from(yeniTrafolar).join(', ')}\n\nBunları sisteme otomatik olarak eklemek istiyor musunuz?`);
                 if (onay) {
-                    yeniTrafolar.forEach(id => {
-                        VeriModulu.trafoEkle({
-                            id: id,
-                            adi: id,
-                            bolge: 'Bilinmiyor',
-                            tip: 'Bilinmiyor',
-                            kapasite: 100,
-                            aciklama: 'CSV\'den otomatik eklendi.'
-                        });
-                        trafoMap.add(id);
-                    });
+                    for (const id of yeniTrafolar) {
+                        try {
+                            await ApiClient.addTransformer({ id: id, name: id, region: 'Bilinmiyor', power_mva: 100 });
+                            VeriModulu.trafoEkle({
+                                id: id,
+                                adi: id,
+                                bolge: 'Bilinmiyor',
+                                tip: 'Bilinmiyor',
+                                kapasite: 100,
+                                aciklama: 'CSV\'den otomatik eklendi.'
+                            });
+                            trafoMap.add(id);
+                        } catch (err) {
+                            console.error(`Trafo eklenemedi: ${id}`, err);
+                        }
+                    }
                     App.populateTrafoSelects();
                     App.showToast('Yeni trafolar sisteme kaydedildi.', 'success');
                 }
@@ -407,8 +404,22 @@ const DataEntryUI = (() => {
             }
 
             if (yeniVeriler.length > 0) {
-                if (typeof DashboardUI !== 'undefined') DashboardUI.clearCache();
-                VeriModulu.veriEkleToplu(yeniVeriler);
+                App.showToast(`Veriler sunucuya gönderiliyor (${yeniVeriler.length} adet)...`, 'info');
+                try {
+                    const payload = yeniVeriler.map(v => ({
+                        transformer_id: v.trafoId,
+                        timestamp: v.tarih.replace('T', ' '),
+                        active_kwh: v.aktifEnerji,
+                        inductive_kvarh: v.enduktifEnerji,
+                        capacitive_kvarh: v.kapasitifEnerji
+                    }));
+                    await ApiClient.addMeasurementsBulk(payload);
+                    if (typeof DashboardUI !== 'undefined') DashboardUI.clearCache();
+                    VeriModulu.veriEkleToplu(yeniVeriler);
+                } catch(err) {
+                    App.showToast("Toplu yükleme başarısız: " + err.message, "error");
+                    return;
+                }
             }
 
             const totalSkipped = skipped + negativeSkipped;

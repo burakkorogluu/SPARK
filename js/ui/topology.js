@@ -43,7 +43,8 @@ const TopolojiModulu = (() => {
         if (analizAllBtn) {
             analizAllBtn.addEventListener('click', () => {
                 if(typeof HesaplamaModulu !== 'undefined') {
-                    const ozetler = HesaplamaModulu.tumTrafoOzetleri();
+                    const appState = App.getState();
+                    const ozetler = HesaplamaModulu.tumTrafoOzetleri(appState.selectedYil, appState.selectedAy);
                     if (ozetler && Object.keys(ozetler).length > 0) {
                         const sorted = Object.entries(ozetler).sort((a,b) => b[1].kapasitifOran - a[1].kapasitifOran);
                         openPowerTriangleModal(sorted[0][0]);

@@ -199,7 +199,7 @@ const DashboardUI = (() => {
                             <span class="badge" style="background: var(--color-primary); color: white; padding: 2px 6px; font-size: 11px; border-radius: 4px;">${suggestions.length} Öneri</span>
                         </div>
                         <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">
-                            <b>${topSuggestion.title}</b>: ${topSuggestion.description}
+                            <b>${App.escapeHTML(topSuggestion.title)}</b>: ${App.escapeHTML(topSuggestion.description)}
                         </div>
                     </div>
                     <button class="btn btn-primary btn-sm" onclick="App.navigate('manevra')">Manevra Paneline Git</button>

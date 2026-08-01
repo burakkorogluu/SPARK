@@ -10,7 +10,7 @@
 const ApiClient = (() => {
     'use strict';
 
-    const API_BASE_URL = 'http://127.0.0.1:8000/api';
+    const API_BASE_URL = (window.ENV && window.ENV.API_BASE_URL) ? window.ENV.API_BASE_URL : `${window.location.protocol}//${window.location.hostname}:${window.location.port || 8000}/api`;
     const DEFAULT_TIMEOUT_MS = 60000;  // 60 saniye
     const MAX_RETRIES = 2;
     const RETRY_BASE_DELAY_MS = 500;
@@ -49,9 +49,11 @@ const ApiClient = (() => {
 
             const isTimeout = err.name === 'AbortError';
             const isNetworkError = err instanceof TypeError;
+            const method = (options.method || 'GET').toUpperCase();
+            const isMutating = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
 
-            // Retry: sadece ağ/timeout hatalarında, max deneme sayısına kadar
-            if ((isTimeout || isNetworkError) && retryCount < MAX_RETRIES) {
+            // Retry: sadece ağ/timeout hatalarında, max deneme sayısına kadar, VE idempotent/non-mutating ise (veya explicit idempotent ise)
+            if ((isTimeout || isNetworkError) && (!isMutating || options.idempotent) && retryCount < MAX_RETRIES) {
                 const delay = RETRY_BASE_DELAY_MS * Math.pow(2, retryCount);
                 console.warn(`[ApiClient] Yeniden deneniyor (${retryCount + 1}/${MAX_RETRIES}): ${url} — ${err.message}`);
                 await new Promise(r => setTimeout(r, delay));
@@ -163,11 +165,29 @@ const ApiClient = (() => {
         });
     }
 
+    async function uploadExcel(formData) {
+        // Fetch expects FormData to be passed directly as body without 'Content-Type' header
+        // It will automatically set multipart/form-data with the correct boundary
+        return _fetch(`${API_BASE_URL}/upload-excel`, {
+            method: 'POST',
+            body: formData
+        });
+    }
+
     async function addMeasurement(data) {
         return _fetch(`${API_BASE_URL}/osos/measurements`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
+        });
+    }
+
+    async function addMeasurementsBulk(data) {
+        return _fetch(`${API_BASE_URL}/osos/measurements/bulk`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+            idempotent: true
         });
     }
 
@@ -233,12 +253,14 @@ const ApiClient = (() => {
         deleteReactor,
         bulkUpdateTopology,
         addMeasurement,
+        addMeasurementsBulk,
         deleteMeasurement,
         fetchAlerts,
         checkAlerts,
         evaluateModels,
         fetchScadaState,
         toggleScadaBreaker,
-        ackScadaAlarm
+        ackScadaAlarm,
+        uploadExcel
     };
 })();

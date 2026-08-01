@@ -125,7 +125,9 @@ const DetailUI = (() => {
                 const uyariMesaj = HesaplamaModulu.uyariMesajiUret(
                     App.escapeHTML(trafo.adi),
                     ozet.kapasitifOran,
-                    tahminOzet ? tahminOzet.kapasitifOran : null
+                    ozet.enduktifOran || 0,
+                    tahminOzet ? tahminOzet.kapasitifOran : null,
+                    tahminOzet ? tahminOzet.enduktifOran : null
                 );
                 uyariEl.style.display = '';
                 uyariEl.className = `alert-box alert-${ozet.kapasitifRisk.seviye}`;

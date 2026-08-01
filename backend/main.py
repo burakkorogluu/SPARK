@@ -54,18 +54,21 @@ async def lifespan(app: FastAPI):
     loop = asyncio.get_running_loop()
     
     def startup_data_generation():
-        db = SessionLocal()
         try:
-            count = db.query(models.Measurement).count()
-            if count == 0:
-                print("Generating historical data for the first time...")
-                simulator.generate_historical_data(days=10)
+            db = SessionLocal()
+            try:
+                count = db.query(models.Measurement).count()
+                if count == 0:
+                    print("Generating historical data for the first time...")
+                    simulator.generate_historical_data(days=10)
+            finally:
+                db.close()
+            # Catch up any missing hours between last run and now
+            simulator.generate_hourly_data()
+        except Exception as e:
+            print(f"Startup data generation failed: {e}")
         finally:
-            db.close()
-        # Catch up any missing hours between last run and now
-        simulator.generate_hourly_data()
-            
-        loop.call_soon_threadsafe(simulator_ready_event.set)
+            loop.call_soon_threadsafe(simulator_ready_event.set)
 
         
     import threading
@@ -125,7 +128,11 @@ async def wait_for_simulator(request: Request, call_next):
     if request.url.path == "/ws" or request.url.path.startswith("/docs") or request.url.path.startswith("/openapi"):
         return await call_next(request)
         
-    await simulator_ready_event.wait()
+    try:
+        await asyncio.wait_for(simulator_ready_event.wait(), timeout=30.0)
+    except asyncio.TimeoutError:
+        logger.error("Simulator ready event timed out (30s).")
+        simulator_ready_event.set()
     response = await call_next(request)
     return response
 
@@ -200,9 +207,9 @@ def add_osos_measurement(
     ).first()
 
     if existing:
-        existing.active_kwh = measurement.active_kwh  # pyrefly: ignore
-        existing.inductive_kvarh = measurement.inductive_kvarh  # pyrefly: ignore
-        existing.capacitive_kvarh = measurement.capacitive_kvarh  # pyrefly: ignore
+        existing.active_kwh = measurement.active_kwh  # type: ignore
+        existing.inductive_kvarh = measurement.inductive_kvarh  # type: ignore
+        existing.capacitive_kvarh = measurement.capacitive_kvarh  # type: ignore
         db.commit()
         db.refresh(existing)
         invalidate_caches_for_transformer(measurement.transformer_id)
@@ -220,6 +227,56 @@ def add_osos_measurement(
         db.refresh(new_m)
         invalidate_caches_for_transformer(measurement.transformer_id)
         return new_m
+
+@app.post("/api/osos/measurements/bulk")
+def add_osos_measurements_bulk(
+    measurements: List[schemas.MeasurementCreate],
+    db: Session = Depends(get_db)
+):
+    try:
+        new_measurements = []
+        updated_count = 0
+        
+        t_ids = list(set([m.transformer_id for m in measurements]))
+        t_stamps = list(set([m.timestamp for m in measurements]))
+        
+        existing = db.query(models.Measurement).filter(
+            models.Measurement.transformer_id.in_(t_ids),
+            models.Measurement.timestamp.in_(t_stamps)
+        ).all()
+        
+        existing_map = {(e.transformer_id, e.timestamp): e for e in existing}
+        
+        for m in measurements:
+            key = (m.transformer_id, m.timestamp)
+            if key in existing_map:
+                e = existing_map[key]
+                e.active_kwh = m.active_kwh
+                e.inductive_kvarh = m.inductive_kvarh
+                e.capacitive_kvarh = m.capacitive_kvarh
+                updated_count += 1
+            else:
+                new_m = models.Measurement(
+                    transformer_id=m.transformer_id,
+                    timestamp=m.timestamp,
+                    active_kwh=m.active_kwh,
+                    inductive_kvarh=m.inductive_kvarh,
+                    capacitive_kvarh=m.capacitive_kvarh
+                )
+                new_measurements.append(new_m)
+                
+        if new_measurements:
+            db.add_all(new_measurements)
+            
+        db.commit()
+        
+        for t_id in t_ids:
+            invalidate_caches_for_transformer(t_id)
+            
+        return {"status": "success", "message": f"{len(new_measurements)} inserted, {updated_count} updated."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/osos/measurements")
 def delete_osos_measurement(
@@ -253,7 +310,7 @@ def delete_osos_measurement(
 
 @app.post("/api/upload-excel")
 async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    if not file.filename.endswith(('.xlsx', '.xls')):
+    if not file.filename or not file.filename.endswith(('.xlsx', '.xls')):
         raise HTTPException(status_code=400, detail="Invalid file type. Only Excel files are accepted.")
     
     try:
@@ -267,6 +324,7 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
         measurements = []
         new_transformers = []
         
+        import re
         # Sütunları 1. sütundan itibaren ikişer ikişer işle (Aktif, Reaktif)
         # 0. sütun Tarih sütunu
         for i in range(1, len(df.columns), 2):
@@ -277,15 +335,19 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
             col_q = df.columns[i+1]
             
             # Başlıktan trafo adını çıkar (örn: "UMR-TRA Aktif" -> "UMR-TRA")
-            # En basit yöntemle, son boşluktan önceki kısmı isim olarak alabiliriz veya "(P)", "(Q)" yi temizleyebiliriz.
-            # "ÜMRANİYE TRA (P)" veya "ÜMRANİYE TRA Aktif" gibi olabilir.
             trafo_name = col_p.replace(' (P)', '').replace(' Aktif', '').replace(' (Q)', '').replace(' Reaktif', '').strip()
+            
+            if not re.match(r"^[^<>]+$", trafo_name):
+                raise HTTPException(status_code=400, detail=f"Geçersiz trafo adı (XSS şüphesi): {trafo_name}")
             
             # Trafo veritabanında var mı kontrol et
             trafo = db.query(models.Transformer).filter(models.Transformer.name == trafo_name).first()
             if not trafo:
                 # Trafo ID'sini oluştur (boşlukları tire yap)
                 trafo_id = trafo_name.replace(' ', '-').upper()
+                if not re.match(r"^[a-zA-Z0-9_-]+$", trafo_id):
+                    raise HTTPException(status_code=400, detail=f"Trafo adı geçerli değil: {trafo_name}")
+                
                 trafo = models.Transformer(
                     id=trafo_id,
                     name=trafo_name,
@@ -293,8 +355,7 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
                     power_mva=100
                 )
                 db.add(trafo)
-                db.commit()
-                db.refresh(trafo)
+                # DO NOT FLUSH YET! To keep it in the same transaction cleanly.
                 new_transformers.append(trafo_name)
             else:
                 trafo_id = trafo.id
@@ -319,10 +380,13 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
                 if pd.isna(p_val): p_val = 0
                 if pd.isna(q_val): q_val = 0
                 
-                active = max(0, int(p_val))
-                # Negatif reaktif = kapasitif, pozitif reaktif = endüktif
-                inductive = int(q_val) if q_val > 0 else 0
-                capacitive = int(abs(q_val)) if q_val < 0 else 0
+                try:
+                    active = max(0, int(p_val))
+                    # Negatif reaktif = kapasitif, pozitif reaktif = endüktif
+                    inductive = int(q_val) if q_val > 0 else 0
+                    capacitive = int(abs(q_val)) if q_val < 0 else 0
+                except (ValueError, TypeError):
+                    raise HTTPException(status_code=400, detail=f"Satır {str(idx)} '{trafo_name}' için geçersiz sayısal değer.")
                 
                 measurements.append(models.Measurement(
                     transformer_id=trafo_id,
@@ -333,11 +397,34 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
                 ))
                 
         # Batch insert
+        new_measurements = []
+        updated_count = 0
         if measurements:
+            t_ids = list(set([m.transformer_id for m in measurements]))
+            t_stamps = list(set([m.timestamp for m in measurements]))
+            existing = db.query(models.Measurement).filter(
+                models.Measurement.transformer_id.in_(t_ids),
+                models.Measurement.timestamp.in_(t_stamps)
+            ).all()
+            
+            existing_map = {(e.transformer_id, e.timestamp): e for e in existing}
+            
+            for m in measurements:
+                key = (m.transformer_id, m.timestamp)
+                if key in existing_map:
+                    e = existing_map[key]
+                    e.active_kwh = m.active_kwh
+                    e.inductive_kvarh = m.inductive_kvarh
+                    e.capacitive_kvarh = m.capacitive_kvarh
+                    updated_count += 1
+                else:
+                    new_measurements.append(m)
+            
             batch_size = 5000
-            for i in range(0, len(measurements), batch_size):
-                db.add_all(measurements[i:i+batch_size])
-            db.commit()
+            for i in range(0, len(new_measurements), batch_size):
+                db.add_all(new_measurements[i:i+batch_size])
+                
+        db.commit()
             
         # Cache'leri temizle
         unique_trafos = list(set([m.transformer_id for m in measurements]))
@@ -346,10 +433,14 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
             
         return {
             "status": "success",
-            "message": f"Successfully imported {len(measurements)} records.",
+            "message": f"{len(new_measurements)} yeni veri eklendi, {updated_count} güncellendi.",
             "new_transformers": new_transformers
         }
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
+        db.rollback()
         logger.error(f"Error importing excel: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred while importing the Excel file: {str(e)}")
 
