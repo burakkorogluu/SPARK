@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import List, Optional
 
@@ -15,8 +15,7 @@ class Measurement(MeasurementBase):
     id: int
     transformer_id: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class TransformerBase(BaseModel):
     id: str
@@ -28,8 +27,7 @@ class TransformerBase(BaseModel):
     pos_y: Optional[float] = None
 
 class Transformer(TransformerBase):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ProcessedMeasurement(Measurement):
     kapasitifOran: float
@@ -38,8 +36,7 @@ class ProcessedMeasurement(Measurement):
     kumulatifEnduktifOran: float
     riskDurumu: str
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class Feeder(BaseModel):
     id: str
@@ -50,8 +47,7 @@ class Feeder(BaseModel):
     pos_x: Optional[float] = None
     pos_y: Optional[float] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class Reactor(BaseModel):
     id: str
@@ -63,8 +59,7 @@ class Reactor(BaseModel):
     pos_x: Optional[float] = None
     pos_y: Optional[float] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ── Manevra Log Schemas ──
 class ManeuverLogResponse(BaseModel):
@@ -83,8 +78,7 @@ class ManeuverLogResponse(BaseModel):
     status: str
     rolled_back_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ManeuverHistoryResponse(BaseModel):
     total: int
@@ -117,8 +111,8 @@ class ManeuverSimulationResponse(BaseModel):
 
 # ── Fider/Reaktör CRUD Schemas ──
 class FeederCreate(BaseModel):
-    id: str = Field(..., max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
-    name: str = Field(..., max_length=100, pattern=r"^[^<>]+$")
+    id: str = Field(max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
+    name: str = Field(max_length=100, pattern=r"^[^<>]+$")
     current_transformer_id: str
     alternative_transformer_id: Optional[str] = None
     simulated_load_kw: float = 500.0
@@ -126,8 +120,8 @@ class FeederCreate(BaseModel):
     pos_y: Optional[float] = None
 
 class ReactorCreate(BaseModel):
-    id: str = Field(..., max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
-    name: str = Field(..., max_length=100, pattern=r"^[^<>]+$")
+    id: str = Field(max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
+    name: str = Field(max_length=100, pattern=r"^[^<>]+$")
     current_transformer_id: str
     alternative_transformer_id: Optional[str] = None
     capacity_kvar: float = 250.0
@@ -136,8 +130,8 @@ class ReactorCreate(BaseModel):
     pos_y: Optional[float] = None
 
 class TransformerCreate(BaseModel):
-    id: str = Field(..., max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
-    name: str = Field(..., max_length=100, pattern=r"^[^<>]+$")
+    id: str = Field(max_length=50, pattern=r"^[A-Za-z0-9_-]+$")
+    name: str = Field(max_length=100, pattern=r"^[^<>]+$")
     region: str = "İstanbul-Anadolu"
     power_mva: int = 50
     status: str = "active"

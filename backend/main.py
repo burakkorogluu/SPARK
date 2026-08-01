@@ -51,6 +51,11 @@ async def lifespan(app: FastAPI):
     import init_db
     init_db.seed_transformers()
     
+    if os.getenv("TESTING") == "True":
+        simulator_ready_event.set()
+        yield
+        return
+
     loop = asyncio.get_running_loop()
     
     def startup_data_generation():

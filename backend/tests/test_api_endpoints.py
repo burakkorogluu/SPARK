@@ -11,3 +11,15 @@ def test_get_alerts(client):
     response = client.get("/api/alerts")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
+
+def test_get_maneuver_suggestions(client):
+    response = client.get("/api/maneuver/suggest")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+def test_get_maneuver_history(client):
+    response = client.get("/api/maneuver/history")
+    assert response.status_code == 200
+    data = response.json()
+    assert "logs" in data
+    assert "total" in data

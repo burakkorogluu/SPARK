@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy.orm import Session
 import models
 from datetime import datetime, timedelta
@@ -607,7 +608,7 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     }
 
 
-def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id: str, reason: str | None = None, override_overload: bool = False):
+def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id: str, reason: Optional[str] = None, override_overload: bool = False):
     """
     Apply a maneuver and log it in ManeuverLog.
     Enforces edge-case protections (no-op, topology, overload confirmation).
