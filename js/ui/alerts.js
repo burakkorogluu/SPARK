@@ -4,9 +4,9 @@
 const AlertManager = (() => {
     'use strict';
 
-    async function loadAlerts() {
+    async function loadAlerts(year = null, month = null) {
         try {
-            const alerts = await ApiClient.fetchAlerts(10);
+            const alerts = await ApiClient.fetchAlerts(10, year, month);
             renderAlertBanner(alerts);
         } catch (err) {
             console.error("Alarmlar çekilirken hata:", err);
@@ -15,7 +15,11 @@ const AlertManager = (() => {
 
     function renderAlertBanner(alerts) {
         const container = document.getElementById('system-alerts-container');
-        if (!container || !alerts || alerts.length === 0) return;
+        if (!container) return;
+        if (!alerts || alerts.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
 
         container.innerHTML = alerts.map(a => {
             const bgClass = a.severity === 'critical' ? 'alert-box alert-tehlikeli' : 'alert-box alert-dikkat';

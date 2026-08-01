@@ -136,11 +136,14 @@ def get_weather_data(start_date: str, end_date: str, db: Session = None):
                             wind_speed=ws_val, wind_direction=wd_val, precipitation=p_val, cloud_cover=c_val
                         ))
                         
-                if to_add or existing_records:
+                # We only need to commit if we added new records or modified existing ones.
+                # Let's track if any modifications were made.
+                modified = any(getattr(r, "_sa_instance_state", None) and getattr(r, "_sa_instance_state").modified for r in existing_records.values())
+                if to_add or modified:
                     try:
                         db.add_all(to_add)
                         db.commit()
-                        logger.info("Cached/Updated weather records in database.")
+                        logger.info(f"Cached {len(to_add)} new weather records and updated existing ones.")
                     except Exception as commit_err:
                         db.rollback()
                         logger.error(f"Weather DB Commit Error: {commit_err}")

@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 # pyrefly: ignore [missing-source-for-stubs]
 from sklearn.ensemble import RandomForestRegressor
 # pyrefly: ignore [missing-source-for-stubs]
@@ -50,9 +51,12 @@ CACHE_TTL = int(os.getenv("FORECAST_CACHE_TTL", "3600"))  # Ortam değişkeninde
 TRAINED_MODELS_CACHE = {}
 MODEL_CACHE_TTL = int(os.getenv("MODEL_CACHE_TTL", "86400"))  # 24 saat
 
+HYPERPARAM_CACHE = {}
+
 def clear_caches():
     FORECAST_CACHE.clear()
     TRAINED_MODELS_CACHE.clear()
+    # Note: HYPERPARAM_CACHE is purposefully NOT cleared to preserve tuned hyperparams across topology maneuvers.
 
 import concurrent.futures
 
@@ -290,6 +294,64 @@ def _calculate_holdout_confidence(df, X_aktif, X_kap, X_end, model_aktif, model_
     return round((conf_a + conf_k + conf_e) / 3, 1)
 
 
+def _tune_xgboost_hyperparameters(X, y, transformer_id: str):
+    """
+    Performs RandomizedSearchCV with TimeSeriesSplit(n_splits=19) on actual data
+    for the given transformer_id. Results are cached in HYPERPARAM_CACHE.
+    """
+    if transformer_id in HYPERPARAM_CACHE:
+        logger.info(f"Önbellekteki hiperparametreler kullanılıyor ({transformer_id}): {HYPERPARAM_CACHE[transformer_id]}")
+        return HYPERPARAM_CACHE[transformer_id]
+
+    logger.info(f"Trafo {transformer_id} için XGBoost hiperparametre optimizasyonu başlatılıyor (19-split TimeSeriesSplit)...")
+    param_grid = {
+        'max_depth': [3, 5, 7],
+        'learning_rate': [0.01, 0.05, 0.1],
+        'n_estimators': [100, 150, 200],
+        'subsample': [0.8, 0.9, 1.0],
+        'colsample_bytree': [0.8, 0.9, 1.0],
+        'reg_alpha': [0.0, 0.1, 0.5],
+        'reg_lambda': [0.5, 1.0, 2.0]
+    }
+    
+    n_splits = 19
+    if len(X) < 100:
+        n_splits = 2
+    elif len(X) < 500:
+        n_splits = 5
+
+    tscv = TimeSeriesSplit(n_splits=n_splits)
+    base_xgb = xgb.XGBRegressor(random_state=42, n_jobs=-1)
+    
+    search = RandomizedSearchCV(
+        estimator=base_xgb,
+        param_distributions=param_grid,
+        n_iter=5,
+        cv=tscv,
+        scoring='neg_mean_absolute_error',
+        random_state=42,
+        n_jobs=-1
+    )
+    
+    try:
+        search.fit(X, y)
+        best_params = search.best_params_
+        best_params['random_state'] = 42
+        best_params['n_jobs'] = -1
+        logger.info(f"Optimal XGBoost hiperparametreleri ({transformer_id}): {best_params}")
+        HYPERPARAM_CACHE[transformer_id] = best_params
+        return best_params
+    except Exception as e:
+        logger.warning(f"Hiperparametre optimizasyonu başarısız ({transformer_id}): {e}. Varsayılan parametreler kullanılıyor.")
+        default_params = {
+            'n_estimators': 150, 'max_depth': 5, 'learning_rate': 0.05,
+            'subsample': 0.85, 'colsample_bytree': 0.85, 'reg_alpha': 0.1,
+            'reg_lambda': 1.0, 'random_state': 42, 'n_jobs': -1
+        }
+        HYPERPARAM_CACHE[transformer_id] = default_params
+        return default_params
+
+
 def _get_or_train_models(db: Session, transformer_id: str, model_type: str, steps: int, base_features, create_models_fn):
     cache_key = f"{transformer_id}_{model_type}"
     now_ts = time.time()
@@ -320,7 +382,15 @@ def _get_or_train_models(db: Session, transformer_id: str, model_type: str, step
     if df is None or df.empty:
         return None, None, None, 0, None, None, None, None, None, None, None
 
-    m_a_init, m_k_init, m_e_init = create_models_fn()
+    try:
+        m_a_init, m_k_init, m_e_init = create_models_fn(
+            X_aktif, df['y_aktif'],
+            X_kap, df['y_kapasitif'],
+            X_end, df['y_enduktif'],
+            transformer_id
+        )
+    except TypeError:
+        m_a_init, m_k_init, m_e_init = create_models_fn()
     
     m_aktif, m_kap, m_end = _fit_models_parallel(
         m_a_init, m_k_init, m_e_init,
@@ -357,11 +427,22 @@ def _get_or_train_models(db: Session, transformer_id: str, model_type: str, step
 def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
     base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi']
     
-    def _create_xgb():
+    def _create_xgb(X_a=None, y_a=None, X_k=None, y_k=None, X_e=None, y_e=None, t_id=None):
+        if t_id is not None and X_a is not None:
+            params_a = _tune_xgboost_hyperparameters(X_a, y_a, f"{t_id}_aktif")
+            params_k = _tune_xgboost_hyperparameters(X_k, y_k, f"{t_id}_kap")
+            params_e = _tune_xgboost_hyperparameters(X_e, y_e, f"{t_id}_end")
+        else:
+            default_p = {
+                'n_estimators': 150, 'max_depth': 5, 'learning_rate': 0.05,
+                'subsample': 0.85, 'colsample_bytree': 0.85, 'reg_alpha': 0.1,
+                'reg_lambda': 1.0, 'random_state': 42, 'n_jobs': -1
+            }
+            params_a, params_k, params_e = default_p, default_p, default_p
         return (
-            xgb.XGBRegressor(n_estimators=150, max_depth=5, learning_rate=0.05, subsample=0.85, colsample_bytree=0.85, reg_alpha=0.1, reg_lambda=1.0, random_state=42, n_jobs=-1),
-            xgb.XGBRegressor(n_estimators=150, max_depth=5, learning_rate=0.05, subsample=0.85, colsample_bytree=0.85, reg_alpha=0.1, reg_lambda=1.0, random_state=42, n_jobs=-1),
-            xgb.XGBRegressor(n_estimators=150, max_depth=5, learning_rate=0.05, subsample=0.85, colsample_bytree=0.85, reg_alpha=0.1, reg_lambda=1.0, random_state=42, n_jobs=-1)
+            xgb.XGBRegressor(**params_a),
+            xgb.XGBRegressor(**params_k),
+            xgb.XGBRegressor(**params_e)
         )
 
     xgb_aktif, xgb_kap, xgb_end, confidence, df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates = _get_or_train_models(
@@ -804,34 +885,44 @@ def get_cached_forecast(db: Session, transformer_id: str, year: int, month: int,
     else:
         xgb_preds, xgb_conf = forecast_xgboost(db, transformer_id, steps)
         rf_preds, rf_conf = forecast_random_forest(db, transformer_id, steps)
-        data, confidence = _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, transformer_id)
+        reg_preds, reg_conf = forecast_regression(db, transformer_id, steps)
+        data, confidence = _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, reg_preds, reg_conf, transformer_id)
         
     result = {"predictions": data, "confidence_score": confidence}
     FORECAST_CACHE[cache_key] = (now, result)
     return result
 
-def _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, transformer_id):
+def _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, reg_preds, reg_conf, transformer_id):
     data = []
-    max_len = max(len(xgb_preds or []), len(rf_preds or []))
+    max_len = max(len(xgb_preds or []), len(rf_preds or []), len(reg_preds or []))
     for i in range(max_len):
         has_xgb = i < len(xgb_preds or [])
         has_rf = i < len(rf_preds or [])
-        if has_xgb and has_rf:
+        has_reg = i < len(reg_preds or [])
+        
+        valid_preds = []
+        if has_xgb: valid_preds.append(xgb_preds[i])
+        if has_rf: valid_preds.append(rf_preds[i])
+        if has_reg: valid_preds.append(reg_preds[i])
+        
+        if len(valid_preds) > 0:
+            avg_active = int(sum(p["active_kwh"] for p in valid_preds) / len(valid_preds))
+            avg_cap = int(sum(p["capacitive_kvarh"] for p in valid_preds) / len(valid_preds))
+            avg_ind = int(sum(p["inductive_kvarh"] for p in valid_preds) / len(valid_preds))
+            
             data.append({
                 "transformer_id": transformer_id,
-                "timestamp": xgb_preds[i]["timestamp"],
-                "active_kwh": int((xgb_preds[i]["active_kwh"] + rf_preds[i]["active_kwh"]) / 2),
-                "capacitive_kvarh": int((xgb_preds[i]["capacitive_kvarh"] + rf_preds[i]["capacitive_kvarh"]) / 2),
-                "inductive_kvarh": int((xgb_preds[i]["inductive_kvarh"] + rf_preds[i]["inductive_kvarh"]) / 2),
-                "kap_reason": xgb_preds[i].get("kap_reason"),
-                "end_reason": xgb_preds[i].get("end_reason"),
+                "timestamp": valid_preds[0]["timestamp"],
+                "active_kwh": avg_active,
+                "capacitive_kvarh": avg_cap,
+                "inductive_kvarh": avg_ind,
+                "kap_reason": valid_preds[0].get("kap_reason"),
+                "end_reason": valid_preds[0].get("end_reason"),
                 "is_forecast": True
             })
-        elif has_xgb:
-            data.append(xgb_preds[i])
-        elif has_rf:
-            data.append(rf_preds[i])
-    confidence = round((xgb_conf + rf_conf) / 2, 1) if xgb_conf and rf_conf else (xgb_conf or rf_conf or 90.0)
+
+    valid_confs = [c for c in [xgb_conf, rf_conf, reg_conf] if c is not None]
+    confidence = round(sum(valid_confs) / len(valid_confs), 1) if valid_confs else 90.0
     return data, confidence
 
 def apply_topology_scaling_to_forecast(db, transformer_id, method, steps):
@@ -936,7 +1027,8 @@ def _run_raw_forecast_algorithm(db, transformer_id, method, steps):
     else:
         xgb_preds, xgb_conf = forecast_xgboost(db, transformer_id, steps)
         rf_preds, rf_conf = forecast_random_forest(db, transformer_id, steps)
-        preds, conf = _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, transformer_id)
+        reg_preds, reg_conf = forecast_regression(db, transformer_id, steps)
+        preds, conf = _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, reg_preds, reg_conf, transformer_id)
         
     return preds, conf
 
@@ -955,22 +1047,17 @@ def run_weekly_batch_forecast(transformer_ids=None):
         else:
             transformers = db.query(models.Transformer).all()
             
-        methods = ["ensemble", "xgboost", "randomForest", "regression", "holtWinters", "ortalama", "persistence", "gecenAy"]
+        methods = ["ensemble", "xgboost", "randomForest", "regression"]
         steps = 720 # 30 gün
         
         for t in transformers:
-            # Eski tahminleri sil
-            db.query(models.ForecastMeasurement).filter(
-                models.ForecastMeasurement.transformer_id == t.id
-            ).delete(synchronize_session=False)
-            db.commit()
-            
+            all_new_rows = []
+            logger.info(f"Batch forecast uretimi basliyor: {t.id}")
             for m in methods:
                 try:
-                    logger.info(f"Batch forecast uretiliyor: {t.id} - {m}")
+                    logger.info(f"Model hesaplaniyor: {t.id} - {m}")
                     preds, conf = _run_forecast_algorithm(db, t.id, m, steps)
                     
-                    forecast_rows = []
                     for p in preds:
                         dt = datetime.datetime.strptime(p["timestamp"], "%Y-%m-%d %H:%M:%S")
                         fm = models.ForecastMeasurement(
@@ -984,12 +1071,23 @@ def run_weekly_batch_forecast(transformer_ids=None):
                             kap_reason=p.get("kap_reason"),
                             end_reason=p.get("end_reason")
                         )
-                        forecast_rows.append(fm)
-                    db.add_all(forecast_rows)
-                    db.commit()
+                        all_new_rows.append(fm)
                 except Exception as e:
-                    logger.error(f"Batch forecast hatasi: {t.id} - {m}: {str(e)}")
-                    db.rollback()
+                    logger.error(f"{t.id} - {m} hatasi: {e}")
+            
+            try:
+                # Toplu olarak sil ve ekle (Çok hızlı DB işlemi)
+                db.query(models.ForecastMeasurement).filter(
+                    models.ForecastMeasurement.transformer_id == t.id
+                ).delete(synchronize_session=False)
+                
+                db.add_all(all_new_rows)
+                db.commit()
+                logger.info(f"Batch forecast kaydedildi: {t.id} ({len(all_new_rows)} kayit)")
+            except Exception as e:
+                db.rollback()
+                logger.error(f"{t.id} DB kayit hatasi: {e}")
+                
         logger.info("Weekly batch forecast basariyla tamamlandi.")
     finally:
         db.close()

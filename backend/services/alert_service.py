@@ -76,9 +76,23 @@ def check_and_generate_alerts(db: Session, year: Optional[int] = None, month: Op
     return generated
 
 
-def get_active_alerts(db: Session, limit: int = 20):
-    """Veritabanındaki son sistem alarmlarını döndürür."""
-    alerts = db.query(models.SystemAlert).order_by(models.SystemAlert.timestamp.desc()).limit(limit).all()
+def get_active_alerts(db: Session, limit: int = 20, year: Optional[int] = None, month: Optional[int] = None):
+    """Veritabanındaki son sistem alarmlarını, seçilen aya göre filtreleyerek döndürür."""
+    from sqlalchemy import extract
+    from datetime import datetime
+    query = db.query(models.SystemAlert)
+    
+    if not year:
+        year = datetime.now().year
+    if not month:
+        month = datetime.now().month
+        
+    if year:
+        query = query.filter(extract('year', models.SystemAlert.timestamp) == year)
+    if month:
+        query = query.filter(extract('month', models.SystemAlert.timestamp) == month)
+        
+    alerts = query.order_by(models.SystemAlert.timestamp.desc()).limit(limit).all()
     return [
         {
             "id": a.id,

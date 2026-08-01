@@ -198,8 +198,12 @@ const ApiClient = (() => {
         return _fetch(url, { method: 'DELETE' });
     }
 
-    async function fetchAlerts(limit = 20) {
-        return _fetch(`${API_BASE_URL}/alerts?limit=${limit}`);
+    async function fetchAlerts(limit = 20, year = null, month = null) {
+        let url = `${API_BASE_URL}/alerts?limit=${limit}`;
+        if (year && month) {
+            url += `&year=${year}&month=${month}`;
+        }
+        return _fetch(url);
     }
 
     async function checkAlerts(year = null, month = null) {

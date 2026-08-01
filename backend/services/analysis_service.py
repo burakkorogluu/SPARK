@@ -57,8 +57,8 @@ def hesapla_risk_durumu(
     - kap_oran / end_oran: hesaplanan yüzde oranları
     - kap_seviye / end_seviye: her bileşenin ayrı risk seviyesi
     """
-    oran_kapasitif = (kapasitif / aktif * 100) if aktif > 0 else 0.0
-    oran_enduktif  = (enduktif  / aktif * 100) if aktif > 0 else 0.0
+    oran_kapasitif = (kapasitif / aktif * 100) if aktif > 0 else (999.0 if kapasitif > 0 else 0.0)
+    oran_enduktif  = (enduktif  / aktif * 100) if aktif > 0 else (999.0 if enduktif > 0 else 0.0)
 
     kap_seviye = _seviye_kapasitif(oran_kapasitif)
     end_seviye = _seviye_enduktif(oran_enduktif)
@@ -98,12 +98,12 @@ def process_measurements(measurements: List[models.Measurement]) -> List[Dict]:
         c_cap   = cumulative_capacitive[tid]
 
         # Saatlik oranlar
-        oran_kapasitif = (m.capacitive_kvarh / m.active_kwh * 100) if m.active_kwh > 0 else 0.0
-        oran_enduktif  = (m.inductive_kvarh  / m.active_kwh * 100) if m.active_kwh > 0 else 0.0
+        oran_kapasitif = (m.capacitive_kvarh / m.active_kwh * 100) if m.active_kwh > 0 else (999.0 if m.capacitive_kvarh > 0 else 0.0)
+        oran_enduktif  = (m.inductive_kvarh  / m.active_kwh * 100) if m.active_kwh > 0 else (999.0 if m.inductive_kvarh > 0 else 0.0)
 
         # Kümülatif oranlar
-        kum_kapasitif = (c_cap / c_aktif * 100) if c_aktif > 0 else 0.0
-        kum_enduktif  = (c_ind / c_aktif * 100) if c_aktif > 0 else 0.0
+        kum_kapasitif = (c_cap / c_aktif * 100) if c_aktif > 0 else (999.0 if c_cap > 0 else 0.0)
+        kum_enduktif  = (c_ind / c_aktif * 100) if c_aktif > 0 else (999.0 if c_ind > 0 else 0.0)
 
         # Genel risk — kümülatif üzerinden (EPDK ceza hesabı aylık kümülatif üzerinden)
         genel_seviye, _, _, kap_seviye, end_seviye = hesapla_risk_durumu(c_aktif, c_cap, c_ind)

@@ -58,6 +58,7 @@ def _get_trafo_stats(db: Session):
             "load_ratio": load_ratio,
             "ind_ratio": ind_ratio,
             "cap_ratio": cap_ratio,
+            "avg_active": avg_active,
             "active_sum": active_sum,
             "cap_sum": cap_sum,
             "peak_cap_ratio": peak_cap_ratio,
@@ -495,9 +496,9 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     target_ratio_before = target_stats["load_ratio"]
     
     if asset_type == "feeder":
-        feeder_kw = (asset_load / source_load_before * source_stats["active_sum"]) if source_load_before > 0 else 0
-        source_ratio_after = ((source_stats["active_sum"] - feeder_kw) / source_stats["power_kw"] * 100) if source_stats["power_kw"] > 0 else 0
-        target_ratio_after = ((target_stats["active_sum"] + feeder_kw) / target_stats["power_kw"] * 100) if target_stats["power_kw"] > 0 else 0
+        feeder_kw = (asset_load / source_load_before * source_stats["avg_active"]) if source_load_before > 0 else 0
+        source_ratio_after = ((source_stats["avg_active"] - feeder_kw) / source_stats["power_kw"] * 100) if source_stats["power_kw"] > 0 else 0
+        target_ratio_after = ((target_stats["avg_active"] + feeder_kw) / target_stats["power_kw"] * 100) if target_stats["power_kw"] > 0 else 0
     else:
         source_ratio_after = source_ratio_before
         target_ratio_after = target_ratio_before
@@ -635,9 +636,10 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
 
         # Edge Case 3: Overload check
         target_stats = trafo_stats.get(target_trafo_id)
-        if target_stats and target_stats["power_kw"] > 0:
-            target_load_after = target_stats["total_feeder_load"] + asset.simulated_load_kw
-            target_ratio_after = (target_load_after / target_stats["power_kw"]) * 100
+        source_stats = trafo_stats.get(old_trafo_id)
+        if target_stats and target_stats["power_kw"] > 0 and source_stats:
+            feeder_kw = (asset.simulated_load_kw / source_stats["total_feeder_load"] * source_stats["avg_active"]) if source_stats["total_feeder_load"] > 0 else 0
+            target_ratio_after = ((target_stats["avg_active"] + feeder_kw) / target_stats["power_kw"]) * 100
             if target_ratio_after > 100 and not override_overload:
                 raise ValueError(f"Aşırı Yük Uyarısı: Bu manevra hedef trafoda ({target_trafo_id}) %{target_ratio_after:.1f} aşırı yük oluşturur. İlerlemeniz için 'Aşırı Yük Riskini Kabul Ediyorum' seçeneğini işaretlemelisiniz.")
 
@@ -645,7 +647,7 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         asset.alternative_transformer_id = old_trafo_id  # type: ignore
         asset.current_transformer_id = target_trafo_id  # type: ignore
 
-        impact = "Kritik (Aşırı Yüklü)" if target_stats and target_stats.get("power_kw", 0) > 0 and (target_stats["total_feeder_load"] + asset.simulated_load_kw) / target_stats["power_kw"] > 1 else "Orta"
+        impact = "Kritik (Aşırı Yüklü)" if target_stats and target_stats.get("power_kw", 0) > 0 and source_stats and (((target_stats["avg_active"] + (asset.simulated_load_kw / source_stats["total_feeder_load"] * source_stats["avg_active"]) if source_stats["total_feeder_load"] > 0 else 0) / target_stats["power_kw"]) > 1) else "Orta"
 
         log = models.ManeuverLog(
             action_type="feeder_transfer",

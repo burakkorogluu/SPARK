@@ -14,9 +14,7 @@ const App = (() => {
     const YONTEM_ETIKETLERI = {
         ensemble: 'Ensemble',
         randomForest: 'Random Forest',
-        holtWinters: 'Holt-Winters',
-        regression: 'Regresyon',
-        persistence: 'Persistence',
+        regression: 'Regresyon'
     };
 
     function yontemEtiketiGetir(adi) {
@@ -102,7 +100,7 @@ const App = (() => {
             ScadaSldUI.init();
         }
 
-        await renderDashboard();
+        renderDashboard();
 
         document.getElementById('global-loader')?.remove();
     }

@@ -223,7 +223,7 @@ const DashboardUI = (() => {
 
         // Manevra önerilerini ve Sistem alarmlarını arka planda getir
         renderManeuverBanner();
-        if (typeof AlertManager !== 'undefined') AlertManager.loadAlerts();
+        if (typeof AlertManager !== 'undefined') AlertManager.loadAlerts(state.selectedYil, state.selectedAy);
 
         if (_dashboardCache.has(cacheKey)) {
             ozetler = _dashboardCache.get(cacheKey);

@@ -676,15 +676,16 @@ def delete_reactor_endpoint(reactor_id: str, db: Session = Depends(get_db)):
     return {"status": "success", "message": "Reaktör başarıyla silindi."}
 
 @app.get("/api/alerts")
-def get_alerts_endpoint(limit: int = 20, db: Session = Depends(get_db)):
+def get_alerts_endpoint(limit: int = 20, year: Optional[int] = None, month: Optional[int] = None, db: Session = Depends(get_db)):
+    print(f"API called: year={year}, month={month}")
     from services.alert_service import get_active_alerts
-    return get_active_alerts(db, limit)
+    return get_active_alerts(db, limit, year, month)
 
 @app.post("/api/alerts/check")
 def check_alerts_endpoint(year: Optional[int] = None, month: Optional[int] = None, db: Session = Depends(get_db)):
     from services.alert_service import check_and_generate_alerts, get_active_alerts
     check_and_generate_alerts(db, year, month)
-    return get_active_alerts(db)
+    return get_active_alerts(db, limit=20, year=year, month=month)
 
 @app.get("/api/models/evaluate")
 def evaluate_models_endpoint(transformer_id: str = Query(..., description="Transformer ID"), steps: int = 168, db: Session = Depends(get_db)):

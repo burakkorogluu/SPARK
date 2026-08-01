@@ -14,7 +14,11 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     connect_args["check_same_thread"] = False
 
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args=connect_args
+    SQLALCHEMY_DATABASE_URL, 
+    connect_args=connect_args,
+    pool_size=50, 
+    max_overflow=100, 
+    pool_timeout=60
 )
 
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
