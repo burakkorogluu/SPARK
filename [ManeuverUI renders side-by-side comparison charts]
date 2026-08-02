@@ -1,0 +1,8 @@
+
+### 5.3 Forecast Generation Flow
+1.  `forecast_service.py` triggers a forecast request for a transformer.
+2.  The service checks if a cached forecast exists in `ForecastMeasurement`.
+3.  If not, it loads historical measurements and weather features.
+4.  The selected model (e.g., `XGBoost`) runs inference for the target steps (typically 168 hours / 1 week).
+5.  If any active topology overrides exist (e.g., a feeder is currently transferred), `apply_topology_scaling_to_forecast` scales the predictions.
+6.  The predictions are cached and returned to the frontend to be rendered by `charts.js`.
