@@ -20,9 +20,9 @@ The backend is built using a modular, service-oriented architecture with FastAPI
 #### A. Analysis Service (`analysis_service.py`)
 Responsible for calculating reactive power ratios and determining risk levels.
 *   **Formulas:**
-    $$\text{Inductive Ratio (\%)} = \frac{\text{Inductive Reactive Energy}}{\text{Active Energy}} \times 100$$
-    $$\text{Capacitive Ratio (\%)} = \frac{\text{Capacitive Reactive Energy}}{\text{Active Energy}} \times 100$$
-*   **Risk Classification:** Classifies risk into `NORMAL`, `WARNING`, or `CRITICAL` based on proximity to the 20% inductive and 15% capacitive limits.
+    *   Inductive Ratio (%) = (Inductive Reactive Energy / Active Energy) * 100
+    *   Capacitive Ratio (%) = (Capacitive Reactive Energy / Active Energy) * 100
+*   **Risk Classification:** Classifies risk into `guvenli` (safe), `dikkat` (warning), `riskli` (risky), or `tehlikeli` (critical) based on proximity to the 20% inductive and 15% capacitive limits.
 
 #### B. Forecast Service (`forecast_service.py`)
 A comprehensive forecasting pipeline supporting multiple algorithms:
@@ -75,3 +75,17 @@ The frontend is designed as a Single Page Application (SPA) using modular, self-
 3.  `scada_sld_v4.js` receives the payload, updates the UI components (breakers, busbars, transformers), and triggers visual alarms if thresholds are exceeded.
 
 ### 5.2 Maneuver Simulation Flow
+1.  Operator selects a maneuver in `ManeuverUI`.
+2.  `ManeuverUI` calls `ApiClient.simulateManeuver()`.
+3.  FastAPI routes the request to `maneuver_service.simulate_maneuver()`.
+4.  The service fetches current topology mapping, calculates baseline load profiles, subtracts load from the source transformer, adds load to the target transformer, and projects End-of-Month (EOM) cumulative ratios.
+5.  The backend returns before/after load ratios and risk levels.
+6.  `ManeuverUI` renders side-by-side comparison charts.
+
+### 5.3 Forecast Generation Flow
+1.  `forecast_service.py` triggers a forecast request for a transformer.
+2.  The service checks if a cached forecast exists in `ForecastMeasurement`.
+3.  If not, it loads historical measurements and weather features.
+4.  The selected model (e.g., `XGBoost`) runs inference for the target steps (typically 168 hours / 1 week).
+5.  If any active topology overrides exist (e.g., a feeder is currently transferred), `apply_topology_scaling_to_forecast` scales the predictions.
+6.  The predictions are cached and returned to the frontend to be rendered by `charts.js`.
