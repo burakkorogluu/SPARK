@@ -1,4 +1,7 @@
 import pandas as pd
+import math
+# pyrefly: ignore [missing-import]
+import lightgbm as lgb
 import numpy as np
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 # pyrefly: ignore [missing-source-for-stubs]
@@ -55,12 +58,19 @@ HYPERPARAM_CACHE = {}
 
 def clear_caches():
     FORECAST_CACHE.clear()
-    TRAINED_MODELS_CACHE.clear()
+    # Note: TRAINED_MODELS_CACHE is purposefully NOT cleared here. Maneuvers only change topology, 
+    # not the underlying historical data of the original transformers. Keeping the models cached 
+    # allows fast re-scaling.
     # Note: HYPERPARAM_CACHE is purposefully NOT cleared to preserve tuned hyperparams across topology maneuvers.
 
 import concurrent.futures
 
 def _fit_models_parallel(m_a, m_k, m_e, X_a, y_a, X_k, y_k, X_e, y_e):
+    if "LGBM" in type(m_a).__name__:
+        X_a, y_a = X_a.values, y_a.values
+        X_k, y_k = X_k.values, y_k.values
+        X_e, y_e = X_e.values, y_e.values
+        
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         f_a = executor.submit(m_a.fit, X_a, y_a)
         f_k = executor.submit(m_k.fit, X_k, y_k)
@@ -69,7 +79,7 @@ def _fit_models_parallel(m_a, m_k, m_e, X_a, y_a, X_k, y_k, X_e, y_e):
 
 def calculate_confidence(y_true, y_pred):
     """Calculates confidence score based on WMAPE (Weighted MAPE)."""
-    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
     sum_true = np.sum(np.abs(y_true))
     if sum_true < 1e-5:
         return 80.0
@@ -105,7 +115,11 @@ def prepare_dataframe(measurements, weather_map=None, tr_holidays=None):
             "precipitation": w_feat["precipitation"],
             "cloud_cover": w_feat["cloud_cover"],
             "thi": thi,
-            "hour": d.hour
+            "hour": d.hour,
+            "sin_hour": math.sin(2 * math.pi * d.hour / 24.0),
+            "cos_hour": math.cos(2 * math.pi * d.hour / 24.0),
+            "sin_day": math.sin(2 * math.pi * d.weekday() / 7.0),
+            "cos_day": math.cos(2 * math.pi * d.weekday() / 7.0)
         })
     df = pd.DataFrame(data)
     df.sort_values(by="ds", inplace=True)
@@ -114,12 +128,12 @@ def prepare_dataframe(measurements, weather_map=None, tr_holidays=None):
 
 def _extract_series_features(last_168, col_name):
     vals = [r[col_name] for r in last_168]
-    lag_1 = vals[-1]
     lag_24 = vals[-24]
     lag_168 = vals[-168]
-    roll_6 = float(np.mean(vals[-6:]))
     roll_24 = float(np.mean(vals[-24:]))
-    return [lag_1, lag_24, lag_168, roll_6, roll_24]
+    roll_std_24 = float(np.std(vals[-24:], ddof=1)) if len(vals[-24:]) > 1 else 0.0
+    diff_1 = vals[-1] - vals[-2] if len(vals) >= 2 else 0.0
+    return [lag_24, lag_168, roll_24, roll_std_24, diff_1]
 
 def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps, transformer_id, future_dates, method_name="regression", weather_map=None, tr_holidays=None):
     if df is None or (isinstance(df, pd.DataFrame) and df.empty) or not future_dates:
@@ -133,9 +147,10 @@ def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps
             return list(val)
         return fallback
 
-    cols_aktif = _get_feat_cols(model_aktif, ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168', 'aktif_roll_mean_6', 'aktif_roll_mean_24'])
-    cols_kap   = _get_feat_cols(model_kap, ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_6', 'kapasitif_roll_mean_24'])
-    cols_end   = _get_feat_cols(model_end, ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168', 'enduktif_roll_mean_6', 'enduktif_roll_mean_24'])
+    base_feats = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'sin_hour', 'cos_hour', 'sin_day', 'cos_day', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi']
+    cols_aktif = _get_feat_cols(model_aktif, base_feats + ['aktif_lag_24', 'aktif_lag_168', 'aktif_roll_mean_24', 'aktif_roll_std_24', 'aktif_diff_1'])
+    cols_kap   = _get_feat_cols(model_kap, base_feats + ['kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_24', 'kapasitif_roll_std_24', 'kapasitif_diff_1'])
+    cols_end   = _get_feat_cols(model_end, base_feats + ['enduktif_lag_24', 'enduktif_lag_168', 'enduktif_roll_mean_24', 'enduktif_roll_std_24', 'enduktif_diff_1'])
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -144,18 +159,27 @@ def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps
             
             is_weekend = 1 if d.weekday() >= 5 else 0
             is_holiday = 1 if tr_holidays and d in tr_holidays else 0
-            temp = get_temperature_for_timestamp(weather_map, d) if weather_map else 20.0
+            from services.weather_service import get_weather_features_for_timestamp
+            w_feat = get_weather_features_for_timestamp(weather_map, d) if weather_map else {"temp": 20.0, "humidity": 50.0, "wind_speed": 0.0, "cloud_cover": 0.0}
+            t = w_feat.get("temp", 20.0)
+            rh = w_feat.get("humidity", 50.0)
+            thi = t - (0.55 - 0.0055 * rh) * (t - 14.5)
             
             lags_a = _extract_series_features(last_168, 'y_aktif')
             lags_k = _extract_series_features(last_168, 'y_kapasitif')
             lags_e = _extract_series_features(last_168, 'y_enduktif')
 
-            base_row = [is_weekend, is_holiday, d.hour, d.weekday(), temp]
+            base_row = [is_weekend, is_holiday, d.hour, d.weekday(), math.sin(2 * math.pi * d.hour / 24.0), math.cos(2 * math.pi * d.hour / 24.0), math.sin(2 * math.pi * d.weekday() / 7.0), math.cos(2 * math.pi * d.weekday() / 7.0), t, rh, w_feat.get("wind_speed", 0.0), w_feat.get("cloud_cover", 0.0), thi]
             
             feat_aktif = pd.DataFrame([base_row + lags_a], columns=cols_aktif)
             feat_kap   = pd.DataFrame([base_row + lags_k], columns=cols_kap)
             feat_end   = pd.DataFrame([base_row + lags_e], columns=cols_end)
             
+            if method_name == "lightgbm":
+                feat_aktif = feat_aktif.values
+                feat_kap = feat_kap.values
+                feat_end = feat_end.values
+                
             pa = max(0, model_aktif.predict(feat_aktif)[0])
             pk = max(0, model_kap.predict(feat_kap)[0])
             pe = max(0, model_end.predict(feat_end)[0])
@@ -201,7 +225,7 @@ def _prepare_training_data(db: Session, measurements, steps: int, base_features=
     Döndürür: (df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates)
     """
     if base_features is None:
-        base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp']
+        base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'sin_hour', 'cos_hour', 'sin_day', 'cos_day', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi']
 
     tr_holidays = holidays.country_holidays("TR", years=[
         measurements[0].timestamp.year,
@@ -229,14 +253,16 @@ def _prepare_training_data(db: Session, measurements, steps: int, base_features=
         df[f'{c}_lag_168'] = df[f'y_{c}'].shift(168)
         df[f'{c}_roll_mean_6']  = df[f'y_{c}'].shift(1).rolling(6).mean()
         df[f'{c}_roll_mean_24'] = df[f'y_{c}'].shift(1).rolling(24).mean()
+        df[f'{c}_roll_std_24']  = df[f'y_{c}'].shift(1).rolling(24).std().fillna(0)
+        df[f'{c}_diff_1']       = df[f'y_{c}'].shift(1) - df[f'y_{c}'].shift(2)
 
     df.dropna(inplace=True)
     if df.empty:
         return None, None, None, None, None, None, None
 
-    lag_cols_aktif = ['aktif_lag_1', 'aktif_lag_24', 'aktif_lag_168', 'aktif_roll_mean_6', 'aktif_roll_mean_24']
-    lag_cols_kap   = ['kapasitif_lag_1', 'kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_6', 'kapasitif_roll_mean_24']
-    lag_cols_end   = ['enduktif_lag_1', 'enduktif_lag_24', 'enduktif_lag_168', 'enduktif_roll_mean_6', 'enduktif_roll_mean_24']
+    lag_cols_aktif = ['aktif_lag_24', 'aktif_lag_168', 'aktif_roll_mean_24', 'aktif_roll_std_24', 'aktif_diff_1']
+    lag_cols_kap   = ['kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_24', 'kapasitif_roll_std_24', 'kapasitif_diff_1']
+    lag_cols_end   = ['enduktif_lag_24', 'enduktif_lag_168', 'enduktif_roll_mean_24', 'enduktif_roll_std_24', 'enduktif_diff_1']
 
     X_aktif = df[base_features + lag_cols_aktif]
     X_kap   = df[base_features + lag_cols_kap]
@@ -264,9 +290,14 @@ def _calculate_holdout_confidence(df, X_aktif, X_kap, X_end, model_aktif, model_
         logging.getLogger("spark.forecast").warning(
             f"Hold-out için yetersiz veri ({len(test_df)} satır < 24). In-sample güven kullanılıyor."
         )
-        conf_a = calculate_confidence(df['y_aktif'],     model_aktif.predict(X_aktif))
-        conf_k = calculate_confidence(df['y_kapasitif'], model_kap.predict(X_kap))
-        conf_e = calculate_confidence(df['y_enduktif'],  model_end.predict(X_end))
+        if "LGBM" in type(model_aktif).__name__:
+            conf_a = calculate_confidence(df['y_aktif'],     model_aktif.predict(X_aktif.values))
+            conf_k = calculate_confidence(df['y_kapasitif'], model_kap.predict(X_kap.values))
+            conf_e = calculate_confidence(df['y_enduktif'],  model_end.predict(X_end.values))
+        else:
+            conf_a = calculate_confidence(df['y_aktif'],     model_aktif.predict(X_aktif))
+            conf_k = calculate_confidence(df['y_kapasitif'], model_kap.predict(X_kap))
+            conf_e = calculate_confidence(df['y_enduktif'],  model_end.predict(X_end))
         return round((conf_a + conf_k + conf_e) / 3, 1)
 
     # Train verilerini al
@@ -279,18 +310,28 @@ def _calculate_holdout_confidence(df, X_aktif, X_kap, X_end, model_aktif, model_
     y_end_train   = df['y_enduktif'].iloc[:split_idx]
 
     # Modelleri kopyala ve sadece train verisiyle eğit (data leakage'ı önlemek için)
-    eval_model_aktif = clone(model_aktif).fit(X_aktif_train, y_aktif_train)
-    eval_model_kap   = clone(model_kap).fit(X_kap_train, y_kap_train)
-    eval_model_end   = clone(model_end).fit(X_end_train, y_end_train)
+    if "LGBM" in type(model_aktif).__name__:
+        eval_model_aktif = clone(model_aktif).fit(X_aktif_train.values, y_aktif_train.values)
+        eval_model_kap   = clone(model_kap).fit(X_kap_train.values, y_kap_train.values)
+        eval_model_end   = clone(model_end).fit(X_end_train.values, y_end_train.values)
+    else:
+        eval_model_aktif = clone(model_aktif).fit(X_aktif_train, y_aktif_train)
+        eval_model_kap   = clone(model_kap).fit(X_kap_train, y_kap_train)
+        eval_model_end   = clone(model_end).fit(X_end_train, y_end_train)
 
     # Test setindeki feature sütunlarını al
     X_aktif_test = X_aktif.iloc[split_idx:]
     X_kap_test   = X_kap.iloc[split_idx:]
     X_end_test   = X_end.iloc[split_idx:]
 
-    conf_a = calculate_confidence(test_df['y_aktif'],     eval_model_aktif.predict(X_aktif_test))
-    conf_k = calculate_confidence(test_df['y_kapasitif'], eval_model_kap.predict(X_kap_test))
-    conf_e = calculate_confidence(test_df['y_enduktif'],  eval_model_end.predict(X_end_test))
+    if "LGBM" in type(model_aktif).__name__:
+        conf_a = calculate_confidence(test_df['y_aktif'],     eval_model_aktif.predict(X_aktif_test.values))
+        conf_k = calculate_confidence(test_df['y_kapasitif'], eval_model_kap.predict(X_kap_test.values))
+        conf_e = calculate_confidence(test_df['y_enduktif'],  eval_model_end.predict(X_end_test.values))
+    else:
+        conf_a = calculate_confidence(test_df['y_aktif'],     eval_model_aktif.predict(X_aktif_test))
+        conf_k = calculate_confidence(test_df['y_kapasitif'], eval_model_kap.predict(X_kap_test))
+        conf_e = calculate_confidence(test_df['y_enduktif'],  eval_model_end.predict(X_end_test))
     return round((conf_a + conf_k + conf_e) / 3, 1)
 
 
@@ -425,7 +466,7 @@ def _get_or_train_models(db: Session, transformer_id: str, model_type: str, step
 # ────────────────────────────────────────────────────────────────────────────
 
 def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
-    base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi']
+    base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'sin_hour', 'cos_hour', 'sin_day', 'cos_day', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi']
     
     def _create_xgb(X_a=None, y_a=None, X_k=None, y_k=None, X_e=None, y_e=None, t_id=None):
         if t_id is not None and X_a is not None:
@@ -476,7 +517,7 @@ def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
             rh = w_feat.get("humidity", 50.0)
             thi = t - (0.55 - 0.0055 * rh) * (t - 14.5)
 
-            row_base = [is_weekend, is_holiday, d.hour, d.weekday(), t, rh, w_feat.get("wind_speed", 0.0), w_feat.get("cloud_cover", 0.0), thi]
+            row_base = [is_weekend, is_holiday, d.hour, d.weekday(), math.sin(2 * math.pi * d.hour / 24.0), math.cos(2 * math.pi * d.hour / 24.0), math.sin(2 * math.pi * d.weekday() / 7.0), math.cos(2 * math.pi * d.weekday() / 7.0), t, rh, w_feat.get("wind_speed", 0.0), w_feat.get("cloud_cover", 0.0), thi]
 
             lags_a = _extract_series_features(last_168, 'y_aktif')
             lags_k = _extract_series_features(last_168, 'y_kapasitif')
@@ -526,13 +567,13 @@ def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
 
 
 def forecast_random_forest(db: Session, transformer_id: str, steps: int = 168):
-    base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp']
+    base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'sin_hour', 'cos_hour', 'sin_day', 'cos_day', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi']
     
     def _create_rf():
         return (
-            RandomForestRegressor(n_estimators=150, max_depth=10, min_samples_split=4, min_samples_leaf=2, n_jobs=-1, random_state=42),
-            RandomForestRegressor(n_estimators=150, max_depth=10, min_samples_split=4, min_samples_leaf=2, n_jobs=-1, random_state=42),
-            RandomForestRegressor(n_estimators=150, max_depth=10, min_samples_split=4, min_samples_leaf=2, n_jobs=-1, random_state=42)
+            RandomForestRegressor(n_estimators=150, max_depth=6, min_samples_split=10, min_samples_leaf=4, n_jobs=-1, random_state=42),
+            RandomForestRegressor(n_estimators=150, max_depth=6, min_samples_split=10, min_samples_leaf=4, n_jobs=-1, random_state=42),
+            RandomForestRegressor(n_estimators=150, max_depth=6, min_samples_split=10, min_samples_leaf=4, n_jobs=-1, random_state=42)
         )
 
     rf_aktif, rf_kap, rf_end, confidence, df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates = _get_or_train_models(
@@ -552,10 +593,11 @@ def forecast_random_forest(db: Session, transformer_id: str, steps: int = 168):
 
 
 def forecast_regression(db: Session, transformer_id: str, steps: int = 168):
-    base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'temp']
+    base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'sin_hour', 'cos_hour', 'sin_day', 'cos_day', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi']
 
     def _create_lr():
-        return LinearRegression(), LinearRegression(), LinearRegression()
+        from sklearn.linear_model import Ridge
+        return Ridge(alpha=1.0), Ridge(alpha=1.0), Ridge(alpha=1.0)
 
     lr_aktif, lr_kap, lr_end, confidence, df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates = _get_or_train_models(
         db, transformer_id, "regression", steps, base_features, _create_lr
@@ -882,46 +924,62 @@ def get_cached_forecast(db: Session, transformer_id: str, year: int, month: int,
         data, confidence = forecast_persistence(db, transformer_id, steps)
     elif method == "gecenAy":
         data, confidence = forecast_gecen_ay(db, transformer_id, steps)
+    elif method == "lightgbm":
+        data, confidence = forecast_lightgbm(db, transformer_id, steps)
     else:
         xgb_preds, xgb_conf = forecast_xgboost(db, transformer_id, steps)
         rf_preds, rf_conf = forecast_random_forest(db, transformer_id, steps)
         reg_preds, reg_conf = forecast_regression(db, transformer_id, steps)
-        data, confidence = _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, reg_preds, reg_conf, transformer_id)
+        lgb_preds, lgb_conf = forecast_lightgbm(db, transformer_id, steps)
+        data, confidence = _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, reg_preds, reg_conf, lgb_preds, lgb_conf, transformer_id)
         
     result = {"predictions": data, "confidence_score": confidence}
     FORECAST_CACHE[cache_key] = (now, result)
     return result
 
-def _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, reg_preds, reg_conf, transformer_id):
+def _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, reg_preds, reg_conf, lgb_preds, lgb_conf, transformer_id):
     data = []
-    max_len = max(len(xgb_preds or []), len(rf_preds or []), len(reg_preds or []))
+    
+    xgb_c = max(0, xgb_conf) if xgb_conf is not None else 0
+    rf_c = max(0, rf_conf) if rf_conf is not None else 0
+    reg_c = max(0, reg_conf) if reg_conf is not None else 0
+    lgb_c = max(0, lgb_conf) if lgb_conf is not None else 0
+    
+    max_len = max(len(xgb_preds or []), len(rf_preds or []), len(reg_preds or []), len(lgb_preds or []))
     for i in range(max_len):
-        has_xgb = i < len(xgb_preds or [])
-        has_rf = i < len(rf_preds or [])
-        has_reg = i < len(reg_preds or [])
+        valid_models = []
+        if i < len(xgb_preds or []): valid_models.append((xgb_preds[i], xgb_c))
+        if i < len(rf_preds or []): valid_models.append((rf_preds[i], rf_c))
+        if i < len(reg_preds or []): valid_models.append((reg_preds[i], reg_c))
+        if i < len(lgb_preds or []): valid_models.append((lgb_preds[i], lgb_c))
         
-        valid_preds = []
-        if has_xgb: valid_preds.append(xgb_preds[i])
-        if has_rf: valid_preds.append(rf_preds[i])
-        if has_reg: valid_preds.append(reg_preds[i])
-        
-        if len(valid_preds) > 0:
-            avg_active = int(sum(p["active_kwh"] for p in valid_preds) / len(valid_preds))
-            avg_cap = int(sum(p["capacitive_kvarh"] for p in valid_preds) / len(valid_preds))
-            avg_ind = int(sum(p["inductive_kvarh"] for p in valid_preds) / len(valid_preds))
+        good_models = [m for m in valid_models if m[1] > 10]
+        if not good_models:
+            good_models = valid_models
+            
+        if len(good_models) > 0:
+            total_weight = sum(m[1] for m in good_models)
+            if total_weight == 0:
+                avg_active = int(sum(m[0]["active_kwh"] for m in good_models) / len(good_models))
+                avg_cap = int(sum(m[0]["capacitive_kvarh"] for m in good_models) / len(good_models))
+                avg_ind = int(sum(m[0]["inductive_kvarh"] for m in good_models) / len(good_models))
+            else:
+                avg_active = int(sum(m[0]["active_kwh"] * (m[1] / total_weight) for m in good_models))
+                avg_cap = int(sum(m[0]["capacitive_kvarh"] * (m[1] / total_weight) for m in good_models))
+                avg_ind = int(sum(m[0]["inductive_kvarh"] * (m[1] / total_weight) for m in good_models))
             
             data.append({
                 "transformer_id": transformer_id,
-                "timestamp": valid_preds[0]["timestamp"],
+                "timestamp": good_models[0][0]["timestamp"],
                 "active_kwh": avg_active,
                 "capacitive_kvarh": avg_cap,
                 "inductive_kvarh": avg_ind,
-                "kap_reason": valid_preds[0].get("kap_reason"),
-                "end_reason": valid_preds[0].get("end_reason"),
+                "kap_reason": good_models[0][0].get("kap_reason"),
+                "end_reason": good_models[0][0].get("end_reason"),
                 "is_forecast": True
             })
 
-    valid_confs = [c for c in [xgb_conf, rf_conf, reg_conf] if c is not None]
+    valid_confs = [c for c in [xgb_c, rf_c, reg_c, lgb_c] if c > 0]
     confidence = round(sum(valid_confs) / len(valid_confs), 1) if valid_confs else 90.0
     return data, confidence
 
@@ -1016,6 +1074,35 @@ def apply_topology_scaling_to_forecast(db, transformer_id, method, steps):
     return scaled_preds, base_raw["conf"]
 
 
+
+def forecast_lightgbm(db, transformer_id: str, steps: int = 168):
+    base_features = ['is_weekend', 'is_holiday', 'hour', 'day_of_week', 'sin_hour', 'cos_hour', 'sin_day', 'cos_day', 'temp', 'humidity', 'wind_speed', 'cloud_cover', 'thi']
+    
+    def _create_lgb():
+        # pyrefly: ignore [missing-import]
+        import lightgbm as lgb
+        params = {'n_estimators': 150, 'max_depth': 6, 'learning_rate': 0.05, 'subsample': 0.8, 'colsample_bytree': 0.8, 'random_state': 42, 'n_jobs': -1, 'verbose': -1}
+        return (
+            lgb.LGBMRegressor(**params),
+            lgb.LGBMRegressor(**params),
+            lgb.LGBMRegressor(**params)
+        )
+
+    lgb_aktif, lgb_kap, lgb_end, confidence, df, X_aktif, X_kap, X_end, weather_map, tr_holidays, future_dates = _get_or_train_models(
+        db, transformer_id, "lightgbm", steps, base_features, _create_lgb
+    )
+    if (
+        lgb_aktif is None or lgb_kap is None or lgb_end is None or
+        df is None or df.empty or not future_dates
+    ):
+        return [], 0
+
+    preds = generate_predictions_from_model(
+        lgb_aktif, lgb_kap, lgb_end, df, steps, transformer_id, future_dates,
+        "lightgbm", weather_map, tr_holidays
+    )
+    return preds, confidence
+
 def _run_raw_forecast_algorithm(db, transformer_id, method, steps):
     if method == "xgboost": preds, conf = forecast_xgboost(db, transformer_id, steps)
     elif method == "randomForest": preds, conf = forecast_random_forest(db, transformer_id, steps)
@@ -1024,11 +1111,15 @@ def _run_raw_forecast_algorithm(db, transformer_id, method, steps):
     elif method == "ortalama": preds, conf = forecast_ortalama(db, transformer_id, steps)
     elif method == "persistence": preds, conf = forecast_persistence(db, transformer_id, steps)
     elif method == "gecenAy": preds, conf = forecast_gecen_ay(db, transformer_id, steps)
-    else:
+    elif method == "lightgbm": preds, conf = forecast_lightgbm(db, transformer_id, steps)
+    elif method == "ensemble":
         xgb_preds, xgb_conf = forecast_xgboost(db, transformer_id, steps)
         rf_preds, rf_conf = forecast_random_forest(db, transformer_id, steps)
         reg_preds, reg_conf = forecast_regression(db, transformer_id, steps)
-        preds, conf = _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, reg_preds, reg_conf, transformer_id)
+        lgb_preds, lgb_conf = forecast_lightgbm(db, transformer_id, steps)
+        preds, conf = _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, reg_preds, reg_conf, lgb_preds, lgb_conf, transformer_id)
+    else:
+        preds, conf = [], 0
         
     return preds, conf
 
@@ -1047,7 +1138,7 @@ def run_weekly_batch_forecast(transformer_ids=None):
         else:
             transformers = db.query(models.Transformer).all()
             
-        methods = ["ensemble", "xgboost", "randomForest", "regression"]
+        methods = ["ensemble", "xgboost", "randomForest", "regression", "lightgbm"]
         steps = 720 # 30 gün
         
         for t in transformers:

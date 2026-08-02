@@ -13,7 +13,7 @@ from typing import List, Literal, Optional
 from ws_handler import ws_manager
 import pandas as pd
 import io
-FORECAST_METHODS = Literal["xgboost", "randomForest", "regression", "holtWinters", "ortalama", "persistence", "gecenAy", "ensemble"]
+FORECAST_METHODS = Literal["xgboost", "randomForest", "regression", "holtWinters", "ortalama", "persistence", "gecenAy", "ensemble", "lightgbm"]
 from datetime import datetime, date
 import simulator
 from contextlib import asynccontextmanager
@@ -465,7 +465,7 @@ def get_forecast(
     transformer_id: str = Query(..., description="Transformer ID"),
     year: int = Query(..., description="Target Year"),
     month: int = Query(..., description="Target Month"),
-    method: FORECAST_METHODS = Query("ensemble", description="xgboost, randomForest, regression, holtWinters, ortalama, persistence, gecenAy, ensemble"),
+    method: FORECAST_METHODS = Query("ensemble", description="xgboost, randomForest, regression, holtWinters, ortalama, persistence, gecenAy, ensemble, lightgbm"),
     db: Session = Depends(get_db)
 ):
     from services.forecast_service import get_cached_forecast

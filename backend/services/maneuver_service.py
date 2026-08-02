@@ -668,6 +668,10 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         
         # Trigger forecast updates
         clear_caches()
+        db.query(models.ForecastMeasurement).filter(
+            models.ForecastMeasurement.transformer_id.in_([old_trafo_id, target_trafo_id])
+        ).delete(synchronize_session=False)
+        db.commit()
         import threading
         threading.Thread(target=run_weekly_batch_forecast, args=([old_trafo_id, target_trafo_id],)).start()
         
@@ -716,6 +720,10 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         
         # Trigger forecast updates
         clear_caches()
+        db.query(models.ForecastMeasurement).filter(
+            models.ForecastMeasurement.transformer_id.in_([old_trafo_id, target_trafo_id])
+        ).delete(synchronize_session=False)
+        db.commit()
         import threading
         threading.Thread(target=run_weekly_batch_forecast, args=([old_trafo_id, target_trafo_id],)).start()
         
@@ -756,6 +764,10 @@ def rollback_maneuver(db: Session, log_id: int):
     
     # Trigger forecast updates
     clear_caches()
+    db.query(models.ForecastMeasurement).filter(
+        models.ForecastMeasurement.transformer_id.in_([log.source_trafo_id, log.target_trafo_id])
+    ).delete(synchronize_session=False)
+    db.commit()
     import threading
     threading.Thread(target=run_weekly_batch_forecast, args=([log.source_trafo_id, log.target_trafo_id],)).start()
     

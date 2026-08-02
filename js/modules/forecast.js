@@ -70,6 +70,9 @@ const TahminModulu = (() => {
             case 'regression':
                 detayliAciklama = "Çoklu Doğrusal Regresyon modeli ile; geçmiş enerji tüketimleri ve çevresel değişkenler (sıcaklık) arasındaki lineer (doğrusal) ilişki denklemi kurularak hesaplanmıştır.";
                 break;
+            case 'lightgbm':
+                detayliAciklama = "LightGBM Gradient Boosting Framework modeli ile; yüksek performanslı yaprak bazlı ağaç büyümesi (leaf-wise tree growth) stratejisi kullanılarak tahminleme yapılmıştır.";
+                break;
             case 'ortalama':
                 detayliAciklama = "İstatistiksel yöntemle, önceki günlerin/haftaların aynı saatlerindeki tüketim değerlerinin aritmetik ortalaması alınarak (dış faktörler harici) hesaplanmıştır.";
                 break;
