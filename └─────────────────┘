@@ -22,8 +22,8 @@ The backend is built using a modular, service-oriented architecture with FastAPI
 #### A. Analysis Service (`analysis_service.py`)
 Responsible for calculating reactive power ratios and determining risk levels.
 *   **Formulas:**
-    $$\text{Inductive Ratio (\%)} = \frac{\text{Inductive Reactive Energy}}{\text{Active Energy}} \times 100$$
-    $$\text{Capacitive Ratio (\%)} = \frac{\text{Capacitive Reactive Energy}}{\text{Active Energy}} \times 100$$
+    *   Inductive Ratio (%) = (Inductive Reactive Energy / Active Energy) * 100
+    *   Capacitive Ratio (%) = (Capacitive Reactive Energy / Active Energy) * 100
 *   **Risk Classification:** Classifies risk into `guvenli` (safe), `dikkat` (warning), `riskli` (risky), or `tehlikeli` (critical) based on proximity to the 20% inductive and 15% capacitive limits.
 *   **Enforcement:** Implements the "worst-case wins" principle to ensure that if either inductive or capacitive limits are threatened, the overall status reflects the higher risk level.
 
