@@ -243,9 +243,9 @@ const DataEntryUI = (() => {
                     const trafoList = Array.from(ososSelectedTrafos).join(',');
                     const data = await ApiClient.fetchMeasurements(start, end, trafoList);
                     if (data && data.length > 0) {
-                        for (const m of data) {
+                        const yeniVeriler = data.map(m => {
                             const d = new Date(m.timestamp);
-                            await VeriModulu.veriEkle({
+                            return {
                                 trafoId: m.transformer_id,
                                 tarih: m.timestamp.replace('T', ' '),
                                 aktifEnerji: m.active_kwh,
@@ -253,8 +253,9 @@ const DataEntryUI = (() => {
                                 kapasitifEnerji: m.capacitive_kvarh,
                                 haftaSonu: d.getDay() === 0 || d.getDay() === 6,
                                 tatil: false,
-                            });
-                        }
+                            };
+                        });
+                        VeriModulu.veriEkleToplu(yeniVeriler);
 
                         if (typeof DashboardUI !== 'undefined') DashboardUI.clearCache();
                         App.showToast(`${data.length} ölçüm başarıyla OSOS'tan çekildi!`, 'success');

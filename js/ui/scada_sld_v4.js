@@ -69,8 +69,6 @@ const ScadaSldUI = (() => {
         connectWebSocket();
         render();
         
-        // Bu mesaj, kullanıcının güncel JS dosyasını yüklediğini doğrulaması için eklendi.
-        setTimeout(() => showToast("✅ SCADA Arayüzü başarıyla güncellendi ve aktif.", "success"), 1000);
     }
 
     async function fetchInitialState() {

@@ -169,3 +169,18 @@ class ScadaBreakerToggleRequest(BaseModel):
 
 class ScadaAlarmAckRequest(BaseModel):
     alarm_id: str
+
+# ── PowerFlow & SimBench Schemas ──
+class PowerFlowActionRequest(BaseModel):
+    element_type: str = Field(..., description="Element type to toggle (e.g., 'switch', 'shunt', 'line')")
+    element_id: int = Field(..., description="Pandapower index of the element")
+    action: str = Field(..., description="'open' or 'close' (or 'in_service' vs 'out_of_service')")
+    reason: Optional[str] = None
+
+class PowerFlowResultResponse(BaseModel):
+    status: str
+    message: str
+    element_type: Optional[str] = None
+    element_id: Optional[int] = None
+    new_state: Optional[str] = None
+    summary: dict = Field(..., description="Summary of grid state after power flow")

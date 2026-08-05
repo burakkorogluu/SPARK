@@ -40,9 +40,35 @@
                         <span>Reaktif Güç Takip</span>
                     </div>
                 </div>
+                <div class="header-divider" style="width: 1px; height: 32px; background-color: var(--border-color); margin: 0 5px;"></div>
+                <div class="header-tab-title" style="display: flex; align-items: center; color: var(--text-primary);">
+                    <h2 style="font-size: 16px; font-weight: 600; margin: 0; letter-spacing: -0.2px;" id="header-tab-title-text">Kontrol Paneli & Şebeke Topolojisi</h2>
+                </div>
             </div>
-            <div class="header-info">
-                <span class="current-date" id="current-date"></span>
+            <div class="header-info" style="display: flex; align-items: center; gap: 15px;">
+                <select id="global-ay-select" class="select-sm" style="background-color: var(--bg-secondary, #1e293b); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-weight: 500; cursor: pointer; height: 36px; min-width: 140px; font-size: 14px;"></select>
+                <div class="notification-container" style="position: relative;">
+                    <button class="theme-toggle-btn" id="btn-notifications" title="Bildirimler" aria-label="Bildirimler" style="position: relative;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <span class="notification-badge" id="notification-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: var(--color-danger); color: white; border-radius: 50%; font-size: 10px; width: 16px; height: 16px; align-items: center; justify-content: center; font-weight: bold;">0</span>
+                    </button>
+                    <div id="notification-dropdown" class="notification-dropdown" style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; width: 350px; max-height: 400px; overflow-y: auto; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 10px; flex-direction: column;">
+                        <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); font-weight: bold; color: var(--text-primary); display: flex; flex-direction: column; gap: 8px; position: sticky; top: 0; background: var(--bg-secondary); z-index: 1;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <span>Sistem Bildirimleri</span>
+                                <button id="btn-mark-all-read" class="btn btn-sm" style="font-size: 11px; padding: 2px 6px; background: transparent; border: none; color: var(--color-primary); cursor: pointer; text-decoration: underline;">Tümünü Okundu İşaretle</button>
+                            </div>
+                            <div style="display: flex; gap: 5px; font-size: 11px; font-weight: normal;">
+                                <button class="btn btn-sm btn-outline notification-filter active" data-filter="all" style="flex: 1; padding: 4px;">Tümü</button>
+                                <button class="btn btn-sm btn-outline notification-filter" data-filter="critical" style="flex: 1; padding: 4px; color: var(--color-danger); border-color: var(--color-danger);">Kritik</button>
+                                <button class="btn btn-sm btn-outline notification-filter" data-filter="warning" style="flex: 1; padding: 4px; color: var(--color-warning); border-color: var(--color-warning);">Dikkat</button>
+                            </div>
+                        </div>
+                        <div id="system-alerts-container" style="padding: 10px; display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                            <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">Bildirim bulunmuyor.</div>
+                        </div>
+                    </div>
+                </div>
                 <button class="theme-toggle-btn" id="btn-theme-toggle" title="Temayı Değiştir (Açık / Koyu)" aria-label="Tema Değiştir">
                     <span id="theme-icon" class="theme-icon">☀️</span>
                     <span class="theme-text" id="theme-text">Açık</span>
@@ -86,28 +112,8 @@
 
         <!-- ─── Ekran 1: Kontrol Paneli (Dashboard & SCADA) ─── -->
         <section id="screen-dashboard" class="screen active">
-            <!-- Ana Kontrol Paneli Üst Başlık ve Görünüm Seçici -->
-            <div class="dashboard-top-bar">
-                <div class="dashboard-title-area">
-                    <h2>Kontrol Paneli & Şebeke Topolojisi</h2>
-                    <p class="text-muted" style="font-size: 13px;">Tesis istatistiklerine, canlı SCADA akışına ve fazör vektör analizine tek ekrandan ulaşın.</p>
-                </div>
-                <div style="display: flex; gap: 15px; align-items: center;">
-                    <select id="dashboard-ay-select" class="select-lg">
-                        <option value="1">Ocak 2025</option>
-                        <option value="2">Şubat 2025</option>
-                        <option value="3">Mart 2025</option>
-                        <option value="4">Nisan 2025</option>
-                        <option value="5">Mayıs 2025</option>
-                        <option value="6">Haziran 2025</option>
-                        <option value="7" selected>Temmuz 2025</option>
-                    </select>
-                </div>
-            </div>
 
-            <!-- Sistem Alarmları Konteyneri -->
-            <div id="system-alerts-container" style="margin-bottom: 15px;"></div>
-
+            <!-- Bildirimler Header'a Taşındı -->
             <!-- GÖRÜNÜM 1: Tablo & Grafik Görünümü -->
             <div id="dashboard-view-charts" class="dashboard-view-content active">
                 <!-- Ay Sonu Tahmin ve Risk Bildirim Barı -->
@@ -140,10 +146,7 @@
 
         <!-- ─── Ekran 2: Veri Girişi ─── -->
         <section id="screen-veri-giris" class="screen">
-            <div class="screen-header">
-                <h2>Veri Girişi</h2>
-                <p>Trafo enerji verilerini manuel olarak girin veya CSV dosyası yükleyin.</p>
-            </div>
+
 
             <div class="veri-giris-layout">
                 <!-- Manuel Giriş Formu -->
@@ -288,7 +291,6 @@
         <!-- ─── Ekran 3: Trafo Detay & Risk Analizi ─── -->
         <section id="screen-trafo-detay" class="screen">
             <div class="screen-header">
-                <h2>Trafo Detay & Risk Analizi</h2>
                 <div class="screen-controls">
                     <select id="detay-trafo-select" class="select-lg"></select>
                     <select id="detay-ay-select" class="select-lg">
@@ -378,7 +380,6 @@
         <!-- ─── Ekran 4: Tahmin & Senaryo Simülasyonu ─── -->
         <section id="screen-tahmin" class="screen">
             <div class="screen-header">
-                <h2>Tahmin & Senaryo Simülasyonu</h2>
                 <div class="screen-controls">
                     <select id="tahmin-ay-select" class="select-lg">
                         <option value="1">Ocak 2025</option>
@@ -462,10 +463,7 @@
 
         <!-- ─── Ekran 5: Manevra Öneri Modülü (Gelişmiş) ─── -->
         <section id="screen-manevra" class="screen">
-            <div class="screen-header">
-                <h2>Manevra Öneri &amp; Karar Destek Modülü</h2>
-                <p>Şebeke yük dengesini ve reaktif güç durumunu analiz ederek akıllı manevra ve aktarım önerileri sunar. Simülasyon, onay ve geri alma desteği ile tam karar döngüsü sağlar.</p>
-            </div>
+
 
             <!-- Özet Kartları -->
             <div class="maneuver-summary-grid" id="maneuver-summary-grid">
@@ -706,10 +704,7 @@
 
         <!-- ─── Ekran 6: Teknik SCADA Tek Hat Şeması (SLD) ─── -->
         <section id="screen-scada-sld" class="screen">
-            <div class="screen-header">
-                <h2>Teknik SCADA — Trafo Merkezi Tek Hat Şeması (SLD)</h2>
-                <p>Canlı telemetri ölçümleri, kesici/ayırıcı durumları ve haberleşme panosu.</p>
-            </div>
+
 
             <div class="scada-sld-container">
                 <!-- SCADA Header & Tab Selector -->
@@ -1359,21 +1354,21 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- ═══ Scripts (sıra önemli!) ═══ -->
-    <script src="js/core/data.js?v=1002"></script>
-    <script src="js/core/api_client.js?v=1002"></script>
-    <script src="js/core/theme.js?v=1002"></script>
-    <script src="js/modules/calculations.js?v=1002"></script>
-    <script src="js/modules/forecast.js?v=1002"></script>
-    <script src="js/modules/scenarios.js?v=1002"></script>
-    <script src="js/ui/charts.js?v=1002"></script>
-    <script src="js/ui/topology.js?v=1002"></script>
-    <script src="js/ui/dashboard.js?v=1002"></script>
-    <script src="js/ui/data_entry.js?v=1002"></script>
-    <script src="js/ui/detail.js?v=1002"></script>
-    <script src="js/ui/forecast_ui.js?v=1002"></script>
-    <script src="js/ui/maneuver_ui.js?v=1002"></script>
-    <script src="js/ui/alerts.js?v=1002"></script>
-    <script src="js/ui/scada_sld_v4.js?v=1004"></script>
-    <script src="js/core/app.js?v=1003"></script>
+    <script src="js/core/data.js?v=1011"></script>
+    <script src="js/core/api_client.js?v=1011"></script>
+    <script src="js/core/theme.js?v=1011"></script>
+    <script src="js/modules/calculations.js?v=1011"></script>
+    <script src="js/modules/forecast.js?v=1011"></script>
+    <script src="js/modules/scenarios.js?v=1011"></script>
+    <script src="js/ui/charts.js?v=1011"></script>
+    <script src="js/ui/topology.js?v=1011"></script>
+    <script src="js/ui/dashboard.js?v=1011"></script>
+    <script src="js/ui/data_entry.js?v=1011"></script>
+    <script src="js/ui/detail.js?v=1011"></script>
+    <script src="js/ui/forecast_ui.js?v=1011"></script>
+    <script src="js/ui/maneuver_ui.js?v=1011"></script>
+    <script src="js/ui/alerts.js?v=1011"></script>
+    <script src="js/ui/scada_sld_v4.js?v=1011"></script>
+    <script src="js/core/app.js?v=1011"></script>
 </body>
 </html>

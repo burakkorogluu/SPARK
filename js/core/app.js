@@ -46,7 +46,7 @@ const App = (() => {
     };
 
     async function init() {
-        if (!document.getElementById('current-date')) return;
+        if (!document.getElementById('global-ay-select')) return;
 
         try {
             const loader = document.createElement('div');
@@ -76,7 +76,7 @@ const App = (() => {
             return;
         }
 
-        document.getElementById('current-date').textContent = formatDisplayDate(VeriModulu.BUGUN);
+        // current-date removed
 
         if (typeof ThemeManager !== 'undefined') {
             ThemeManager.initTheme();
@@ -143,6 +143,19 @@ const App = (() => {
 
         state.currentScreen = screen;
 
+        const screenTitles = {
+            'dashboard': 'Kontrol Paneli & Şebeke Topolojisi',
+            'veri-giris': 'Veri Girişi',
+            'trafo-detay': 'Trafo Detay & Risk Analizi',
+            'tahmin': 'Tahmin & Senaryo Simülasyonu',
+            'manevra': 'Manevra Öneri & Karar Destek Modülü',
+            'scada-sld': 'Teknik SCADA (SLD)'
+        };
+        const titleEl = document.getElementById('header-tab-title-text');
+        if (titleEl && screenTitles[screen]) {
+            titleEl.textContent = screenTitles[screen];
+        }
+
         switch (screen) {
             case 'dashboard':
                 renderDashboard();
@@ -166,7 +179,7 @@ const App = (() => {
     }
 
     function populateAySelects() {
-        const selects = ['dashboard-ay-select', 'detay-ay-select', 'topoloji-ay-select', 'tahmin-ay-select'];
+        const selects = ['global-ay-select', 'detay-ay-select', 'topoloji-ay-select', 'tahmin-ay-select'];
         const now = new Date();
         const options = [];
         let cur = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -174,13 +187,14 @@ const App = (() => {
         while (cur.getFullYear() > 2025 || (cur.getFullYear() === 2025 && cur.getMonth() >= 0)) {
             const val = `${cur.getFullYear()}-${(cur.getMonth() + 1).toString().padStart(2, '0')}`;
             const text = `${AY_ADLARI[cur.getMonth()]} ${cur.getFullYear()}`;
-            options.push({ val, text });
+            const isSelected = (cur.getFullYear() === state.selectedYil && (cur.getMonth() + 1) === state.selectedAy);
+            options.push({ val, text, isSelected });
             cur.setMonth(cur.getMonth() - 1);
         }
         selects.forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
-            el.innerHTML = options.map(o => `<option value="${o.val}">${o.text}</option>`).join('');
+            el.innerHTML = options.map(o => `<option value="${o.val}" ${o.isSelected ? 'selected' : ''}>${o.text}</option>`).join('');
         });
     }
 
@@ -220,7 +234,7 @@ const App = (() => {
 
             const detayAy = document.getElementById('detay-ay-select');
             const topolojiAy = document.getElementById('topoloji-ay-select');
-            const dashAy = document.getElementById('dashboard-ay-select');
+            const dashAy = document.getElementById('global-ay-select');
             const tahminAy = document.getElementById('tahmin-ay-select');
 
             if (detayAy && detayAy.value !== newVal) detayAy.value = newVal;
@@ -235,10 +249,16 @@ const App = (() => {
             if (typeof DetailUI !== 'undefined') DetailUI.renderTrafoDetay();
         });
 
-        document.getElementById('dashboard-ay-select')?.addEventListener('change', async (e) => {
+        document.getElementById('global-ay-select')?.addEventListener('change', async (e) => {
             syncAySelects(e.target.value);
             await VeriModulu.loadAylikVeriler(state.selectedYil, state.selectedAy);
-            renderDashboard();
+            if (state.currentScreen === 'dashboard') {
+                renderDashboard();
+            } else if (state.currentScreen === 'trafo-detay' && typeof DetailUI !== 'undefined') {
+                DetailUI.renderTrafoDetay();
+            } else if (state.currentScreen === 'tahmin' && typeof ForecastUI !== 'undefined') {
+                ForecastUI.renderTahmin();
+            }
         });
         document.getElementById('tahmin-ay-select')?.addEventListener('change', async (e) => {
             syncAySelects(e.target.value);

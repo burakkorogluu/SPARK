@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import logging
 from services.forecast_service import get_cached_forecast, clear_caches, run_weekly_batch_forecast
 from services.analysis_service import get_monthly_summary
+from services.scada_service import is_transformer_energized
 
 logger = logging.getLogger("spark.maneuver")
 
@@ -30,9 +31,9 @@ def _get_trafo_stats(db: Session):
         total_feeder_load = sum(f.simulated_load_kw for f in trafo.feeders)
         power_kw = trafo.power_mva * 1000  # Convert MVA to approximate kW
         
-        hours_so_far = len(recent_measurements) or 1
-        avg_active = active_sum / hours_so_far
-        load_ratio = (avg_active / power_kw * 100) if power_kw > 0 else 0
+        # Aktif yükü tamamen güncel fiderlerin toplamına bağlıyoruz (Geçmiş aylık ortalama yerine)
+        current_active_kw = total_feeder_load
+        load_ratio = (current_active_kw / power_kw * 100) if power_kw > 0 else 0
 
         ind_ratio = (ind_sum / active_sum * 100) if active_sum > 0 else 0
         cap_ratio = (cap_sum / active_sum * 100) if active_sum > 0 else 0
@@ -58,7 +59,7 @@ def _get_trafo_stats(db: Session):
             "load_ratio": load_ratio,
             "ind_ratio": ind_ratio,
             "cap_ratio": cap_ratio,
-            "avg_active": avg_active,
+            "avg_active": current_active_kw,
             "active_sum": active_sum,
             "cap_sum": cap_sum,
             "peak_cap_ratio": peak_cap_ratio,
@@ -190,18 +191,23 @@ def analyze_and_suggest_maneuvers(db: Session):
 
     # 1. Check for Load Balancing Opportunities (Feeder Transfer)
     for t_id, stats in trafo_stats.items():
+        if not is_transformer_energized(t_id):
+            continue
+
         trafo = stats["model"]
 
         if stats["load_ratio"] > 50:
             for feeder in stats["feeders"]:
                 alt_id = feeder.alternative_transformer_id
                 if alt_id and alt_id in trafo_stats:
+                    if not is_transformer_energized(alt_id):
+                        continue
                     alt_stats = trafo_stats[alt_id]
                     load_diff = stats["load_ratio"] - alt_stats["load_ratio"]
 
                     if load_diff > 15:
-                        # Calculate physical kW load of the feeder based on its weight
-                        feeder_kw = (feeder.simulated_load_kw / stats["total_feeder_load"] * stats["avg_active"]) if stats["total_feeder_load"] > 0 else 0
+                        # Yük direkt fiderin kendi simüle edilmiş yüküdür
+                        feeder_kw = feeder.simulated_load_kw
                         
                         # New ratios based on physical kW transfer
                         new_source_ratio = ((stats["avg_active"] - feeder_kw) / stats["power_kw"] * 100) if stats["power_kw"] > 0 else 0
@@ -271,7 +277,10 @@ def analyze_and_suggest_maneuvers(db: Session):
                     suggestion_id += 1
 
                 elif reactor.alternative_transformer_id and reactor.alternative_transformer_id in trafo_stats:
-                    alt_stats = trafo_stats[reactor.alternative_transformer_id]
+                    alt_id = reactor.alternative_transformer_id
+                    if not is_transformer_energized(alt_id):
+                        continue
+                    alt_stats = trafo_stats[alt_id]
                     if alt_stats["ind_ratio"] > stats["ind_ratio"] + 10:
                         score = _calculate_suggestion_score(stats, alt_stats, alt_stats["ind_ratio"] - stats["ind_ratio"], is_reactive=True)
                         suggestions.append({
@@ -373,6 +382,9 @@ def analyze_and_suggest_maneuvers(db: Session):
             pred_score = min(100, 60 + int((proj_end_ratio - 19.5) * 10))
             for reactor in stats["reactors"]:
                 if reactor.alternative_transformer_id and reactor.alternative_transformer_id in trafo_stats:
+                    alt_id = reactor.alternative_transformer_id
+                    if not is_transformer_energized(alt_id):
+                        continue
                     suggestions.append({
                         "id": f"MAN-PRED-{suggestion_id:03d}",
                         "title": f"Proaktif Uyarı (Endüktif): {reactor.name}",
@@ -411,6 +423,20 @@ def analyze_and_suggest_maneuvers(db: Session):
             target_id = f.alternative_transformer_id or (second_trafo.id if second_trafo else None)
             target_name = f.alternative_transformer.name if f.alternative_transformer else (second_trafo.name if second_trafo else "Bilinmeyen Trafo")
 
+            source_stats = trafo_stats.get(first_trafo.id)
+            target_stats = trafo_stats.get(target_id)
+            
+            s_before = source_stats["load_ratio"] if source_stats else 0
+            t_before = target_stats["load_ratio"] if target_stats else 0
+            
+            s_after = 0
+            t_after = 0
+            
+            if source_stats and target_stats:
+                feeder_kw = f.simulated_load_kw
+                s_after = ((source_stats["avg_active"] - feeder_kw) / source_stats["power_kw"] * 100) if source_stats["power_kw"] > 0 else 0
+                t_after = ((target_stats["avg_active"] + feeder_kw) / target_stats["power_kw"] * 100) if target_stats["power_kw"] > 0 else 0
+
             suggestions.append({
                 "id": "MAN-001",
                 "title": f"Önleyici Yük Dengeleme: {f.name}",
@@ -428,10 +454,10 @@ def analyze_and_suggest_maneuvers(db: Session):
                 ),
                 "feeder_id": f.id,
                 "simulation_preview": {
-                    "source_load_before": round(trafo_stats.get(first_trafo.id, {}).get("load_ratio", 0), 1),
-                    "source_load_after": 0,
-                    "target_load_before": 0,
-                    "target_load_after": 0,
+                    "source_load_before": round(s_before, 1),
+                    "source_load_after": round(s_after, 1),
+                    "target_load_before": round(t_before, 1),
+                    "target_load_after": round(t_after, 1),
                 }
             })
 
@@ -475,6 +501,9 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     if asset.alternative_transformer_id and target_trafo_id != asset.alternative_transformer_id:
         raise ValueError(f"'{asset_name}' fiziksel hat topolojisi gereği sadece '{asset.alternative_transformer_id}' trafosuna aktarılabilir.")
 
+    if not is_transformer_energized(target_trafo_id):
+        raise ValueError(f"Hedef trafo ({target_trafo_id}) enerjisiz. Manevra uygulanamaz.")
+
     if source_id not in trafo_stats or target_trafo_id not in trafo_stats:
         return None
 
@@ -496,7 +525,7 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     target_ratio_before = target_stats["load_ratio"]
     
     if asset_type == "feeder":
-        feeder_kw = (asset_load / source_load_before * source_stats["avg_active"]) if source_load_before > 0 else 0
+        feeder_kw = asset_load
         source_ratio_after = ((source_stats["avg_active"] - feeder_kw) / source_stats["power_kw"] * 100) if source_stats["power_kw"] > 0 else 0
         target_ratio_after = ((target_stats["avg_active"] + feeder_kw) / target_stats["power_kw"] * 100) if target_stats["power_kw"] > 0 else 0
     else:
@@ -634,11 +663,14 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         if not new_trafo:
             return None
 
+        if not is_transformer_energized(target_trafo_id):
+            raise ValueError(f"Hedef trafo ({target_trafo_id}) enerjisiz. Yük aktarılamaz.")
+
         # Edge Case 3: Overload check
         target_stats = trafo_stats.get(target_trafo_id)
         source_stats = trafo_stats.get(old_trafo_id)
         if target_stats and target_stats["power_kw"] > 0 and source_stats:
-            feeder_kw = (asset.simulated_load_kw / source_stats["total_feeder_load"] * source_stats["avg_active"]) if source_stats["total_feeder_load"] > 0 else 0
+            feeder_kw = asset.simulated_load_kw
             target_ratio_after = ((target_stats["avg_active"] + feeder_kw) / target_stats["power_kw"]) * 100
             if target_ratio_after > 100 and not override_overload:
                 raise ValueError(f"Aşırı Yük Uyarısı: Bu manevra hedef trafoda ({target_trafo_id}) %{target_ratio_after:.1f} aşırı yük oluşturur. İlerlemeniz için 'Aşırı Yük Riskini Kabul Ediyorum' seçeneğini işaretlemelisiniz.")
@@ -647,7 +679,7 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         asset.alternative_transformer_id = old_trafo_id  # type: ignore
         asset.current_transformer_id = target_trafo_id  # type: ignore
 
-        impact = "Kritik (Aşırı Yüklü)" if target_stats and target_stats.get("power_kw", 0) > 0 and source_stats and (((target_stats["avg_active"] + (asset.simulated_load_kw / source_stats["total_feeder_load"] * source_stats["avg_active"]) if source_stats["total_feeder_load"] > 0 else 0) / target_stats["power_kw"]) > 1) else "Orta"
+        impact = "Kritik (Aşırı Yüklü)" if target_stats and target_stats.get("power_kw", 0) > 0 and source_stats and (((target_stats["avg_active"] + asset.simulated_load_kw) / target_stats["power_kw"]) > 1) else "Orta"
 
         log = models.ManeuverLog(
             action_type="feeder_transfer",
@@ -696,6 +728,9 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         new_trafo = db.query(models.Transformer).filter(models.Transformer.id == target_trafo_id).first()
         if not new_trafo:
             return None
+
+        if old_trafo_id != target_trafo_id and not is_transformer_energized(target_trafo_id):
+            raise ValueError(f"Hedef trafo ({target_trafo_id}) enerjisiz. Reaktör aktarılamaz.")
 
         if old_trafo_id != target_trafo_id:
             asset.alternative_transformer_id = old_trafo_id  # type: ignore

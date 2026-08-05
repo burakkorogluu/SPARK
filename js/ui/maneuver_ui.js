@@ -574,6 +574,7 @@ const ManeuverUI = (() => {
 
     let _topologyState = {
         nodes: [],
+        breakers: [],
         hoveredId: null,
         draggedNode: null,
         dragX: 0,
@@ -581,6 +582,18 @@ const ManeuverUI = (() => {
         particles: [],
         lastTime: 0
     };
+    let _scadaBreakerStates = {};
+    async function loadScadaState() {
+        try {
+            const res = await App.api.get('/api/scada/state');
+            if (res && res.breakers) {
+                _scadaBreakerStates = res.breakers;
+            }
+        } catch (error) {
+            console.error("SCADA state yüklenemedi:", error);
+        }
+    }
+
     let _topologyCanvasBound = false;
     let _trafoFiltersInitialized = false;
     let _selectedTrafoFilters = new Set();
@@ -696,10 +709,6 @@ const ManeuverUI = (() => {
                         let trafoIds = [];
                         try {
                             const dataAttr = e.target.getAttribute('data-trafos');
-                            // Decode html entities back if needed, but since we used escapeHTML, JSON.parse might fail on &quot;
-                            // Let's decode it safely or just use simple array format in value attribute if possible.
-                            // Actually it's better to just store raw string and unescape.
-                            // To avoid JSON parsing issues, we can just let DOM decode it since it's an attribute.
                             trafoIds = JSON.parse(dataAttr || '[]');
                         } catch (err) {
                             console.error("Filtre parse hatası", err);
@@ -796,6 +805,13 @@ const ManeuverUI = (() => {
             };
 
             const hitTest = (x, y) => {
+                for (let i = _topologyState.breakers.length - 1; i >= 0; i--) {
+                    const b = _topologyState.breakers[i];
+                    if (x >= b.x - b.size && x <= b.x + b.size && y >= b.y - b.size && y <= b.y + b.size) {
+                        return { type: 'breaker', id: b.id, asset: b.asset, currentState: b.state, trafoId: b.trafoId };
+                    }
+                }
+
                 for (let i = _topologyState.nodes.length - 1; i >= 0; i--) {
                     const n = _topologyState.nodes[i];
                     if (n.type === 'reactor') {
@@ -840,7 +856,7 @@ const ManeuverUI = (() => {
 
                 const hit = hitTest(pos.x, pos.y);
                 if (hit) {
-                    canvas.style.cursor = _isEditMode ? 'move' : (hit.type === 'trafo' ? 'pointer' : 'grab');
+                    canvas.style.cursor = hit.type === 'breaker' ? 'pointer' : (_isEditMode ? 'move' : (hit.type === 'trafo' ? 'pointer' : 'grab'));
                     if (_topologyState.hoveredId !== hit.id) {
                         _topologyState.hoveredId = hit.id;
                     }
@@ -852,11 +868,25 @@ const ManeuverUI = (() => {
                 }
             });
 
-            canvas.addEventListener('mousedown', (e) => {
+            canvas.addEventListener('mousedown', async (e) => {
                 const pos = getMousePos(e);
                 const hit = hitTest(pos.x, pos.y);
                 if (hit) {
-                    if (_isEditMode || hit.type === 'feeder' || hit.type === 'reactor') {
+                    if (hit.type === 'breaker') {
+                        const newState = !hit.currentState;
+                        try {
+                            await App.api.post('/api/scada/breaker', {
+                                breaker_id: hit.id,
+                                target_state: newState,
+                                trafo_id: hit.trafoId || "Bilinmiyor",
+                                reason: "Harita Üzerinden Manuel Manevra"
+                            });
+                            _scadaBreakerStates[hit.id] = newState;
+                            App.showToast(`${hit.id} kesicisi ${newState ? 'Kapatıldı (Enerjilendirildi)' : 'Açıldı (Enerji Kesildi)'}.`, 'success');
+                        } catch (err) {
+                            App.showToast(`Kesici durumu değiştirilemedi: ${err}`, 'error');
+                        }
+                    } else if (_isEditMode || hit.type === 'feeder' || hit.type === 'reactor') {
                         _topologyState.draggedNode = hit;
                         _topologyState.dragX = pos.x;
                         _topologyState.dragY = pos.y;
@@ -901,9 +931,9 @@ const ManeuverUI = (() => {
             });
         }
 
+        loadScadaState();
         const render = (time) => {
             _topologyState.lastTime = time;
-            
             ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.scale(dpr, dpr);
@@ -919,26 +949,49 @@ const ManeuverUI = (() => {
             const altLineColor = isLight ? 'rgba(148, 163, 184, 0.4)' : 'rgba(100, 116, 139, 0.5)';
             const hoveredNode = _topologyState.hoveredId ? _topologyState.nodes.find(n => n.id === _topologyState.hoveredId) : null;
             
-            const drawConnection = (startX, startY, endX, endY, isAlt, customColor = null, isFaded = false) => {
+            const drawConnection = (startX, startY, endX, endY, isAlt, customColor = null, isFaded = false, breakerId = null, trafoId = null, assetObj = null) => {
+                const isEnergized = breakerId ? _scadaBreakerStates[breakerId] !== false : true;
                 ctx.beginPath();
                 ctx.moveTo(startX, startY);
                 const diff = endY - startY;
-                ctx.bezierCurveTo(startX, startY + diff * 0.4, endX, endY - diff * 0.4, endX, endY);
+                const cp1y = startY + diff * 0.4;
+                const cp2y = endY - diff * 0.4;
+                ctx.bezierCurveTo(startX, cp1y, endX, cp2y, endX, endY);
                 ctx.lineWidth = isAlt ? 1.5 : 2;
-                
-                if (isFaded) {
-                    ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
+                if (isFaded || !isEnergized) {
+                    ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
                 } else {
                     ctx.strokeStyle = customColor ? customColor : (isAlt ? altLineColor : activeLineColor);
                 }
-                
                 if (isAlt) ctx.setLineDash([6, 6]);
                 else ctx.setLineDash([]);
                 ctx.stroke();
                 ctx.setLineDash([]);
+                if (breakerId) {
+                    const t = 0.3;
+                    const mt = 1 - t;
+                    const bx = mt*mt*mt*startX + 3*mt*mt*t*startX + 3*mt*t*t*endX + t*t*t*endX;
+                    const by = mt*mt*mt*startY + 3*mt*mt*t*cp1y + 3*mt*t*t*cp2y + t*t*t*endY;
+                    const bSize = 8;
+                    const isHovered = _topologyState.hoveredId === breakerId;
+                    ctx.beginPath();
+                    ctx.rect(bx - bSize/2, by - bSize/2, bSize, bSize);
+                    ctx.fillStyle = isEnergized ? '#ef4444' : '#22c55e';
+                    if (isHovered) {
+                        ctx.shadowColor = ctx.fillStyle;
+                        ctx.shadowBlur = 8;
+                    }
+                    ctx.fill();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = isLight ? '#fff' : '#1e293b';
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    _topologyState.breakers.push({ id: breakerId, trafoId, asset: assetObj, x: bx, y: by, size: bSize + 4, state: isEnergized });
+                }
             };
             
             const drawLines = () => {
+                _topologyState.breakers = [];
                 _topologyState.nodes.forEach(n => {
                     if (n.type === 'reactor') {
                         const tn = _topologyState.nodes.find(t => t.id === n.asset.current_transformer_id);
@@ -946,22 +999,21 @@ const ManeuverUI = (() => {
                             const isFaded = hoveredNode && hoveredNode.id !== n.id && hoveredNode.id !== tn.id;
                             const isActive = n.asset.status === 'active';
                             const lineColor = isActive ? (isLight ? 'rgba(217, 119, 6, 0.6)' : 'rgba(251, 191, 36, 0.6)') : altLineColor;
-                            drawConnection(n.x, n.y + n.r, tn.x, tn.y - 16, false, lineColor, isFaded);
+                            const breakerId = `${n.id.toLowerCase()}-q1`;
+                            drawConnection(n.x, n.y + n.r, tn.x, tn.y - 16, false, lineColor, isFaded, breakerId, tn.id, n.asset);
                         }
-                        if (n.asset.alternative_transformer_id) {
+                        if (_isEditMode || (hoveredNode && hoveredNode.id === n.id)) {
                             const an = _topologyState.nodes.find(t => t.id === n.asset.alternative_transformer_id);
-                            if (an) {
-                                const isFaded = hoveredNode && hoveredNode.id !== n.id && hoveredNode.id !== an.id;
-                                const reactorAltColor = isLight ? 'rgba(217, 119, 6, 0.3)' : 'rgba(251, 191, 36, 0.3)';
-                                drawConnection(n.x, n.y + n.r, an.x, an.y - 16, true, reactorAltColor, isFaded);
+                            if (an && an.id !== n.asset.current_transformer_id) {
+                                drawConnection(n.x, n.y + n.r, an.x, an.y - 16, true, null, false);
                             }
                         }
-
                     } else if (n.type === 'feeder') {
                         const tn = _topologyState.nodes.find(t => t.id === n.asset.current_transformer_id);
                         if (tn) {
                             const isFaded = hoveredNode && hoveredNode.id !== n.id && hoveredNode.id !== tn.id;
-                            drawConnection(n.x, n.y - n.h/2, tn.x, tn.y + 16, false, null, isFaded);
+                            const breakerId = `${n.id.toLowerCase()}-q1`;
+                            drawConnection(n.x, n.y - n.h/2, tn.x, tn.y + 16, false, null, isFaded, breakerId, tn.id, n.asset);
                         }
                         if (n.asset.alternative_transformer_id) {
                             const an = _topologyState.nodes.find(t => t.id === n.asset.alternative_transformer_id);
@@ -986,8 +1038,15 @@ const ManeuverUI = (() => {
             }
 
             _topologyState.particles.forEach(p => {
+                let isAssetEnergized = true;
+                if (p.source && p.source.type === 'trafo' && p.target && p.target.type === 'feeder') {
+                    isAssetEnergized = _scadaBreakerStates[`${p.target.id.toLowerCase()}-q1`] !== false;
+                } else if (p.target && p.target.type === 'trafo' && p.source && p.source.type === 'reactor') {
+                    isAssetEnergized = _scadaBreakerStates[`${p.source.id.toLowerCase()}-q1`] !== false;
+                }
+                if (!isAssetEnergized) return;
                 p.progress += p.speed;
-                if (p.progress > 1) p.progress = 0;
+                if (p.progress >= 1) p.progress = 0;
                 
                 const isFaded = hoveredNode && hoveredNode.id !== p.source.id && hoveredNode.id !== p.target.id;
                 if (isFaded) return;

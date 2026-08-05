@@ -419,14 +419,15 @@ const GrafikModulu = (() => {
         let mevcutValues = [];
         let mevcutDaily = [];
         
+        let isHourlyTotalAktif = 0;
+        let isHourlyTotalKap = 0;
+        
         if (isHourly) {
             // inputData is raw hourly 'veriler'
-            let totalAktif = 0;
-            let totalKap = 0;
             inputData.forEach(v => {
-                totalAktif += v.aktifEnerji || 0;
-                totalKap += v.kapasitifEnerji || 0;
-                mevcutValues.push(totalAktif > 0 ? (totalKap / totalAktif) * 100 : 0);
+                isHourlyTotalAktif += v.aktifEnerji || 0;
+                isHourlyTotalKap += v.kapasitifEnerji || 0;
+                mevcutValues.push(isHourlyTotalAktif > 0 ? (isHourlyTotalKap / isHourlyTotalAktif) * 100 : 0);
                 const day = v.tarih.split(' ')[0].split('-')[2];
                 const hour = v.tarih.split(' ')[1].substring(0, 5);
                 mevcutLabels.push(`${day} ${hour}`);
@@ -459,17 +460,42 @@ const GrafikModulu = (() => {
         let allValuesForScale = [...mevcutValues];
 
         if (tahminData && tahminData.length > 0) {
-            const sonMevcut = mevcutDaily[mevcutDaily.length - 1];
-            const tahminDaily = toDailyChartData(
-                tahminData,
-                sonMevcut ? sonMevcut.kumulatifAktif : 0,
-                sonMevcut ? sonMevcut.kumulatifKapasitif : 0,
-                sonMevcut ? sonMevcut.kumulatifEnduktif : 0,
-                sonMevcut ? sonMevcut.tarih : null
-            );
+            let tahminLabels = [];
+            let tahminKumValues = [];
+            let tReasons = [];
 
-            const tahminLabels = tahminDaily.map((d) => d.label);
-            const tahminKumValues = tahminDaily.map((d) => d.kumulatifKapasitifOran);
+            if (isHourly) {
+                let currentAktif = isHourlyTotalAktif;
+                let currentKap = isHourlyTotalKap;
+                let sonTarih = mevcutLabels.length > 0 ? mevcutLabels[mevcutLabels.length - 1] : null;
+                
+                tahminData.forEach(v => {
+                    const day = v.tarih.split(' ')[0].split('-')[2];
+                    const hour = v.tarih.split(' ')[1].substring(0, 5);
+                    const lbl = `${day} ${hour}`;
+                    
+                    // Backend'den gelen ilk tahmin noktası mevcut verinin son noktasıyla çakışıyorsa atla (indeks kaymasını önler)
+                    if (lbl === sonTarih) return;
+                    
+                    currentAktif += v.aktifEnerji || 0;
+                    currentKap += v.kapasitifEnerji || 0;
+                    tahminKumValues.push(currentAktif > 0 ? (currentKap / currentAktif) * 100 : 0);
+                    tahminLabels.push(lbl);
+                    tReasons.push(v.kap_reason || null);
+                });
+            } else {
+                const sonMevcut = mevcutDaily[mevcutDaily.length - 1];
+                const tahminDaily = toDailyChartData(
+                    tahminData,
+                    sonMevcut ? sonMevcut.kumulatifAktif : 0,
+                    sonMevcut ? sonMevcut.kumulatifKapasitif : 0,
+                    sonMevcut ? sonMevcut.kumulatifEnduktif : 0,
+                    sonMevcut ? sonMevcut.tarih : null
+                );
+                tahminLabels = tahminDaily.map((d) => d.label);
+                tahminKumValues = tahminDaily.map((d) => d.kumulatifKapasitifOran);
+                tReasons = tahminDaily.map(d => d.kap_reason || null);
+            }
 
             // Köprü: son gerçek noktadan tahmin başlangıcına bağlantı
             const bridgeLength = Math.max(0, mevcutValues.length - 1);
@@ -486,7 +512,7 @@ const GrafikModulu = (() => {
             if (mevcutValues.length > 0) {
                 bridgeCustomReasons.push(null);
             }
-            bridgeCustomReasons.push(...tahminDaily.map(d => d.kap_reason || null));
+            bridgeCustomReasons.push(...tReasons);
 
             datasets.push({
                 label: 'Tahmin Edilen Kümülatif (%)',
@@ -625,11 +651,18 @@ const GrafikModulu = (() => {
             let tLabels = [];
             let tReasons = [];
             if (isHourly) {
+                let sonTarih = allLabels.length > 0 ? allLabels[allLabels.length - 1] : null;
+                
                 tahminData.forEach(v => {
-                    tahminValues.push(v.aktifEnerji > 0 ? (v.kapasitifEnerji / v.aktifEnerji) * 100 : 0);
                     const day = v.tarih.split(' ')[0].split('-')[2];
                     const hour = v.tarih.split(' ')[1].substring(0, 5);
-                    tLabels.push(`${day} ${hour}`);
+                    const lbl = `${day} ${hour}`;
+                    
+                    // Çakışan ilk noktayı atla (indeks kaymasını önler)
+                    if (lbl === sonTarih) return;
+                    
+                    tahminValues.push(v.aktifEnerji > 0 ? (v.kapasitifEnerji / v.aktifEnerji) * 100 : 0);
+                    tLabels.push(lbl);
                     tReasons.push(v.kap_reason || null);
                 });
             } else {

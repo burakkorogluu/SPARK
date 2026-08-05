@@ -38,6 +38,16 @@ def get_scada_state():
         "alarms": SCADA_ALARMS
     }
 
+def is_transformer_energized(trafo_id: str) -> bool:
+    """Check if the transformer's main breaker is closed (energized)."""
+    breaker_key = f"{trafo_id.lower()}-q1"
+    if breaker_key in SCADA_BREAKER_STATES:
+        return SCADA_BREAKER_STATES[breaker_key]
+    elif trafo_id.endswith("TRA") or "-TRA" in trafo_id or "TRA" in trafo_id.upper():
+        return SCADA_BREAKER_STATES.get("t101-q1", True)
+    else:
+        return SCADA_BREAKER_STATES.get("t102-q1", True)
+
 def toggle_breaker(db: Session, breaker_id: str, target_state: bool, trafo_id: str = "UMR-TRA", reason: str = "SCADA Operatör Manevrası"):
     old_state = SCADA_BREAKER_STATES.get(breaker_id, False)
     SCADA_BREAKER_STATES[breaker_id] = target_state

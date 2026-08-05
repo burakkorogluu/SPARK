@@ -227,38 +227,50 @@ const DashboardUI = (() => {
 
         if (_dashboardCache.has(cacheKey)) {
             ozetler = _dashboardCache.get(cacheKey);
+            renderForecastBanner(ozetler);
+            updateDashboardUI(ozetler);
         } else {
             try {
                 const hamOzetler = await ApiClient.fetchAnalysisSummary(state.selectedYil, state.selectedAy);
-                ozetler = await Promise.all(hamOzetler.map(async (item) => {
-                    let tahminOzet = null;
-                    try {
-                        const tSonuc = await TahminModulu.aySonuTahminiYap(item.trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
-                        if (tSonuc && tSonuc.tumVeriler) {
-                            tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
-                        }
-                    } catch (e) {
-                        console.error(`Tahmin hatası (${item.trafo.id}):`, e);
-                    }
-
-                    const enrichedOzet = {
-                        ...item.ozet,
-                        kapasitifRisk: HesaplamaModulu.riskSeviyesiBelirle(item.ozet.kapasitifOran || 0, 'kapasitif'),
-                        enduktifRisk: HesaplamaModulu.riskSeviyesiBelirle(item.ozet.enduktifOran || 0, 'enduktif')
+                
+                // Başlangıçta tahminsiz render et (Ekranı anında yüklemek için)
+                ozetler = hamOzetler.map(item => {
+                    return { 
+                        trafo: item.trafo, 
+                        ozet: item.ozet ? {
+                            ...item.ozet,
+                            kapasitifRisk: HesaplamaModulu.riskSeviyesiBelirle(item.ozet.kapasitifOran || 0, 'kapasitif'),
+                            enduktifRisk: HesaplamaModulu.riskSeviyesiBelirle(item.ozet.enduktifOran || 0, 'enduktif')
+                        } : null, 
+                        tahminOzet: null 
                     };
+                });
+                
+                updateDashboardUI(ozetler); // İlk render (Tahminler olmadan)
 
-                    return { trafo: item.trafo, ozet: enrichedOzet, tahminOzet };
-                }));
-
-                _dashboardCache.set(cacheKey, ozetler);
+                // Tahminleri arka planda sırayla çek (Sunucuyu Promise.all ile boğmamak için)
+                (async () => {
+                    for (let i = 0; i < hamOzetler.length; i++) {
+                        const item = hamOzetler[i];
+                        try {
+                            const tSonuc = await TahminModulu.aySonuTahminiYap(item.trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
+                            if (tSonuc && tSonuc.tumVeriler) {
+                                ozetler[i].tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
+                            }
+                        } catch (e) {
+                            console.error(`Tahmin hatası (${item.trafo.id}):`, e);
+                        }
+                    }
+                    _dashboardCache.set(cacheKey, ozetler);
+                    renderForecastBanner(ozetler);
+                    updateDashboardUI(ozetler); // Tahminler gelince UI'ı yenile
+                })();
+                
             } catch (error) {
                 document.getElementById('summary-cards').innerHTML = `<div style="padding: 20px; color: var(--color-danger);">Bağlantı hatası: ${error.message}</div>`;
                 return;
             }
         }
-
-        renderForecastBanner(ozetler);
-        updateDashboardUI(ozetler);
     }
 
     function switchDashboardView(viewName) {

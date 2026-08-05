@@ -74,6 +74,11 @@ async def lifespan(app: FastAPI):
             print(f"Startup data generation failed: {e}")
         finally:
             loop.call_soon_threadsafe(simulator_ready_event.set)
+            
+            # Start seeding missing forecasts slowly in background to not block UI
+            import threading
+            from services.forecast.engine import seed_missing_forecasts
+            threading.Thread(target=seed_missing_forecasts, daemon=True).start()
 
         
     import threading
@@ -711,6 +716,25 @@ async def scada_ack_alarm_endpoint(req: schemas.ScadaAlarmAckRequest, db: Sessio
     snap = scada_service.generate_telemetry_snapshot(db)
     await ws_manager.broadcast({"type": "scada_telemetry", "data": snap})
     return res
+
+@app.get("/api/powerflow/network")
+def get_powerflow_network():
+    from services.grid_topology import topology_service
+    state = topology_service.get_network_state()
+    if "error" in state:
+        raise HTTPException(status_code=500, detail=state["error"])
+    return state
+
+@app.post("/api/powerflow/simulate", response_model=schemas.PowerFlowResultResponse)
+def simulate_powerflow_action(req: schemas.PowerFlowActionRequest):
+    from services.grid_topology import topology_service
+    try:
+        res = topology_service.simulate_action(req.element_type, req.element_id, req.action)
+        return res
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
