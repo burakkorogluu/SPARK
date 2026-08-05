@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import logging
 from services.forecast_service import get_cached_forecast, clear_caches, run_weekly_batch_forecast
 from services.analysis_service import get_monthly_summary
-from services.scada_service import is_transformer_energized
+from services.scada_service import is_transformer_energized, is_feeder_energized
 
 logger = logging.getLogger("spark.maneuver")
 
@@ -28,7 +28,8 @@ def _get_trafo_stats(db: Session):
         ind_sum = sum(m.inductive_kvarh for m in recent_measurements) if recent_measurements else 0
         cap_sum = sum(m.capacitive_kvarh for m in recent_measurements) if recent_measurements else 0
 
-        total_feeder_load = sum(f.simulated_load_kw for f in trafo.feeders)
+        # Yalnızca enerjili (kesicisi kapalı) fiderlerin yükünü topla
+        total_feeder_load = sum(f.simulated_load_kw for f in trafo.feeders if is_feeder_energized(f.id))
         power_kw = trafo.power_mva * 1000  # Convert MVA to approximate kW
         
         # Aktif yükü tamamen güncel fiderlerin toplamına bağlıyoruz (Geçmiş aylık ortalama yerine)
@@ -197,7 +198,11 @@ def analyze_and_suggest_maneuvers(db: Session):
         trafo = stats["model"]
 
         if stats["load_ratio"] > 50:
-            for feeder in stats["feeders"]:
+            for feeder in sorted(stats["model"].feeders, key=lambda f: f.simulated_load_kw, reverse=True):
+                # Enerjisi kesik bir fider üzerinden yük aktarımı mantıksızdır
+                if not is_feeder_energized(feeder.id):
+                    continue
+                        
                 alt_id = feeder.alternative_transformer_id
                 if alt_id and alt_id in trafo_stats:
                     if not is_transformer_energized(alt_id):
@@ -247,7 +252,8 @@ def analyze_and_suggest_maneuvers(db: Session):
 
         # 2. Check Reactive Compensation / Reactor Maneuvers
         if stats["ind_ratio"] > 15:
-            for reactor in stats["reactors"]:
+            for reactor in sorted(stats["model"].reactors, key=lambda r: r.capacity_kvar, reverse=True):
+                # İnaktif reaktörü devreye almayı öner
                 if reactor.status == "inactive":
                     score = _calculate_suggestion_score(stats, stats, stats["ind_ratio"], is_reactive=True)
                     suggestions.append({

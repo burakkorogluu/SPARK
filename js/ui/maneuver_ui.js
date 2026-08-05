@@ -510,7 +510,9 @@ const ManeuverUI = (() => {
 
             tbody.innerHTML = logs.map(log => {
                 const date = log.timestamp ? new Date(log.timestamp).toLocaleString('tr-TR') : '—';
-                const typeLabel = log.action_type === 'feeder_transfer' ? 'Fider Aktarımı' : 'Reaktör Değişimi';
+                let typeLabel = 'Reaktör Değişimi';
+                if (log.action_type === 'feeder_transfer') typeLabel = 'Fider Aktarımı';
+                else if (log.action_type === 'scada_breaker_toggle') typeLabel = 'Kesici Açma/Kapama';
                 const statusBadge = log.status === 'applied'
                     ? '<span class="maneuver-badge applied">Uygulandı</span>'
                     : '<span class="maneuver-badge rolled-back">Geri Alındı</span>';
@@ -585,7 +587,7 @@ const ManeuverUI = (() => {
     let _scadaBreakerStates = {};
     async function loadScadaState() {
         try {
-            const res = await App.api.get('/api/scada/state');
+            const res = await ApiClient.fetchScadaState();
             if (res && res.breakers) {
                 _scadaBreakerStates = res.breakers;
             }
@@ -875,12 +877,8 @@ const ManeuverUI = (() => {
                     if (hit.type === 'breaker') {
                         const newState = !hit.currentState;
                         try {
-                            await App.api.post('/api/scada/breaker', {
-                                breaker_id: hit.id,
-                                target_state: newState,
-                                trafo_id: hit.trafoId || "Bilinmiyor",
-                                reason: "Harita Üzerinden Manuel Manevra"
-                            });
+                            await ApiClient.toggleScadaBreaker(hit.id, newState, hit.trafoId || "Bilinmiyor", "Harita Üzerinden Manuel Manevra");
+                            
                             _scadaBreakerStates[hit.id] = newState;
                             App.showToast(`${hit.id} kesicisi ${newState ? 'Kapatıldı (Enerjilendirildi)' : 'Açıldı (Enerji Kesildi)'}.`, 'success');
                         } catch (err) {
@@ -1002,10 +1000,12 @@ const ManeuverUI = (() => {
                             const breakerId = `${n.id.toLowerCase()}-q1`;
                             drawConnection(n.x, n.y + n.r, tn.x, tn.y - 16, false, lineColor, isFaded, breakerId, tn.id, n.asset);
                         }
-                        if (_isEditMode || (hoveredNode && hoveredNode.id === n.id)) {
+                        if (n.asset.alternative_transformer_id) {
                             const an = _topologyState.nodes.find(t => t.id === n.asset.alternative_transformer_id);
                             if (an && an.id !== n.asset.current_transformer_id) {
-                                drawConnection(n.x, n.y + n.r, an.x, an.y - 16, true, null, false);
+                                const isFaded = hoveredNode && hoveredNode.id !== n.id && hoveredNode.id !== an.id;
+                                const reactorAltColor = isLight ? 'rgba(217, 119, 6, 0.3)' : 'rgba(251, 191, 36, 0.3)';
+                                drawConnection(n.x, n.y + n.r, an.x, an.y - 16, true, reactorAltColor, isFaded);
                             }
                         }
                     } else if (n.type === 'feeder') {
