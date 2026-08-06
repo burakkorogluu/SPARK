@@ -1879,22 +1879,6 @@ input::placeholder {
 .flow-particle {
     display: none;
 }
-
-
-20% {
-    opacity: 1;
-}
-
-80% {
-    opacity: 1;
-}
-
-100% {
-    top: 60px;
-    opacity: 0;
-}
-}
-
 /* Hızlı Akış Animasyonu */
 .scada-board.fast-flow .flow-particle {
     display: none;
