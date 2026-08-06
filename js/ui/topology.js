@@ -45,9 +45,9 @@ const TopolojiModulu = (() => {
                 if(typeof HesaplamaModulu !== 'undefined') {
                     const appState = App.getState();
                     const ozetler = HesaplamaModulu.tumTrafoOzetleri(appState.selectedYil, appState.selectedAy);
-                    if (ozetler && Object.keys(ozetler).length > 0) {
-                        const sorted = Object.entries(ozetler).sort((a,b) => b[1].kapasitifOran - a[1].kapasitifOran);
-                        openPowerTriangleModal(sorted[0][0]);
+                    if (ozetler && ozetler.length > 0) {
+                        const sorted = ozetler.sort((a,b) => b.ozet.kapasitifOran - a.ozet.kapasitifOran);
+                        openPowerTriangleModal(sorted[0].trafo.id);
                         return;
                     }
                 }

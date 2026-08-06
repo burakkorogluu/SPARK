@@ -136,11 +136,14 @@ def forecast_gecen_ay(db: Session, transformer_id: str, steps: int = 168):
     else:
         confidence = 72.0
 
+    hist_len = len(measurements)
     last_date = measurements[-1].timestamp
     predictions = []
     for i in range(steps):
         target_date = last_date + datetime.timedelta(hours=i+1)
-        m = measurements[i % 672]
+        idx = hist_len - 672 + (i % 672)
+        if idx < 0: idx = i % hist_len
+        m = measurements[idx]
         predictions.append({
             "transformer_id": transformer_id,
             "timestamp": target_date.strftime("%Y-%m-%d %H:00:00"),

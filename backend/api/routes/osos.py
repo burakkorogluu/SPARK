@@ -238,11 +238,21 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
                 if not re.match(r"^[a-zA-Z0-9_-]+$", trafo_id):
                     raise HTTPException(status_code=400, detail=f"Trafo adı geçerli değil: {trafo_name}")
                 
+                try:
+                    trafo_data = schemas.TransformerCreate(
+                        id=trafo_id,
+                        name=trafo_name,
+                        region="Bilinmiyor",
+                        power_mva=100
+                    )
+                except ValueError as ve:
+                    raise HTTPException(status_code=400, detail=f"Trafo validasyon hatası: {str(ve)}")
+                
                 trafo = models.Transformer(
-                    id=trafo_id,
-                    name=trafo_name,
-                    region="Bilinmiyor",
-                    power_mva=100
+                    id=trafo_data.id,
+                    name=trafo_data.name,
+                    region=trafo_data.region,
+                    power_mva=trafo_data.power_mva
                 )
                 db.add(trafo)
                 # DO NOT FLUSH YET! To keep it in the same transaction cleanly.

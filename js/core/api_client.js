@@ -12,7 +12,7 @@ const ApiClient = (() => {
 
     const API_BASE_URL = (window.ENV && window.ENV.API_BASE_URL) 
         ? window.ENV.API_BASE_URL 
-        : `${window.location.protocol}//127.0.0.1:8000/api`;
+        : `${window.location.protocol}//${window.location.hostname}:8000/api`;
     const DEFAULT_TIMEOUT_MS = 60000;  // 60 saniye
     const MAX_RETRIES = 2;
     const RETRY_BASE_DELAY_MS = 500;

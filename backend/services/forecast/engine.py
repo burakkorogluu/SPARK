@@ -71,7 +71,7 @@ def apply_topology_scaling_to_forecast(db: Session, transformer_id: str, method:
         models.Reactor.current_transformer_id == transformer_id,
         models.Reactor.status == "active"
     ).all()
-    current_reactor_comp = int(sum(r.capacity_kvar for r in current_reactors))
+    current_reactor_comp = int(sum(r.capacity_kvar for r in current_reactors))  # type: ignore
 
     for i in range(len(base_raw["preds"])):
         timestamp = base_raw["preds"][i]["timestamp"]
@@ -82,7 +82,7 @@ def apply_topology_scaling_to_forecast(db: Session, transformer_id: str, method:
         end_reason = None
         
         for feeder in current_feeders:
-            mapping = ORIGINAL_FEEDER_MAPPING.get(feeder.id)
+            mapping = ORIGINAL_FEEDER_MAPPING.get(str(feeder.id))
             if not mapping:
                 orig_t_id = str(feeder.alternative_transformer_id) if hasattr(feeder, 'alternative_transformer_id') and feeder.alternative_transformer_id else str(feeder.current_transformer_id)
                 orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1000.0)
