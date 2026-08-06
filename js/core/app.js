@@ -276,15 +276,25 @@ const App = (() => {
         });
         const syncYontemSelects = (newYontem) => {
             state.selectedYontem = newYontem;
-            const detayY = document.getElementById('detay-yontem-select');
+            const globalY = document.getElementById('global-yontem-select');
             const tahminY = document.getElementById('tahmin-yontem-select');
-            if (detayY && detayY.value !== newYontem) detayY.value = newYontem;
+            if (globalY && globalY.value !== newYontem) globalY.value = newYontem;
             if (tahminY && tahminY.value !== newYontem) tahminY.value = newYontem;
         };
 
-        document.getElementById('detay-yontem-select')?.addEventListener('change', (e) => {
+        document.getElementById('global-yontem-select')?.addEventListener('change', (e) => {
             syncYontemSelects(e.target.value);
-            if (typeof DetailUI !== 'undefined') DetailUI.renderTrafoDetay();
+            if (state.currentScreen === 'dashboard') {
+                if (typeof DashboardUI !== 'undefined') {
+                    DashboardUI.clearCache(); // Tahminler değiştiği için cache'i temizle
+                    DashboardUI.renderDashboard();
+                }
+            } else if (state.currentScreen === 'tahmin' && typeof ForecastUI !== 'undefined') {
+                ForecastUI.renderTahmin();
+                if (document.getElementById('senaryo-sonuc')?.style.display !== 'none') {
+                    ForecastUI.runSenaryo(false);
+                }
+            }
         });
         document.getElementById('tahmin-yontem-select')?.addEventListener('change', (e) => {
             syncYontemSelects(e.target.value);
@@ -338,9 +348,19 @@ const App = (() => {
 
     function navigateToTrafo(trafoId) {
         state.selectedTrafoId = trafoId;
-        const sel = document.getElementById('detay-trafo-select');
-        if (sel) sel.value = trafoId;
-        navigate('trafo-detay');
+        navigate('dashboard');
+        
+        setTimeout(() => {
+            const cardEl = document.getElementById(`trafo-card-${trafoId}`);
+            if (cardEl) {
+                if (!cardEl.classList.contains('expanded')) {
+                    if (typeof DashboardUI !== 'undefined') {
+                        DashboardUI.toggleTrafoDetail(trafoId);
+                    }
+                }
+                cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
     }
 
     function silVeri(trafoId, tarih) {

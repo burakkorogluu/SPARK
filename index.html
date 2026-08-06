@@ -17,7 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 
     <!-- App Styles -->
-    <link rel="stylesheet" href="css/style.css?v=1001">
+    <link rel="stylesheet" href="css/style.css?v=1022">
     <link rel="stylesheet" href="css/scada-sld.css?v=2">
 </head>
 <body>
@@ -45,6 +45,13 @@
                 </div>
             </div>
             <div class="header-info" style="display: flex; align-items: center; gap: 15px;">
+                <select id="global-yontem-select" class="select-sm" style="background-color: var(--bg-secondary, #1e293b); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-weight: 500; cursor: pointer; height: 36px; min-width: 160px; font-size: 14px;">
+                    <option value="ensemble" selected>Topluluk Modeli</option>
+                    <option value="xgboost">XGBoost & SHAP</option>
+                    <option value="randomForest">Random Forest</option>
+                    <option value="regression">Doğrusal Regresyon</option>
+                    <option value="lightgbm">LightGBM (Hızlı)</option>
+                </select>
                 <select id="global-ay-select" class="select-sm" style="background-color: var(--bg-secondary, #1e293b); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-weight: 500; cursor: pointer; height: 36px; min-width: 140px; font-size: 14px;"></select>
                 <div class="notification-container" style="position: relative;">
                     <button class="theme-toggle-btn" id="btn-notifications" title="Bildirimler" aria-label="Bildirimler" style="position: relative;">
@@ -87,14 +94,6 @@
                         <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                         <span class="nav-text">Veri Girişi</span>
                     </button>
-                    <button class="nav-btn" data-screen="trafo-detay" id="nav-trafo-detay" title="Trafo Detay">
-                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <span class="nav-text">Trafo Detay</span>
-                    </button>
-                    <button class="nav-btn" data-screen="tahmin" id="nav-tahmin" title="Tahmin & Senaryo">
-                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                        <span class="nav-text">Tahmin & Senaryo</span>
-                    </button>
                     <button class="nav-btn" data-screen="manevra" id="nav-manevra" title="Manevra Önerileri">
                         <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                         <span class="nav-text">Manevra Önerileri</span>
@@ -115,12 +114,16 @@
             <!-- Bildirimler Header'a Taşındı -->
             <!-- GÖRÜNÜM 1: Tablo & Grafik Görünümü -->
             <div id="dashboard-view-charts" class="dashboard-view-content active">
-                <!-- Ay Sonu Tahmin ve Risk Bildirim Barı -->
-                <div id="dashboard-forecast-banner" class="mb-lg"></div>
-                <div id="dashboard-maneuver-banner" class="mb-lg"></div>
-
-                <!-- Özet KPI Kartları -->
-                <div class="summary-cards" id="summary-cards"></div>
+                <!-- Ay Sonu Tahmin ve Risk Bildirim Barı ile Özet KPI'lar Tek Satırda -->
+                <div class="dashboard-top-row" style="display: flex; gap: 16px; margin-bottom: 24px; align-items: flex-start; flex-wrap: wrap;">
+                    <div class="dashboard-alerts-container" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; flex-shrink: 0;">
+                        <div id="dashboard-forecast-banner"></div>
+                        <div id="dashboard-maneuver-banner"></div>
+                    </div>
+                    
+                    <!-- Özet KPI Kartları -->
+                    <div class="summary-cards" id="summary-cards" style="flex: 1; margin-bottom: 0;"></div>
+                </div>
 
                 <div class="dashboard-grid">
                     <div class="card chart-card">
@@ -287,178 +290,6 @@
             </div>
         </section>
 
-        <!-- ─── Ekran 3: Trafo Detay & Risk Analizi ─── -->
-        <section id="screen-trafo-detay" class="screen">
-            <div class="screen-header">
-                <div class="screen-controls">
-                    <select id="detay-trafo-select" class="select-lg"></select>
-                    <select id="detay-ay-select" class="select-lg">
-                        <option value="1">Ocak 2025</option>
-                        <option value="2">Şubat 2025</option>
-                        <option value="3">Mart 2025</option>
-                        <option value="4">Nisan 2025</option>
-                        <option value="5">Mayıs 2025</option>
-                        <option value="6">Haziran 2025</option>
-                        <option value="7" selected>Temmuz 2025</option>
-                    </select>
-                    <select id="detay-yontem-select" class="select-lg">
-                        <option value="ensemble" selected>Topluluk Modeli</option>
-                        <option value="xgboost">XGBoost & SHAP</option>
-                        <option value="randomForest">Random Forest</option>
-                        <option value="regression">Doğrusal Regresyon</option>
-                        <option value="lightgbm">LightGBM (Hızlı)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Detay Özet Kartları -->
-            <div class="detay-summary" id="detay-summary"></div>
-
-            <!-- Kümülatif Oran Grafiği -->
-            <div class="card chart-card">
-                <div class="card-header" style="justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <h3>Kümülatif Kapasitif Oran Değişimi</h3>
-                        <span class="badge badge-tahmin" id="detay-tahmin-badge" style="display:none">Tahmin Dahil</span>
-                    </div>
-                    <div class="btn-group chart-res-toggle">
-                        <button class="btn btn-sm active" data-res="daily">Günlük</button>
-                        <button class="btn btn-sm" data-res="hourly">Saatlik</button>
-                    </div>
-                </div>
-                <div class="chart-container chart-line">
-                    <canvas id="chart-detay-line"></canvas>
-                </div>
-            </div>
-
-            <!-- Günlük Ayrık Oran Sütun Grafiği -->
-            <div class="card chart-card mt-lg">
-                <div class="card-header" style="justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <h3 id="detay-bar-title">Günlük Kapasitif Oran Dağılımı (Ayrık)</h3>
-                        <span class="badge badge-tahmin" id="detay-bar-tahmin-badge" style="display:none">Tahmin Dahil</span>
-                    </div>
-                    <div class="btn-group chart-res-toggle">
-                        <button class="btn btn-sm active" data-res="daily">Günlük</button>
-                        <button class="btn btn-sm" data-res="hourly">Saatlik</button>
-                    </div>
-                </div>
-                <div class="chart-container chart-bar">
-                    <canvas id="chart-detay-bar"></canvas>
-                </div>
-            </div>
-
-            <!-- Uyarı Kutusu -->
-            <div id="detay-uyari" class="alert-box" style="display:none"></div>
-
-            <!-- Günlük Veri Tablosu -->
-            <div class="card mt-lg">
-                <div class="card-header">
-                    <h3>Günlük Veri Detayı</h3>
-                </div>
-                <div class="table-wrapper" style="max-height: 500px; overflow-y: auto;">
-                    <table class="data-table" id="detay-table">
-                        <thead>
-                            <tr>
-                                <th>Tarih</th>
-                                <th>Gün</th>
-                                <th class="text-right">Aktif (kWh)</th>
-                                <th class="text-right">Endüktif (kVArh)</th>
-                                <th class="text-right">Kapasitif (kVArh)</th>
-                                <th class="text-right">Günlük Oran</th>
-                                <th class="text-right">Kümülatif Oran</th>
-                                <th class="text-center">Durum</th>
-                            </tr>
-                        </thead>
-                        <tbody id="detay-table-body"></tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- ─── Ekran 4: Tahmin & Senaryo Simülasyonu ─── -->
-        <section id="screen-tahmin" class="screen">
-            <div class="screen-header">
-                <div class="screen-controls">
-                    <select id="tahmin-ay-select" class="select-lg">
-                        <option value="1">Ocak 2025</option>
-                        <option value="2">Şubat 2025</option>
-                        <option value="3">Mart 2025</option>
-                        <option value="4">Nisan 2025</option>
-                        <option value="5">Mayıs 2025</option>
-                        <option value="6">Haziran 2025</option>
-                        <option value="7" selected>Temmuz 2025</option>
-                    </select>
-                    <select id="tahmin-trafo-select" class="select-lg"></select>
-                    <select id="tahmin-yontem-select" class="select-lg">
-                        <option value="ensemble" selected>Topluluk Modeli</option>
-                        <option value="xgboost">XGBoost & SHAP</option>
-                        <option value="randomForest">Random Forest</option>
-                        <option value="regression">Doğrusal Regresyon</option>
-                        <option value="lightgbm">LightGBM (Hızlı)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Tahmin Sonuç Kartları -->
-            <div class="tahmin-summary" id="tahmin-summary"></div>
-
-            <!-- Tahmin Grafiği -->
-            <div class="card chart-card">
-                <div class="card-header">
-                    <h3>Ay Sonu Tahmini</h3>
-                </div>
-                <div class="chart-container chart-line">
-                    <canvas id="chart-tahmin-line"></canvas>
-                </div>
-            </div>
-
-            <!-- Senaryo Simülasyonu -->
-            <div class="senaryo-layout">
-                <!-- Senaryo Formu -->
-                <div class="card senaryo-form-card">
-                    <div class="card-header">
-                        <h3>Müdahale Senaryosu</h3>
-                    </div>
-                    <form id="senaryo-form">
-                        <div class="form-group">
-                            <label for="senaryo-tur">Müdahale Türü</label>
-                            <select id="senaryo-tur">
-                                <option value="reaktor">Şönt Reaktör Devreye Alma</option>
-                                <option value="yukTransferi">Yük Transferi (Aktif Yük Ekleme)</option>
-                                <option value="kabloCikarma">Kablo Devreden Çıkarma</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="senaryo-tarih">Müdahale Başlangıç Tarihi</label>
-                            <input type="date" id="senaryo-tarih" required>
-                            <p class="text-muted" style="font-size: 11px; margin-top: 4px; margin-bottom: 12px;">
-                                * Geçmiş tarihli müdahaleler sadece bugünden sonraki simülasyonları etkiler, gerçekleşmiş geçmiş ölçümleri değiştirmez.
-                            </p>
-                        </div>
-                        <div class="form-group">
-                            <label for="senaryo-miktar" id="senaryo-miktar-label">Miktar (kVArh/gün)</label>
-                            <input type="number" id="senaryo-miktar" min="0" step="100" required placeholder="Ör: 1000">
-                        </div>
-                        <p class="text-muted" style="font-size: 12px; line-height: 1.5;" id="senaryo-aciklama">
-                            Kapasitif etkiyi sönümlemek için şebekeye endüktif yük (reaktör) bağlanır.
-                        </p>
-                        <button type="submit" class="btn btn-primary btn-full" id="btn-senaryo-calistir">Simüle Et</button>
-                    </form>
-                </div>
-
-                <!-- Senaryo Sonuçları -->
-                <div class="card senaryo-result-card" id="senaryo-sonuc" style="display: none;">
-                    <div class="card-header">
-                        <h3>Senaryo Karşılaştırması</h3>
-                    </div>
-                    <div id="senaryo-karsilastirma"></div>
-                    <div class="chart-container chart-line">
-                        <canvas id="chart-senaryo-line"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
 
         <!-- ─── Ekran 5: Manevra Öneri Modülü (Gelişmiş) ─── -->
         <section id="screen-manevra" class="screen">
@@ -1483,21 +1314,20 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- ═══ Scripts (sıra önemli!) ═══ -->
-    <script src="js/core/data.js?v=1011"></script>
-    <script src="js/core/api_client.js?v=1011"></script>
-    <script src="js/core/theme.js?v=1011"></script>
-    <script src="js/modules/calculations.js?v=1011"></script>
-    <script src="js/modules/forecast.js?v=1011"></script>
-    <script src="js/modules/scenarios.js?v=1011"></script>
-    <script src="js/ui/charts.js?v=1011"></script>
-    <script src="js/ui/topology.js?v=1011"></script>
-    <script src="js/ui/dashboard.js?v=1011"></script>
-    <script src="js/ui/data_entry.js?v=1011"></script>
-    <script src="js/ui/detail.js?v=1011"></script>
-    <script src="js/ui/forecast_ui.js?v=1011"></script>
-    <script src="js/ui/maneuver_ui.js?v=5"></script>
-    <script src="js/ui/alerts.js?v=1011"></script>
-    <script src="js/ui/scada_sld_v4.js?v=1011"></script>
-    <script src="js/core/app.js?v=1011"></script>
+    <script src="js/core/data.js?v=1012"></script>
+    <script src="js/core/api_client.js?v=1012"></script>
+    <script src="js/core/theme.js?v=1012"></script>
+    <script src="js/modules/calculations.js?v=1012"></script>
+    <script src="js/modules/forecast.js?v=1012"></script>
+    <script src="js/modules/scenarios.js?v=1012"></script>
+    <script src="js/ui/charts.js?v=1012"></script>
+    <script src="js/ui/topology.js?v=1012"></script>
+    <script src="js/ui/dashboard.js?v=1012"></script>
+    <script src="js/ui/data_entry.js?v=1012"></script>
+    <script src="js/ui/detail.js?v=1027"></script>
+    <script src="js/ui/maneuver_ui.js?v=6"></script>
+    <script src="js/ui/alerts.js?v=1012"></script>
+    <script src="js/ui/scada_sld_v4.js?v=1012"></script>
+    <script src="js/core/app.js?v=1012"></script>
 </body>
 </html>

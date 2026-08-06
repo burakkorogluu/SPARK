@@ -82,25 +82,27 @@ const DashboardUI = (() => {
             }).join('; ');
 
             bannerHTML = `
-                <div class="forecast-alert-card alert-card-riskli">
-                    <div class="forecast-alert-left">
-                        <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-                        <div class="forecast-alert-text">
-                            <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-tehlikeli" style="margin-left:8px;">Ceza Sınırı Aşım Riski!</span></h3>
-                            <p>
-                                Mevcut kullanım trendi devam ederse ay sonunda reaktif güç ceza sınırlarının aşılması beklenmektedir. (Tesis Kapasitif Tahmini: %${HesaplamaModulu.formatSayi(genelTahminOran)}, Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
-                                <br><strong>${riskliTahminTrafolar.length} adet trafoda (${trafoListText})</strong> ay sonuna kadar yasal ceza sınırının aşılması beklenmektedir! Acil müdahale (şönt reaktör/kondansatör veya yük transferi) önerilir.
-                            </p>
+                <div class="forecast-alert-card alert-card-riskli collapsible collapsed" onclick="this.classList.toggle('collapsed'); this.parentElement.classList.toggle('expanded');">
+                    <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+                    <div class="forecast-alert-details" onclick="event.stopPropagation()">
+                        <div class="forecast-alert-left">
+                            <div class="forecast-alert-text">
+                                <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-tehlikeli" style="margin-left:8px;">Ceza Sınırı Aşım Riski!</span></h3>
+                                <p>
+                                    Mevcut kullanım trendi devam ederse ay sonunda reaktif güç ceza sınırlarının aşılması beklenmektedir. (Tesis Kapasitif Tahmini: %${HesaplamaModulu.formatSayi(genelTahminOran)}, Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
+                                    <br><strong>${riskliTahminTrafolar.length} adet trafoda (${trafoListText})</strong> ay sonuna kadar yasal ceza sınırının aşılması beklenmektedir! Acil müdahale (şönt reaktör/kondansatör veya yük transferi) önerilir.
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="forecast-alert-right">
-                        <div class="forecast-alert-metric-box">
-                            <div class="forecast-alert-metric-label">Ay Sonu Kapasitif Tahmin</div>
-                            <div class="forecast-alert-metric-val" style="color: var(--color-danger)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                        <div class="forecast-alert-right">
+                            <div class="forecast-alert-metric-box">
+                                <div class="forecast-alert-metric-label">Ay Sonu Kapasitif Tahmin</div>
+                                <div class="forecast-alert-metric-val" style="color: var(--color-danger)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                            </div>
+                            <button class="forecast-alert-btn btn btn-primary" onclick="event.stopPropagation(); App.navigateToTrafo('${App.escapeHTML(riskliTahminTrafolar[0].trafo.id)}')" style="background: var(--color-danger); border: none;">
+                                Riskli Trafoyu İncele
+                            </button>
                         </div>
-                        <button class="forecast-alert-btn btn btn-primary" onclick="App.navigateToTrafo('${App.escapeHTML(riskliTahminTrafolar[0].trafo.id)}')" style="background: var(--color-danger); border: none;">
-                            Riskli Trafoyu İncele
-                        </button>
                     </div>
                 </div>
             `;
@@ -113,49 +115,53 @@ const DashboardUI = (() => {
             }).join('; ');
 
             bannerHTML = `
-                <div class="forecast-alert-card alert-card-dikkat">
-                    <div class="forecast-alert-left">
-                        <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-                        <div class="forecast-alert-text">
-                            <h3>AY SONU PROJEKSİYONU & DİKKAT BİLDİRİMİ <span class="badge badge-dikkat" style="margin-left:8px;">Uyarı Eşiği</span></h3>
-                            <p>
-                                Mevcut kullanım trendi devam ederse ay sonunda bazı trafolarda uyarı seviyelerine ulaşılacaktır.
-                                <br>Hiçbir trafo yasal ceza sınırını aşmayacak olsa da, <strong>${dikkatTahminTrafolar.length} adet trafoda (${trafoListText})</strong> uyarı sınırının üzerinde seyredilecektir.
-                            </p>
+                <div class="forecast-alert-card alert-card-dikkat collapsible collapsed" onclick="this.classList.toggle('collapsed'); this.parentElement.classList.toggle('expanded');">
+                    <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+                    <div class="forecast-alert-details" onclick="event.stopPropagation()">
+                        <div class="forecast-alert-left">
+                            <div class="forecast-alert-text">
+                                <h3>AY SONU PROJEKSİYONU & DİKKAT BİLDİRİMİ <span class="badge badge-dikkat" style="margin-left:8px;">Uyarı Eşiği</span></h3>
+                                <p>
+                                    Mevcut kullanım trendi devam ederse ay sonunda bazı trafolarda uyarı seviyelerine ulaşılacaktır.
+                                    <br>Hiçbir trafo yasal ceza sınırını aşmayacak olsa da, <strong>${dikkatTahminTrafolar.length} adet trafoda (${trafoListText})</strong> uyarı sınırının üzerinde seyredilecektir.
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="forecast-alert-right">
-                        <div class="forecast-alert-metric-box">
-                            <div class="forecast-alert-metric-label">Ay Sonu Kapasitif Tahmin</div>
-                            <div class="forecast-alert-metric-val" style="color: var(--color-warning)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                        <div class="forecast-alert-right">
+                            <div class="forecast-alert-metric-box">
+                                <div class="forecast-alert-metric-label">Ay Sonu Kapasitif Tahmin</div>
+                                <div class="forecast-alert-metric-val" style="color: var(--color-warning)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                            </div>
+                            <button class="forecast-alert-btn btn btn-outline" onclick="event.stopPropagation(); App.navigateToTrafo('${App.escapeHTML(dikkatTahminTrafolar[0].trafo.id)}')">
+                                Detayları Gör
+                            </button>
                         </div>
-                        <button class="forecast-alert-btn btn btn-outline" onclick="App.navigateToTrafo('${App.escapeHTML(dikkatTahminTrafolar[0].trafo.id)}')">
-                            Detayları Gör
-                        </button>
                     </div>
                 </div>
             `;
         } else {
             bannerHTML = `
-                <div class="forecast-alert-card alert-card-guvenli">
-                    <div class="forecast-alert-left">
-                        <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-                        <div class="forecast-alert-text">
-                            <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-guvenli" style="margin-left:8px;">Tamamen Güvenli</span></h3>
-                            <p>
-                                Harika! Tesis geneli ay sonu tahmini reaktif güç oranları güvenli yeşil bölgede öngörülmektedir (Kapasitif Tahmin: %${HesaplamaModulu.formatSayi(genelTahminOran)}, Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
-                                <br>Tüm trafoların ay sonuna kadar ceza sınırlarının ve uyarı eşiklerinin çok altında kalarak konforlu bir şekilde ayı tamamlaması bekleniyor.
-                            </p>
+                <div class="forecast-alert-card alert-card-guvenli collapsible collapsed" onclick="this.classList.toggle('collapsed'); this.parentElement.classList.toggle('expanded');">
+                    <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+                    <div class="forecast-alert-details" onclick="event.stopPropagation()">
+                        <div class="forecast-alert-left">
+                            <div class="forecast-alert-text">
+                                <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-guvenli" style="margin-left:8px;">Tamamen Güvenli</span></h3>
+                                <p>
+                                    Harika! Tesis geneli ay sonu tahmini reaktif güç oranları güvenli yeşil bölgede öngörülmektedir (Kapasitif Tahmin: %${HesaplamaModulu.formatSayi(genelTahminOran)}, Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
+                                    <br>Tüm trafoların ay sonuna kadar ceza sınırlarının ve uyarı eşiklerinin çok altında kalarak konforlu bir şekilde ayı tamamlaması bekleniyor.
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="forecast-alert-right">
-                        <div class="forecast-alert-metric-box">
-                            <div class="forecast-alert-metric-label">Ay Sonu Tahmini</div>
-                            <div class="forecast-alert-metric-val" style="color: var(--color-success)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                        <div class="forecast-alert-right">
+                            <div class="forecast-alert-metric-box">
+                                <div class="forecast-alert-metric-label">Ay Sonu Tahmini</div>
+                                <div class="forecast-alert-metric-val" style="color: var(--color-success)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                            </div>
+                            <button class="forecast-alert-btn btn btn-outline" onclick="event.stopPropagation(); App.navigate('tahmin')">
+                                Tahmin Detayları
+                            </button>
                         </div>
-                        <button class="forecast-alert-btn btn btn-outline" onclick="App.navigate('tahmin')">
-                            Tahmin Detayları
-                        </button>
                     </div>
                 </div>
             `;
@@ -163,8 +169,12 @@ const DashboardUI = (() => {
 
         const bannerCharts = document.getElementById('dashboard-forecast-banner');
         const bannerScada = document.getElementById('scada-forecast-banner');
-        if (bannerCharts) bannerCharts.innerHTML = bannerHTML;
-        if (bannerScada) bannerScada.innerHTML = bannerHTML;
+        
+        // Wrap the banner in a way that handles the inline display properly
+        const finalHTML = bannerHTML ? `<div class="collapsible-alert-wrapper">${bannerHTML}</div>` : '';
+        
+        if (bannerCharts) bannerCharts.innerHTML = finalHTML;
+        if (bannerScada) bannerScada.innerHTML = finalHTML;
     }
 
     async function renderManeuverBanner() {
@@ -191,18 +201,27 @@ const DashboardUI = (() => {
             const isPredictive = topSuggestion.is_predictive;
             
             container.innerHTML = `
-                <div class="alert" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; background: rgba(49, 116, 246, 0.1); border: 1px solid rgba(49, 116, 246, 0.3);">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <strong style="color: var(--color-primary);">Aktif Manevra Önerisi Var</strong>
-                            <span class="badge" style="background: var(--color-primary); color: white; padding: 2px 6px; font-size: 11px; border-radius: 4px;">${suggestions.length} Öneri</span>
+                <div class="collapsible-alert-wrapper">
+                    <div class="alert maneuver-alert collapsible collapsed" onclick="toggleManeuverAlert(this)">
+                        <div class="maneuver-icon-container">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
                         </div>
-                        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">
-                            <b>${App.escapeHTML(topSuggestion.title)}</b>: ${App.escapeHTML(topSuggestion.description)}
+                        <div class="maneuver-details-wrapper" onclick="event.stopPropagation()">
+                            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <strong class="maneuver-title-text" style="color: var(--color-primary);">Aktif Manevra Önerisi Var</strong>
+                                    <span class="badge maneuver-count-badge" style="background: var(--color-primary); color: white; padding: 2px 6px; font-size: 11px; border-radius: 4px;">${suggestions.length} Öneri</span>
+                                </div>
+                            </div>
+                            
+                            <div class="maneuver-content-area" style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(49, 116, 246, 0.2);">
+                                <div style="font-size: 13px; color: var(--text-secondary); flex: 1; padding-right: 20px;">
+                                    <b>${App.escapeHTML(topSuggestion.title)}</b>: ${App.escapeHTML(topSuggestion.description)}
+                                </div>
+                                <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); App.navigate('manevra')">Manevra Paneline Git</button>
+                            </div>
                         </div>
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="App.navigate('manevra')">Manevra Paneline Git</button>
                 </div>
             `;
             
@@ -350,6 +369,14 @@ const DashboardUI = (() => {
 
         const gridEl = document.getElementById('trafo-grid');
         if (!gridEl) return;
+        
+        // Mevcut açık olan detay sekmelerini kaydet
+        const expandedIds = [];
+        gridEl.querySelectorAll('.trafo-card.expanded').forEach(card => {
+            const idMatch = card.id.match(/trafo-card-(.+)/);
+            if (idMatch) expandedIds.push(idMatch[1]);
+        });
+
         gridEl.innerHTML = ozetler.map(({ trafo, ozet, tahminOzet }, idx) => {
             if (!ozet) return '';
 
@@ -365,60 +392,102 @@ const DashboardUI = (() => {
             const tRisk = tahminOzet ? tahminOzet.kapasitifRisk : risk;
 
             return `
-                <div class="trafo-card risk-${risk.seviye}" style="animation-delay: ${idx * 0.06}s"
-                     onclick="App.navigateToTrafo('${App.escapeHTML(trafo.id)}')">
-                    <div class="trafo-card-header">
-                        <div style="flex: 1; min-width: 0; padding-right: 8px;">
-                            <h3 style="margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${App.escapeHTML(trafo.adi)}">
-                                ${App.escapeHTML(trafo.adi)}
-                            </h3>
-                            <div class="trafo-tip">${trafo.tip ? App.escapeHTML(trafo.tip) + ' · ' : ''}${App.escapeHTML(trafo.bolge)}</div>
+                <div class="trafo-card risk-${risk.seviye}" id="trafo-card-${trafo.id}" style="animation-delay: ${idx * 0.06}s"
+                     onclick="if(typeof DashboardUI !== 'undefined') DashboardUI.toggleTrafoDetail('${App.escapeHTML(trafo.id)}')">
+                    <div class="trafo-card-main">
+                        <div class="trafo-card-header">
+                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                <h3 style="margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${App.escapeHTML(trafo.adi)}">
+                                    ${App.escapeHTML(trafo.adi)}
+                                </h3>
+                                <div class="trafo-tip">${trafo.tip ? App.escapeHTML(trafo.tip) + ' · ' : ''}${App.escapeHTML(trafo.bolge)}</div>
+                            </div>
+                            <span class="badge badge-${risk.seviye}" style="flex-shrink: 0; white-space: nowrap;">${risk.ikon || ''} ${risk.etiket || risk.seviye.toUpperCase()}</span>
                         </div>
-                        <span class="badge badge-${risk.seviye}" style="flex-shrink: 0; white-space: nowrap;">${risk.ikon || ''} ${risk.etiket || risk.seviye.toUpperCase()}</span>
-                    </div>
-                    <div class="trafo-card-stats">
-                        <div class="trafo-stat">
-                            <span class="trafo-stat-label">Kapasitif Oran</span>
-                            <span class="trafo-stat-value highlight" style="color:${kapRisk.renk || 'var(--text)'}">
-                                %${HesaplamaModulu.formatSayi(ozet.kapasitifOran)}
-                            </span>
+                        <div class="trafo-card-stats">
+                            <div class="trafo-stat">
+                                <span class="trafo-stat-label">Kapasitif Oran</span>
+                                <span class="trafo-stat-value highlight" style="color:${kapRisk.renk || 'var(--text)'}">
+                                    %${HesaplamaModulu.formatSayi(ozet.kapasitifOran)}
+                                </span>
+                            </div>
+                            <div class="trafo-stat">
+                                <span class="trafo-stat-label">Ay Sonu Tahmini</span>
+                                <span class="trafo-stat-value highlight" style="color:${tRisk.renk || 'var(--text)'}">
+                                    %${HesaplamaModulu.formatSayi(tOran)}
+                                </span>
+                            </div>
+                            <div class="trafo-stat">
+                                <span class="trafo-stat-label">Endüktif Oran</span>
+                                <span class="trafo-stat-value" style="color:${endRisk.renk || 'var(--text)'}">
+                                    %${HesaplamaModulu.formatSayi(ozet.enduktifOran)}
+                                    ${(_RISK_SIRA[endRisk.seviye] >= 2) ? `<span class="badge badge-${endRisk.seviye}" style="font-size:9px;margin-left:4px;">${endRisk.ikon}</span>` : ''}
+                                </span>
+                            </div>
+                            <div class="trafo-stat" style="margin-right: 15px;">
+                                <span class="trafo-stat-label">Aktif Enerji</span>
+                                <span class="trafo-stat-value">${HesaplamaModulu.formatEnerji(ozet.toplamAktif)}</span>
+                            </div>
                         </div>
-                        <div class="trafo-stat">
-                            <span class="trafo-stat-label">Ay Sonu Tahmini</span>
-                            <span class="trafo-stat-value highlight" style="color:${tRisk.renk || 'var(--text)'}">
-                                %${HesaplamaModulu.formatSayi(tOran)}
-                            </span>
-                        </div>
-                        <div class="trafo-stat">
-                            <span class="trafo-stat-label">Endüktif Oran</span>
-                            <span class="trafo-stat-value" style="color:${endRisk.renk || 'var(--text)'}">
-                                %${HesaplamaModulu.formatSayi(ozet.enduktifOran)}
-                                ${(_RISK_SIRA[endRisk.seviye] >= 2) ? `<span class="badge badge-${endRisk.seviye}" style="font-size:9px;margin-left:4px;">${endRisk.ikon}</span>` : ''}
-                            </span>
-                        </div>
-                        <div class="trafo-stat">
-                            <span class="trafo-stat-label">Aktif Enerji</span>
-                            <span class="trafo-stat-value">${HesaplamaModulu.formatEnerji(ozet.toplamAktif)}</span>
-                        </div>
-                    </div>
 
-                    <div class="ratio-meter">
-                        <div class="ratio-meter-bar">
-                            <div class="ratio-meter-fill" style="width:${ratio}%; background:${risk.renk || 'var(--color-primary)'}"></div>
-                            <div class="ratio-meter-limit" style="left:${limitPos}%" data-label="%15"></div>
+                        <div class="ratio-meter">
+                            <div class="ratio-meter-bar">
+                                <div class="ratio-meter-fill" style="width:${ratio}%; background:${risk.renk || 'var(--color-primary)'}"></div>
+                                <div class="ratio-meter-limit" style="left:${limitPos}%" data-label="%15"></div>
+                            </div>
+                        </div>
+
+                        <div class="trafo-card-actions" style="display: flex; align-items: center; gap: 10px;">
+                            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); if(typeof TopolojiModulu !== 'undefined') TopolojiModulu.openPowerTriangleModal('${App.escapeHTML(trafo.id)}')" style="font-size: 11px; padding: 4px 10px;">Güç Üçgeni</button>
+                            <svg class="trafo-expand-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer;"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </div>
                     </div>
-                    <div class="trafo-card-footer" style="margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px;" onclick="event.stopPropagation();">
-                        <button class="btn btn-sm btn-outline" onclick="App.navigateToTrafo('${App.escapeHTML(trafo.id)}')" style="font-size: 11px; padding: 4px 10px;">Detaylar</button>
-                        <button class="btn btn-sm btn-primary" onclick="if(typeof TopolojiModulu !== 'undefined') TopolojiModulu.openPowerTriangleModal('${App.escapeHTML(trafo.id)}')" style="font-size: 11px; padding: 4px 10px;">Güç Üçgeni Analizi</button>
+                    <div class="trafo-card-details" id="trafo-details-${trafo.id}" onclick="event.stopPropagation();">
+                        <!-- Details will be injected here on expand -->
                     </div>
                 </div>
             `;
         }).join('');
+
+        // Açık olan detay sekmelerini tekrar aç
+        setTimeout(() => {
+            expandedIds.forEach(id => {
+                if (typeof DashboardUI !== 'undefined') {
+                    DashboardUI.toggleTrafoDetail(id);
+                }
+            });
+        }, 50);
     }
 
     function clearCache() {
         _dashboardCache.clear();
+    }
+
+    async function toggleTrafoDetail(trafoId) {
+        const cardEl = document.getElementById(`trafo-card-${trafoId}`);
+        const detailsEl = document.getElementById(`trafo-details-${trafoId}`);
+        if (!cardEl || !detailsEl) return;
+
+        const isExpanded = cardEl.classList.contains('expanded');
+        
+        if (isExpanded) {
+            // Collapse
+            cardEl.classList.remove('expanded');
+        } else {
+            // Expand
+            cardEl.classList.add('expanded');
+            
+            // Render details if not already rendered
+            if (!detailsEl.hasAttribute('data-rendered')) {
+                detailsEl.innerHTML = '<div style="padding: 20px; text-align: center;">Yükleniyor... <span class="loading-spinner"></span></div>';
+                if (typeof DetailUI !== 'undefined' && DetailUI.renderTrafoDetayInContainer) {
+                    await DetailUI.renderTrafoDetayInContainer(trafoId, detailsEl);
+                    detailsEl.setAttribute('data-rendered', 'true');
+                } else {
+                    detailsEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--color-danger);">Detay modülü yüklenemedi.</div>';
+                }
+            }
+        }
     }
 
     return {
@@ -426,6 +495,78 @@ const DashboardUI = (() => {
         renderForecastBanner,
         switchDashboardView,
         updateDashboardUI,
-        clearCache
+        clearCache,
+        toggleTrafoDetail
     };
 })();
+
+window.toggleManeuverAlert = async function(element) {
+    if (!element.classList.contains('collapsed')) {
+        element.classList.add('collapsed');
+        element.parentElement.classList.remove('expanded');
+        return;
+    }
+    
+    // Yükleniyor durumu
+    const iconContainer = element.querySelector('.maneuver-icon-container');
+    const originalIcon = iconContainer.innerHTML;
+    iconContainer.innerHTML = '<span class="loading-spinner" style="width:20px;height:20px;border-width:2px;display:inline-block;"></span>';
+    const textSpan = element.querySelector('.maneuver-title-text');
+    const originalText = textSpan.innerText;
+    textSpan.innerText = 'Güncel Öneriler Hesaplanıyor...';
+    
+    try {
+        const suggestions = await ApiClient.fetchManeuverSuggestions();
+        const contentArea = element.querySelector('.maneuver-content-area');
+        const badgeSpan = element.querySelector('.maneuver-count-badge');
+        
+        if (!suggestions || suggestions.length === 0) {
+            element.className = "alert alert-success";
+            element.style = "display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); width: 100%;";
+            element.onclick = null;
+            element.parentElement.classList.add('expanded');
+            element.innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                <div>
+                    <strong style="color: var(--color-success);">Sistem Optimizasyonu Tamam</strong>
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">Şu an için şebekede yapılması gereken aktif bir manevra önerisi bulunmuyor.</div>
+                </div>
+            `;
+            return;
+        }
+        
+        const topSuggestion = suggestions[0];
+        badgeSpan.innerText = `${suggestions.length} Öneri`;
+        contentArea.innerHTML = `
+            <div style="font-size: 13px; color: var(--text-secondary); flex: 1; padding-right: 20px;">
+                <b>${App.escapeHTML(topSuggestion.title)}</b>: ${App.escapeHTML(topSuggestion.description)}
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); App.navigate('manevra')">Manevra Paneline Git</button>
+        `;
+        
+        iconContainer.innerHTML = originalIcon;
+        textSpan.innerText = originalText;
+        element.classList.remove('collapsed');
+        element.parentElement.classList.add('expanded');
+        
+    } catch(e) {
+        console.error(e);
+        iconContainer.innerHTML = originalIcon;
+        textSpan.innerText = originalText;
+        element.classList.remove('collapsed');
+        element.parentElement.classList.add('expanded');
+    }
+}
+
+// Dışarıya tıklandığında popover menüleri kapatma
+document.addEventListener('click', function(event) {
+    const openAlerts = document.querySelectorAll('.collapsible:not(.collapsed)');
+    openAlerts.forEach(alert => {
+        if (!alert.contains(event.target)) {
+            alert.classList.add('collapsed');
+            if (alert.parentElement) {
+                alert.parentElement.classList.remove('expanded');
+            }
+        }
+    });
+});

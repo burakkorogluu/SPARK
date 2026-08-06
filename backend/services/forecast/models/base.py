@@ -161,6 +161,10 @@ def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps
     cols_kap   = _get_feat_cols(model_kap, base_feats + ['kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_24', 'kapasitif_roll_std_24', 'kapasitif_diff_1'])
     cols_end   = _get_feat_cols(model_end, base_feats + ['enduktif_lag_24', 'enduktif_lag_168', 'enduktif_roll_mean_24', 'enduktif_roll_std_24', 'enduktif_diff_1'])
 
+    arr_aktif = np.zeros((1, len(cols_aktif)), dtype=np.float64)
+    arr_kap   = np.zeros((1, len(cols_kap)), dtype=np.float64)
+    arr_end   = np.zeros((1, len(cols_end)), dtype=np.float64)
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         for i in range(steps):
@@ -180,13 +184,13 @@ def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps
 
             base_row = [is_weekend, is_holiday, d.hour, d.weekday(), math.sin(2 * math.pi * d.hour / 24.0), math.cos(2 * math.pi * d.hour / 24.0), math.sin(2 * math.pi * d.weekday() / 7.0), math.cos(2 * math.pi * d.weekday() / 7.0), t, rh, w_feat.get("wind_speed", 0.0), w_feat.get("cloud_cover", 0.0), thi]
             
-            feat_aktif = pd.DataFrame([base_row + lags_a], columns=cols_aktif)
-            feat_kap   = pd.DataFrame([base_row + lags_k], columns=cols_kap)
-            feat_end   = pd.DataFrame([base_row + lags_e], columns=cols_end)
+            arr_aktif[0, :] = base_row + lags_a
+            arr_kap[0, :]   = base_row + lags_k
+            arr_end[0, :]   = base_row + lags_e
                 
-            pa = max(0, model_aktif.predict(feat_aktif)[0])
-            pk = max(0, model_kap.predict(feat_kap)[0])
-            pe = max(0, model_end.predict(feat_end)[0])
+            pa = max(0.0, float(model_aktif.predict(arr_aktif)[0]))
+            pk = max(0.0, float(model_kap.predict(arr_kap)[0]))
+            pe = max(0.0, float(model_end.predict(arr_end)[0]))
             
             predictions.append({
                 "transformer_id": transformer_id,

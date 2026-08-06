@@ -19,8 +19,6 @@ from services.forecast.models.base import (
 )
 
 from services.forecast.models.xgboost_model import forecast_xgboost
-from services.forecast.models.random_forest_model import forecast_random_forest
-from services.forecast.models.regression_model import forecast_regression
 from services.forecast.models.lightgbm_model import forecast_lightgbm
 from services.forecast.models.holt_winters_model import forecast_holt_winters
 from services.forecast.models.simple_models import (

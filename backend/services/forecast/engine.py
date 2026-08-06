@@ -29,8 +29,6 @@ def _run_raw_forecast_algorithm(db: Session, transformer_id: str, method: str, s
             return RAW_FORECAST_CACHE[cache_key]
 
     if method == "xgboost": preds, conf = forecast_xgboost(db, transformer_id, steps)
-    elif method == "randomForest": preds, conf = forecast_random_forest(db, transformer_id, steps)
-    elif method == "regression": preds, conf = forecast_regression(db, transformer_id, steps)
     elif method == "holtWinters": preds, conf = forecast_holt_winters(db, transformer_id, steps)
     elif method == "ortalama": preds, conf = forecast_ortalama(db, transformer_id, steps)
     elif method == "persistence": preds, conf = forecast_persistence(db, transformer_id, steps)
@@ -38,10 +36,8 @@ def _run_raw_forecast_algorithm(db: Session, transformer_id: str, method: str, s
     elif method == "lightgbm": preds, conf = forecast_lightgbm(db, transformer_id, steps)
     elif method == "ensemble":
         xgb_preds, xgb_conf = _run_raw_forecast_algorithm(db, transformer_id, "xgboost", steps)
-        rf_preds, rf_conf = _run_raw_forecast_algorithm(db, transformer_id, "randomForest", steps)
-        reg_preds, reg_conf = _run_raw_forecast_algorithm(db, transformer_id, "regression", steps)
         lgb_preds, lgb_conf = _run_raw_forecast_algorithm(db, transformer_id, "lightgbm", steps)
-        preds, conf = _build_ensemble(xgb_preds, xgb_conf, rf_preds, rf_conf, reg_preds, reg_conf, lgb_preds, lgb_conf, transformer_id)
+        preds, conf = _build_ensemble(xgb_preds, xgb_conf, lgb_preds, lgb_conf, transformer_id)
     else:
         preds, conf = [], 0
         
@@ -307,7 +303,7 @@ def run_weekly_batch_forecast(transformer_ids=None):
     finally:
         db.close()
         
-    methods = ["ensemble", "xgboost", "randomForest", "regression", "lightgbm"]
+    methods = ["ensemble", "xgboost", "lightgbm"]
     steps = 720
     
     for t_id in t_ids:
