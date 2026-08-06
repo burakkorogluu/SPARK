@@ -9,11 +9,6 @@ venv/
 env/
 ENV/
 
-# Databases
-*.db
-*.sqlite3
-*.sqlite
-
 # macOS
 .DS_Store
 .AppleDouble
