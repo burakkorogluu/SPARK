@@ -31,7 +31,7 @@ const GrafikModulu = (() => {
             borderWidth: 2,
             borderDash: [6, 4],
             label: {
-                display: true,
+                display: false,
                 content: label,
                 position: 'end',
                 backgroundColor: 'rgba(229, 57, 53, 0.85)',
@@ -150,6 +150,28 @@ const GrafikModulu = (() => {
             return gradient;
         };
 
+
+
+        // Tahmin barını gölge gibi aşağı kaydırmak için özel plugin
+        const shadowOffsetPlugin = {
+            id: 'shadowOffsetPlugin',
+            beforeDatasetDraw(chart, args) {
+                const tahminDatasetIndex = chart.data.datasets.findIndex(d => d.label.includes('Tahmin'));
+                // args.index kullanarak doğru kontrolü yapıyoruz
+                if (args.index === tahminDatasetIndex) {
+                    chart.ctx.save();
+                    // Y ekseninde 8 piksel aşağı kaydır
+                    chart.ctx.translate(0, 8); 
+                }
+            },
+            afterDatasetDraw(chart, args) {
+                const tahminDatasetIndex = chart.data.datasets.findIndex(d => d.label.includes('Tahmin'));
+                if (args.index === tahminDatasetIndex) {
+                    chart.ctx.restore();
+                }
+            }
+        };
+
         const datasets = [
             {
                 label: 'Mevcut Oran (%)',
@@ -158,40 +180,48 @@ const GrafikModulu = (() => {
                     const color = colors[context.dataIndex] || '#1E88E5';
                     return createGradient(context, color);
                 },
-                borderColor: colors.map(c => c + (isLight ? 'FF' : 'AA')),
-                borderWidth: 1,
+                hoverBackgroundColor: colors.map(c => c + (isLight ? '40' : '33')), // Fare gelince soluklaşsın
+                borderColor: colors.map(c => c + (isLight ? 'FF' : '00')),
+                hoverBorderColor: colors.map(c => c + (isLight ? '40' : '00')), // Kenarlık da soluklaşsın
+                borderWidth: isLight ? 1 : 0,
                 borderRadius: 6,
-                barThickness: hasTahmin ? 16 : 28,
-                grouped: false, // Barların aynı hizada üst üste binmesi için
-                // Bar ucuna ufak bir parlama vermek için ekstra ayarlar eklenebilir
+                barThickness: 24, 
+                grouped: false,
             }
         ];
 
         if (hasTahmin) {
-            const tColors = tahminValues.map(v => {
+            // Tahmin barının rengi, ait olduğu gerçek barın rengiyle (colors dizisi) aynı olsun
+            const tColors = tahminValues.map((v, i) => {
                 if (v === null) return '#8b5cf6';
-                return HesaplamaModulu.riskSeviyesiBelirle(v, 'kapasitif').renk;
+                return colors[i] || '#1E88E5';
             });
+
+            // Renkleri koyulaştırmak veya açmak için yardımcı fonksiyon
+            const adjustColor = (hex, factor) => {
+                if(!hex || !hex.startsWith('#')) return hex;
+                const r = Math.min(255, Math.floor(parseInt(hex.slice(1,3), 16) * factor));
+                const g = Math.min(255, Math.floor(parseInt(hex.slice(3,5), 16) * factor));
+                const b = Math.min(255, Math.floor(parseInt(hex.slice(5,7), 16) * factor));
+                return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+            };
+
             datasets.push({
                 label: 'Ay Sonu Tahmini (%)',
                 data: tahminValues,
-                backgroundColor: 'transparent', // Custom plugin hallediyor
-                borderColor: tColors,
-                borderWidth: 0, 
-                customBorderWidth: 2, 
-                customDashedBorder: [6, 4], 
-                borderRadius: 8,
-                barThickness: 28, // Mevcut orandan daha kalın, onu içine alacak şekilde
-                grouped: false, // Üst üste binmesi için
+                backgroundColor: tColors.map(c => c + (isLight ? '4D' : '59')), // Gölge rengi biraz daha belirgin (%30 - %35 opaklık)
+                hoverBackgroundColor: tColors.map(c => c + (isLight ? 'E6' : 'FF')), // Fare gelince koyulaşsın/canlansın
+                borderColor: 'transparent', 
+                hoverBorderColor: 'transparent',
+                borderWidth: 0,
+                borderRadius: 6,
+                barThickness: 24, 
+                grouped: false, 
             });
         }
 
-        // Z-Index düzenlemesi (Tahmin barı altta kalıp taşsın ki görsel bütünlük olsun)
-        // Chart.js'de dataset dizisindeki sıra çizim sırasıdır. 
-        // Ancak biz grouped: false kullandık. Mevcut barın (16px) tam olarak tahmin barının (28px) 
-        // üstünde çizilmesi için Mevcut barın en son (üstte) çizilmesi daha iyi olur.
-        // O yüzden datasets sırasını tersine çeviriyoruz, fakat legend sırasını korumak için 
-        // legend oluşturulurken ayar yapacağız.
+        // Tahmin barı gölge olduğu için Mevcut barın ALTINDA kalmalı.
+        // Bu yüzden önce Tahmin (index 1), sonra Mevcut (index 0) çizilir.
         const sortedDatasets = hasTahmin ? [datasets[1], datasets[0]] : datasets;
         
         // Dinamik maksimum değer hesaplama
@@ -200,11 +230,11 @@ const GrafikModulu = (() => {
             const maxTahmin = Math.max(...tahminValues.map(v => (typeof v === 'number' && v !== null) ? v : 0));
             maxValue = Math.max(maxValue, maxTahmin);
         }
-        const dynamicMax = Math.max(22, Math.ceil(maxValue * 1.15)); // En az 22, veya max değerin %15 fazlası
+        const dynamicMax = Math.max(22, Math.ceil(maxValue * 1.15));
 
         _charts[canvasId] = new Chart(ctx, {
             type: 'bar',
-            plugins: [dashedBarPlugin],
+            plugins: [shadowOffsetPlugin],
             data: {
                 labels,
                 datasets: sortedDatasets,
@@ -219,45 +249,7 @@ const GrafikModulu = (() => {
                 },
                 plugins: {
                     legend: {
-                        display: hasTahmin,
-                        position: 'top',
-                        labels: {
-                            color: isLight ? '#1e293b' : '#cbd5e1',
-                            font: { size: 12, weight: '600', family: 'Inter' },
-                            padding: 16,
-                            generateLabels: (chart) => {
-                                const isLt = document.body.getAttribute('data-theme') === 'light';
-                                // Legend'ı orijinal düzende göstermek için datasetleri kendi sıramıza göre filtreliyoruz
-                                const datasetMevcut = chart.data.datasets.find(ds => ds.label.includes('Mevcut'));
-                                const datasetTahmin = chart.data.datasets.find(ds => ds.label.includes('Tahmin'));
-                                
-                                const labels = [];
-                                if (datasetMevcut) {
-                                    labels.push({
-                                        text: datasetMevcut.label,
-                                        fillStyle: isLt ? '#94a3b840' : '#47556940',
-                                        strokeStyle: isLt ? '#64748b' : '#94a3b8',
-                                        lineWidth: 1,
-                                        hidden: !chart.isDatasetVisible(chart.data.datasets.indexOf(datasetMevcut)),
-                                        datasetIndex: chart.data.datasets.indexOf(datasetMevcut),
-                                        fontColor: isLt ? '#1e293b' : '#cbd5e1'
-                                    });
-                                }
-                                if (datasetTahmin) {
-                                    labels.push({
-                                        text: datasetTahmin.label,
-                                        fillStyle: 'transparent',
-                                        strokeStyle: isLt ? '#64748b' : '#94a3b8',
-                                        lineWidth: 2,
-                                        lineDash: [6, 4],
-                                        hidden: !chart.isDatasetVisible(chart.data.datasets.indexOf(datasetTahmin)),
-                                        datasetIndex: chart.data.datasets.indexOf(datasetTahmin),
-                                        fontColor: isLt ? '#1e293b' : '#cbd5e1'
-                                    });
-                                }
-                                return labels;
-                            }
-                        }
+                        display: false
                     },
                     tooltip: {
                         backgroundColor: 'rgba(15, 23, 42, 0.95)',

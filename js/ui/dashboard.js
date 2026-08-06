@@ -265,25 +265,23 @@ const DashboardUI = (() => {
                     };
                 });
                 
-                updateDashboardUI(ozetler); // İlk render (Tahminler olmadan)
-
-                // Tahminleri arka planda sırayla çek (Sunucuyu Promise.all ile boğmamak için)
-                (async () => {
-                    for (let i = 0; i < hamOzetler.length; i++) {
-                        const item = hamOzetler[i];
-                        try {
-                            const tSonuc = await TahminModulu.aySonuTahminiYap(item.trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
-                            if (tSonuc && tSonuc.tumVeriler) {
-                                ozetler[i].tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
-                            }
-                        } catch (e) {
-                            console.error(`Tahmin hatası (${item.trafo.id}):`, e);
+                // Tahminleri yükleyene kadar ekranda yükleniyor animasyonu kalsın
+                // Sunucuyu yormamak için yine sırayla çekiyoruz, ama UI'ı tek seferde render edeceğiz.
+                for (let i = 0; i < hamOzetler.length; i++) {
+                    const item = hamOzetler[i];
+                    try {
+                        const tSonuc = await TahminModulu.aySonuTahminiYap(item.trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
+                        if (tSonuc && tSonuc.tumVeriler) {
+                            ozetler[i].tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
                         }
+                    } catch (e) {
+                        console.error(`Tahmin hatası (${item.trafo.id}):`, e);
                     }
-                    _dashboardCache.set(cacheKey, ozetler);
-                    renderForecastBanner(ozetler);
-                    updateDashboardUI(ozetler); // Tahminler gelince UI'ı yenile
-                })();
+                }
+                
+                _dashboardCache.set(cacheKey, ozetler);
+                renderForecastBanner(ozetler);
+                updateDashboardUI(ozetler); // Tüm veriler hazır olunca tek seferde render et
                 
             } catch (error) {
                 document.getElementById('summary-cards').innerHTML = `<div style="padding: 20px; color: var(--color-danger);">Bağlantı hatası: ${error.message}</div>`;
