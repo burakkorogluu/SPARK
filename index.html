@@ -1,81 +1,113 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="REACT — Reaktif Güç Takip ve Analiz Sistemi. Trafo merkezlerindeki reaktif enerji oranlarını izleyin, tahmin edin ve senaryo simülasyonları yapın.">
+    <meta name="description"
+        content="REACT — Reaktif Güç Takip ve Analiz Sistemi. Trafo merkezlerindeki reaktif enerji oranlarını izleyin, tahmin edin ve senaryo simülasyonları yapın.">
     <title>REACT — Reaktif Güç Takip ve Analiz Sistemi</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f62fe'/><path d='M50 20 L30 55 L45 55 L40 80 L70 45 L50 45 Z' fill='white'/></svg>">
+    <link rel="icon" id="favicon" href="icon.png">
 
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
 
     <!-- Chart.js + Annotation Plugin (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 
     <!-- App Styles -->
     <link rel="stylesheet" href="css/style.css?v=1023">
     <link rel="stylesheet" href="css/scada-sld.css?v=2">
 </head>
+
 <body>
 
     <div class="app-layout">
         <!-- ═══ Üst Bar (Top Bar) ═══ -->
         <header class="app-topbar">
             <div class="topbar-left">
-                <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Menüyü Daralt / Genişlet" aria-label="Menüyü Daralt / Genişlet">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Menüyü Daralt / Genişlet"
+                    aria-label="Menüyü Daralt / Genişlet">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="6" x2="21" y2="6"></line>
                         <line x1="3" y1="18" x2="21" y2="18"></line>
                     </svg>
                 </button>
                 <div class="header-brand">
-                    <div class="brand-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
+                    <div class="brand-icon">
+                        <img src="icon.png" alt="Logo" id="custom-logo"
+                            style="width: 90px; height: 90px; object-fit: contain; display: block;"
+                            onerror="this.style.display='none';">
+                    </div>
                     <div class="brand-text">
                         <h1>REACT</h1>
                     </div>
                 </div>
-                <div class="header-divider" style="width: 1px; height: 32px; background-color: var(--border-color); margin: 0 5px;"></div>
+                <div class="header-divider"
+                    style="width: 1px; height: 32px; background-color: var(--border-color); margin: 0 5px;"></div>
                 <div class="header-tab-title" style="display: flex; align-items: center; color: var(--text-primary);">
-                    <h2 style="font-size: 16px; font-weight: 600; margin: 0; letter-spacing: -0.2px;" id="header-tab-title-text">Kontrol Paneli & Şebeke Topolojisi</h2>
+                    <h2 style="font-size: 16px; font-weight: 600; margin: 0; letter-spacing: -0.2px;"
+                        id="header-tab-title-text">Kontrol Paneli & Şebeke Topolojisi</h2>
                 </div>
             </div>
             <div class="header-info" style="display: flex; align-items: center; gap: 15px;">
-                <select id="global-yontem-select" class="select-sm" style="background-color: var(--bg-secondary, #1e293b); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-weight: 500; cursor: pointer; height: 36px; min-width: 160px; font-size: 14px;">
+                <select id="global-yontem-select" class="select-sm"
+                    style="background-color: var(--bg-secondary, #1e293b); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-weight: 500; cursor: pointer; height: 36px; min-width: 160px; font-size: 14px;">
                     <option value="ensemble" selected>Topluluk Modeli</option>
                     <option value="xgboost">XGBoost & SHAP</option>
                     <option value="randomForest">Random Forest</option>
                     <option value="regression">Doğrusal Regresyon</option>
                     <option value="lightgbm">LightGBM (Hızlı)</option>
                 </select>
-                <select id="global-ay-select" class="select-sm" style="background-color: var(--bg-secondary, #1e293b); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-weight: 500; cursor: pointer; height: 36px; min-width: 140px; font-size: 14px;"></select>
+                <select id="global-ay-select" class="select-sm"
+                    style="background-color: var(--bg-secondary, #1e293b); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-weight: 500; cursor: pointer; height: 36px; min-width: 140px; font-size: 14px;"></select>
                 <div class="notification-container" style="position: relative;">
-                    <button class="theme-toggle-btn" id="btn-notifications" title="Bildirimler" aria-label="Bildirimler" style="position: relative;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                        <span class="notification-badge" id="notification-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: var(--color-danger); color: white; border-radius: 50%; font-size: 10px; width: 16px; height: 16px; align-items: center; justify-content: center; font-weight: bold;">0</span>
+                    <button class="theme-toggle-btn" id="btn-notifications" title="Bildirimler" aria-label="Bildirimler"
+                        style="position: relative;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span class="notification-badge" id="notification-badge"
+                            style="display: none; position: absolute; top: -5px; right: -5px; background: var(--color-danger); color: white; border-radius: 50%; font-size: 10px; width: 16px; height: 16px; align-items: center; justify-content: center; font-weight: bold;">0</span>
                     </button>
-                    <div id="notification-dropdown" class="notification-dropdown" style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; width: 350px; max-height: 400px; overflow-y: auto; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 10px; flex-direction: column;">
-                        <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); font-weight: bold; color: var(--text-primary); display: flex; flex-direction: column; gap: 8px; position: sticky; top: 0; background: var(--bg-secondary); z-index: 1;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <div id="notification-dropdown" class="notification-dropdown"
+                        style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; width: 350px; max-height: 400px; overflow-y: auto; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 10px; flex-direction: column;">
+                        <div
+                            style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); font-weight: bold; color: var(--text-primary); display: flex; flex-direction: column; gap: 8px; position: sticky; top: 0; background: var(--bg-secondary); z-index: 1;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                 <span>Sistem Bildirimleri</span>
-                                <button id="btn-mark-all-read" class="btn btn-sm" style="font-size: 11px; padding: 2px 6px; background: transparent; border: none; color: var(--color-primary); cursor: pointer; text-decoration: underline;">Tümünü Okundu İşaretle</button>
+                                <button id="btn-mark-all-read" class="btn btn-sm"
+                                    style="font-size: 11px; padding: 2px 6px; background: transparent; border: none; color: var(--color-primary); cursor: pointer; text-decoration: underline;">Tümünü
+                                    Okundu İşaretle</button>
                             </div>
                             <div style="display: flex; gap: 5px; font-size: 11px; font-weight: normal;">
-                                <button class="btn btn-sm btn-outline notification-filter active" data-filter="all" style="flex: 1; padding: 4px;">Tümü</button>
-                                <button class="btn btn-sm btn-outline notification-filter" data-filter="critical" style="flex: 1; padding: 4px; color: var(--color-danger); border-color: var(--color-danger);">Kritik</button>
-                                <button class="btn btn-sm btn-outline notification-filter" data-filter="warning" style="flex: 1; padding: 4px; color: var(--color-warning); border-color: var(--color-warning);">Dikkat</button>
+                                <button class="btn btn-sm btn-outline notification-filter active" data-filter="all"
+                                    style="flex: 1; padding: 4px;">Tümü</button>
+                                <button class="btn btn-sm btn-outline notification-filter" data-filter="critical"
+                                    style="flex: 1; padding: 4px; color: var(--color-danger); border-color: var(--color-danger);">Kritik</button>
+                                <button class="btn btn-sm btn-outline notification-filter" data-filter="warning"
+                                    style="flex: 1; padding: 4px; color: var(--color-warning); border-color: var(--color-warning);">Dikkat</button>
                             </div>
                         </div>
-                        <div id="system-alerts-container" style="padding: 10px; display: flex; flex-direction: column; gap: 8px; flex: 1;">
-                            <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">Bildirim bulunmuyor.</div>
+                        <div id="system-alerts-container"
+                            style="padding: 10px; display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                            <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                                Bildirim bulunmuyor.</div>
                         </div>
                     </div>
                 </div>
-                <button class="theme-toggle-btn" id="btn-theme-toggle" title="Temayı Değiştir (Açık / Koyu)" aria-label="Tema Değiştir">
+                <button class="theme-toggle-btn" id="btn-theme-toggle" title="Temayı Değiştir (Açık / Koyu)"
+                    aria-label="Tema Değiştir">
                     <span id="theme-icon" class="theme-icon">☀️</span>
                     <span class="theme-text" id="theme-text">Açık</span>
                 </button>
@@ -87,19 +119,37 @@
             <aside class="app-sidebar" id="app-sidebar">
                 <nav class="sidebar-nav" id="main-nav">
                     <button class="nav-btn active" data-screen="dashboard" id="nav-dashboard" title="Kontrol Paneli">
-                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                            <line x1="9" y1="21" x2="9" y2="9"></line>
+                        </svg>
                         <span class="nav-text">Kontrol Paneli</span>
                     </button>
                     <button class="nav-btn" data-screen="veri-giris" id="nav-veri-giris" title="Veri Girişi">
-                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
                         <span class="nav-text">Veri Girişi</span>
                     </button>
                     <button class="nav-btn" data-screen="manevra" id="nav-manevra" title="Manevra Önerileri">
-                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
                         <span class="nav-text">Manevra Önerileri</span>
                     </button>
                     <button class="nav-btn" data-screen="scada-sld" id="nav-scada-sld" title="Teknik SCADA (SLD)">
-                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
                         <span class="nav-text">Teknik SCADA (SLD)</span>
                     </button>
                 </nav>
@@ -108,744 +158,892 @@
             <!-- ═══ Main Content ═══ -->
             <main class="app-main">
 
-        <!-- ─── Ekran 1: Kontrol Paneli (Dashboard & SCADA) ─── -->
-        <section id="screen-dashboard" class="screen active">
+                <!-- ─── Ekran 1: Kontrol Paneli (Dashboard & SCADA) ─── -->
+                <section id="screen-dashboard" class="screen active">
 
-            <!-- Bildirimler Header'a Taşındı -->
-            <!-- GÖRÜNÜM 1: Tablo & Grafik Görünümü -->
-            <div id="dashboard-view-charts" class="dashboard-view-content active">
-                <!-- Ay Sonu Tahmin ve Risk Bildirim Barı ile Özet KPI'lar Tek Satırda -->
-                <div class="dashboard-top-row" style="display: flex; gap: 16px; margin-bottom: 24px; align-items: flex-start; flex-wrap: wrap;">
-                    <div class="dashboard-alerts-container" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; flex-shrink: 0;">
-                        <div id="dashboard-forecast-banner"></div>
-                        <div id="dashboard-maneuver-banner"></div>
-                    </div>
-                    
-                    <!-- Özet KPI Kartları -->
-                    <div class="summary-cards" id="summary-cards" style="flex: 1; margin-bottom: 0;"></div>
-                </div>
-
-                <div class="dashboard-grid">
-                    <div class="card chart-card">
-                        <div class="card-header">
-                            <h2>Trafo Kapasitif Oranları</h2>
-                            <span class="badge badge-info" id="dashboard-ay-badge">Temmuz 2025</span>
-                        </div>
-                        <div class="chart-container chart-bar">
-                            <canvas id="chart-dashboard-bar"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Trafo Durum Kartları -->
-                <div class="section-header">
-                    <h2>Trafo Durumları</h2>
-                </div>
-                <div class="trafo-grid" id="trafo-grid"></div>
-            </div>
-
-        </section>
-
-        <!-- ─── Ekran 2: Veri Girişi ─── -->
-        <section id="screen-veri-giris" class="screen">
-
-
-            <div class="veri-giris-layout">
-                <!-- Manuel Giriş Formu -->
-                <div class="card form-card">
-                    <div class="card-header">
-                        <h3>Manuel Veri Girişi</h3>
-                    </div>
-                    <form id="veri-giris-form" class="veri-form">
-                        <div class="form-group">
-                            <label for="input-trafo">Trafo Seçin</label>
-                            <div style="display: flex; gap: 8px;">
-                                <select id="input-trafo" required style="flex: 1;"></select>
-                                <button type="button" class="btn btn-outline" id="btn-open-yeni-trafo">Yeni</button>
+                    <!-- Bildirimler Header'a Taşındı -->
+                    <!-- GÖRÜNÜM 1: Tablo & Grafik Görünümü -->
+                    <div id="dashboard-view-charts" class="dashboard-view-content active">
+                        <!-- Ay Sonu Tahmin ve Risk Bildirim Barı ile Özet KPI'lar Tek Satırda -->
+                        <div class="dashboard-top-row"
+                            style="display: flex; gap: 16px; margin-bottom: 24px; align-items: flex-start; flex-wrap: wrap;">
+                            <div class="dashboard-alerts-container"
+                                style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; flex-shrink: 0;">
+                                <div id="dashboard-forecast-banner"></div>
+                                <div id="dashboard-maneuver-banner"></div>
                             </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="input-tarih">Tarih</label>
-                            <input type="datetime-local" id="input-tarih" required>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="input-aktif">Aktif Enerji (kWh)</label>
-                                <input type="number" id="input-aktif" min="0" step="100" required placeholder="Ör: 42000">
-                            </div>
-                            <div class="form-group">
-                                <label for="input-enduktif">Endüktif Enerji (kVArh)</label>
-                                <input type="number" id="input-enduktif" min="0" step="100" required placeholder="Ör: 4200">
-                            </div>
-                            <div class="form-group">
-                                <label for="input-kapasitif">Kapasitif Enerji (kVArh)</label>
-                                <input type="number" id="input-kapasitif" min="0" step="100" required placeholder="Ör: 5000">
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary" id="btn-kaydet">Kaydet</button>
-                            <button type="reset" class="btn btn-ghost">Temizle</button>
-                        </div>
-                    </form>
-                </div>
 
-                <!-- CSV / Excel Yükleme -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Excel / CSV Dosyası Yükleme</h3>
-                    </div>
-                    <div class="csv-upload-area" id="csv-upload-area">
-                        <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                        <p>Excel veya CSV dosyanızı sürükleyip bırakın veya</p>
-                        <input type="file" id="csv-file-input" accept=".csv, .xlsx, .xls" hidden>
-                        <button class="btn btn-outline" id="btn-csv-sec">Dosya Seçin</button>
-                        <p class="text-muted" style="font-size: 12px;">Format: Excel için (Tarih, Aktif 1, Reaktif 1...), CSV için (TrafoID, Tarih, Aktif, Endüktif, Kapasitif)</p>
-                    </div>
-                </div>
-
-                <!-- TEİAŞ OSOS Entegrasyonu -->
-                <div class="card" style="margin-top: 15px;">
-                    <div class="card-header">
-                        <h3>TEİAŞ OSOS Veri Çekme</h3>
-                    </div>
-                    <div class="form-group" style="padding: 15px;">
-                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
-                            <input type="datetime-local" id="osos-date-start" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px; flex: 1;" title="Başlangıç">
-                            <span>-</span>
-                            <input type="datetime-local" id="osos-date-end" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px; flex: 1;" title="Bitiş">
+                            <!-- Özet KPI Kartları -->
+                            <div class="summary-cards" id="summary-cards" style="flex: 1; margin-bottom: 0;"></div>
                         </div>
-                        <div style="margin-bottom: 15px;">
-                            <div class="custom-dropdown" id="osos-trafo-filter-container" style="position: relative; width: 100%;">
-                                <button class="btn btn-sm btn-outline" id="btn-osos-trafo-filter" style="width: 100%; display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                                    <span id="osos-trafo-filter-text">Tüm Trafolar</span>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                                </button>
-                                <div id="osos-trafo-filter-menu" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 5px; max-height: 250px; overflow-y: auto;">
-                                    <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
-                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-primary);">
-                                            <input type="checkbox" id="osos-trafo-filter-all" checked>
-                                            Tüm Trafoları Seç
-                                        </label>
-                                    </div>
-                                    <div id="osos-trafo-filter-list" style="display: flex; flex-direction: column; gap: 6px; color: var(--text-secondary);">
-                                        <!-- Checkboxes will be injected here via JS -->
-                                    </div>
+
+                        <div class="dashboard-grid">
+                            <div class="card chart-card">
+                                <div class="card-header">
+                                    <h2>Trafo Kapasitif Oranları</h2>
+                                    <span class="badge badge-info" id="dashboard-ay-badge">Temmuz 2025</span>
+                                </div>
+                                <div class="chart-container chart-bar">
+                                    <canvas id="chart-dashboard-bar"></canvas>
                                 </div>
                             </div>
                         </div>
-                        <button class="btn btn-primary" id="btn-osos-fetch" style="width: 100%;">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            Verileri Çek
-                        </button>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Son Girilen Veriler Tablosu -->
-            <div class="card mt-lg">
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-                    <h3 style="margin: 0;">Son Girilen Veriler</h3>
-                    <div class="table-filters" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <div class="date-filter" style="display: flex; gap: 6px; align-items: center;">
-                            <input type="date" id="table-date-start" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;" title="Başlangıç Tarihi">
-                            <span style="color: var(--text-muted);">-</span>
-                            <input type="date" id="table-date-end" class="input-sm" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;" title="Bitiş Tarihi">
+                        <!-- Trafo Durum Kartları -->
+                        <div class="section-header">
+                            <h2>Trafo Durumları</h2>
                         </div>
-                        <select id="table-trafo-filter" class="select-sm" style="width: auto; min-width: 160px;"></select>
+                        <div class="trafo-grid" id="trafo-grid"></div>
                     </div>
-                </div>
-                <div class="table-wrapper" style="max-height: 400px; overflow-y: auto;">
-                    <table class="data-table" id="veri-table">
-                        <thead>
-                            <tr>
-                                <th>Tarih</th>
-                                <th>Trafo</th>
-                                <th class="text-right">Aktif (kWh)</th>
-                                <th class="text-right">Endüktif (kVArh)</th>
-                                <th class="text-right">Kapasitif (kVArh)</th>
-                                <th class="text-right">Kap. Oran (%)</th>
-                                <th class="text-center">İşlem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="veri-table-body"></tbody>
-                    </table>
-                </div>
-                <div id="table-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: 0 0 8px 8px; font-size: 13px;">
-                    <div class="pagination-info" style="color: var(--text-secondary);">
-                        Bu ay yüklenen toplam <span id="table-total-records" style="font-weight: 600; color: var(--text-primary);">0</span> kayıt içinden <span id="table-total-rows" style="font-weight: 600; color: var(--text-primary);">0</span> gösteriliyor. 
-                        <span style="margin-left: 15px;">Sayfa başına:</span>
-                        <select id="table-per-page" class="select-sm" style="display: inline-block; width: auto; padding: 2px 5px; height: auto; margin-left: 5px;">
-                            <option value="20">20</option>
-                            <option value="50" selected>50</option>
-                            <option value="100">100</option>
-                            <option value="all">Tümü</option>
-                        </select>
-                    </div>
-                    <div class="pagination-controls" style="display: flex; gap: 8px; align-items: center;">
-                        <button class="btn btn-outline" id="table-prev-page" style="padding: 4px 10px; font-size: 12px;">Önceki</button>
-                        <span id="table-page-info" style="font-weight: 500; color: var(--text-primary);">1 / 1</span>
-                        <button class="btn btn-outline" id="table-next-page" style="padding: 4px 10px; font-size: 12px;">Sonraki</button>
-                    </div>
-                </div>
-            </div>
-        </section>
+
+                </section>
+
+                <!-- ─── Ekran 2: Veri Girişi ─── -->
+                <section id="screen-veri-giris" class="screen">
 
 
-        <!-- ─── Ekran 5: Manevra Öneri Modülü (Gelişmiş) ─── -->
-        <section id="screen-manevra" class="screen">
-
-
-            <!-- Özet Kartları -->
-            <div class="maneuver-summary-grid" id="maneuver-summary-grid">
-                <div class="maneuver-stat-card">
-                    <div class="maneuver-stat-icon feeder">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-                    </div>
-                    <div class="maneuver-stat-info">
-                        <h4 id="stat-feeder-count">—</h4>
-                        <span>Toplam Fider</span>
-                    </div>
-                </div>
-                <div class="maneuver-stat-card">
-                    <div class="maneuver-stat-icon reactor">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                    </div>
-                    <div class="maneuver-stat-info">
-                        <h4 id="stat-reactor-count">—</h4>
-                        <span>Toplam Reaktör</span>
-                    </div>
-                </div>
-                <div class="maneuver-stat-card">
-                    <div class="maneuver-stat-icon suggestion">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>
-                    </div>
-                    <div class="maneuver-stat-info">
-                        <h4 id="stat-suggestion-count">—</h4>
-                        <span>Aktif Öneri</span>
-                    </div>
-                </div>
-                <div class="maneuver-stat-card">
-                    <div class="maneuver-stat-icon history">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    </div>
-                    <div class="maneuver-stat-info">
-                        <h4 id="stat-history-count">—</h4>
-                        <span>Uygulanan İşlem</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sub-Tab Navigasyonu -->
-            <div class="maneuver-subtab-nav" id="maneuver-subtab-nav">
-                <button class="maneuver-subtab-btn active" data-subtab="varliklar">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                    Varlıklar &amp; Öneriler
-                    <span class="subtab-count" id="subtab-count-varliklar">0</span>
-                </button>
-                <button class="maneuver-subtab-btn" data-subtab="gecmis">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    Manevra Geçmişi
-                    <span class="subtab-count" id="subtab-count-gecmis">0</span>
-                </button>
-            </div>
-
-            <!-- Tab İçerikleri -->
-            <!-- TAB 1: Varlıklar & Öneriler -->
-            <div class="maneuver-tab-content active" id="tab-varliklar">
-
-                <!-- Mini Şebeke Topoloji Diyagramı -->
-                <div class="maneuver-topology-container" id="maneuver-topology-container">
-                    <div class="maneuver-topology-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                        <h4>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                            Fider — Trafo Bağlantı Haritası
-                        </h4>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <div class="custom-dropdown" id="trafo-filter-dropdown-container" style="position: relative;">
-                                <button class="btn btn-sm btn-outline" id="btn-trafo-filter" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                                    TM Filtrele
-                                </button>
-                                <div id="trafo-filter-menu" style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-secondary, #1e293b); border: 1px solid var(--border-color, #334155); border-radius: 6px; padding: 10px; width: 220px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 5px; max-height: 300px; overflow-y: auto;">
-                                    <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color, #334155);">
-                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-primary, #f8fafc);">
-                                            <input type="checkbox" id="trafo-filter-all" checked>
-                                            Tüm Merkezleri Göster
-                                        </label>
-                                    </div>
-                                    <div id="trafo-filter-list" style="display: flex; flex-direction: column; gap: 6px; color: var(--text-secondary, #94a3b8);">
-                                        <!-- Checkboxes will be injected here -->
+                    <div class="veri-giris-layout">
+                        <!-- Manuel Giriş Formu -->
+                        <div class="card form-card">
+                            <div class="card-header">
+                                <h3>Manuel Veri Girişi</h3>
+                            </div>
+                            <form id="veri-giris-form" class="veri-form">
+                                <div class="form-group">
+                                    <label for="input-trafo">Trafo Seçin</label>
+                                    <div style="display: flex; gap: 8px;">
+                                        <select id="input-trafo" required style="flex: 1;"></select>
+                                        <button type="button" class="btn btn-outline"
+                                            id="btn-open-yeni-trafo">Yeni</button>
                                     </div>
                                 </div>
-                            </div>
-                            <button class="btn btn-sm btn-outline" id="btn-toggle-edit-mode" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                <span id="txt-edit-mode">Düzenleme Modu</span>
-                            </button>
-                            <button class="btn btn-sm btn-outline" id="btn-toggle-fullscreen" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-                                Tam Ekran
-                            </button>
+                                <div class="form-group">
+                                    <label for="input-tarih">Tarih</label>
+                                    <input type="datetime-local" id="input-tarih" required>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="input-aktif">Aktif Enerji (kWh)</label>
+                                        <input type="number" id="input-aktif" min="0" step="100" required
+                                            placeholder="Ör: 42000">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="input-enduktif">Endüktif Enerji (kVArh)</label>
+                                        <input type="number" id="input-enduktif" min="0" step="100" required
+                                            placeholder="Ör: 4200">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="input-kapasitif">Kapasitif Enerji (kVArh)</label>
+                                        <input type="number" id="input-kapasitif" min="0" step="100" required
+                                            placeholder="Ör: 5000">
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary" id="btn-kaydet">Kaydet</button>
+                                    <button type="reset" class="btn btn-ghost">Temizle</button>
+                                </div>
+                            </form>
                         </div>
-                    </div>
-                    <div id="maneuver-editor-toolbar" style="display: none; padding: 10px 16px; background: var(--bg-tertiary); border-bottom: 1px solid var(--border-color); align-items: center; gap: 10px; flex-wrap: wrap;">
-                        <span style="font-size: 12px; font-weight: 600; color: var(--color-warning); text-transform: uppercase; letter-spacing: 0.5px;">✏️ DÜZENLEME ARAÇLARI:</span>
-                        <button class="btn btn-sm btn-outline" id="btn-editor-add-trafo" style="font-size: 12px;">+ Trafo Ekle</button>
-                        <button class="btn btn-sm btn-outline" id="btn-editor-add-feeder" style="font-size: 12px;">+ Fider Ekle</button>
-                        <button class="btn btn-sm btn-outline" id="btn-editor-add-reactor" style="font-size: 12px;">+ Reaktör Ekle</button>
-                        <button class="btn btn-sm btn-outline" id="btn-editor-add-kuplaj" style="font-size: 12px; border-color: #8b5cf6; color: #8b5cf6;">+ Kuplaj Ekle</button>
-                        <button class="btn btn-sm btn-outline" id="btn-editor-add-connection" style="font-size: 12px; display: flex; align-items: center; gap: 4px;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg> Bağlantı Düzenle
-                        </button>
-                        <div style="margin-left: auto; display: flex; gap: 8px;">
-                            <button class="btn btn-sm btn-outline" id="btn-editor-cancel" style="font-size: 12px; color: var(--text-muted);">Vazgeç</button>
-                            <button class="btn btn-sm btn-primary" id="btn-editor-save-confirm" style="font-size: 12px; background: var(--color-primary); color: #fff; font-weight: 600;">Değişiklikleri Kaydet</button>
-                        </div>
-                    </div>
-                    <div class="maneuver-topology-canvas-wrap">
-                        <canvas id="maneuver-topology-canvas" width="900" height="440"></canvas>
-                    </div>
-                </div>
 
-                <!-- Fider & Reaktör Tabloları -->
-                <div class="maneuver-asset-grid" style="margin-top: 20px;">
-                    <!-- Fider Listesi -->
-                    <div class="maneuver-asset-section">
-                        <div class="maneuver-asset-header">
-                            <h4>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-                                Fiderler
-                            </h4>
-                            <button class="btn-add-asset" id="btn-add-feeder">+ Fider Ekle</button>
+                        <!-- CSV / Excel Yükleme -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Excel / CSV Dosyası Yükleme</h3>
+                            </div>
+                            <div class="csv-upload-area" id="csv-upload-area">
+                                <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="1.5">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                <p>Excel veya CSV dosyanızı sürükleyip bırakın veya</p>
+                                <input type="file" id="csv-file-input" accept=".csv, .xlsx, .xls" hidden>
+                                <button class="btn btn-outline" id="btn-csv-sec">Dosya Seçin</button>
+                                <p class="text-muted" style="font-size: 12px;">Format: Excel için (Tarih, Aktif 1,
+                                    Reaktif 1...), CSV için (TrafoID, Tarih, Aktif, Endüktif, Kapasitif)</p>
+                            </div>
                         </div>
-                        <div class="table-wrapper">
-                            <table class="data-table">
+
+                        <!-- TEİAŞ OSOS Entegrasyonu -->
+                        <div class="card" style="margin-top: 15px;">
+                            <div class="card-header">
+                                <h3>TEİAŞ OSOS Veri Çekme</h3>
+                            </div>
+                            <div class="form-group" style="padding: 15px;">
+                                <div
+                                    style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+                                    <input type="datetime-local" id="osos-date-start" class="input-sm"
+                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px; flex: 1;"
+                                        title="Başlangıç">
+                                    <span>-</span>
+                                    <input type="datetime-local" id="osos-date-end" class="input-sm"
+                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px; flex: 1;"
+                                        title="Bitiş">
+                                </div>
+                                <div style="margin-bottom: 15px;">
+                                    <div class="custom-dropdown" id="osos-trafo-filter-container"
+                                        style="position: relative; width: 100%;">
+                                        <button class="btn btn-sm btn-outline" id="btn-osos-trafo-filter"
+                                            style="width: 100%; display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                                            <span id="osos-trafo-filter-text">Tüm Trafolar</span>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <polyline points="6 9 12 15 18 9"></polyline>
+                                            </svg>
+                                        </button>
+                                        <div id="osos-trafo-filter-menu"
+                                            style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 5px; max-height: 250px; overflow-y: auto;">
+                                            <div
+                                                style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
+                                                <label
+                                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-primary);">
+                                                    <input type="checkbox" id="osos-trafo-filter-all" checked>
+                                                    Tüm Trafoları Seç
+                                                </label>
+                                            </div>
+                                            <div id="osos-trafo-filter-list"
+                                                style="display: flex; flex-direction: column; gap: 6px; color: var(--text-secondary);">
+                                                <!-- Checkboxes will be injected here via JS -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" id="btn-osos-fetch" style="width: 100%;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="vertical-align: middle; margin-right: 5px;">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    Verileri Çek
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Son Girilen Veriler Tablosu -->
+                    <div class="card mt-lg">
+                        <div class="card-header"
+                            style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                            <h3 style="margin: 0;">Son Girilen Veriler</h3>
+                            <div class="table-filters"
+                                style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                <div class="date-filter" style="display: flex; gap: 6px; align-items: center;">
+                                    <input type="date" id="table-date-start" class="input-sm"
+                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;"
+                                        title="Başlangıç Tarihi">
+                                    <span style="color: var(--text-muted);">-</span>
+                                    <input type="date" id="table-date-end" class="input-sm"
+                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;"
+                                        title="Bitiş Tarihi">
+                                </div>
+                                <select id="table-trafo-filter" class="select-sm"
+                                    style="width: auto; min-width: 160px;"></select>
+                            </div>
+                        </div>
+                        <div class="table-wrapper" style="max-height: 400px; overflow-y: auto;">
+                            <table class="data-table" id="veri-table">
                                 <thead>
                                     <tr>
-                                        <th>Fider Adı</th>
-                                        <th>Bağlı Trafo</th>
-                                        <th>Alternatif</th>
-                                        <th class="text-right">Yük (kW)</th>
+                                        <th>Tarih</th>
+                                        <th>Trafo</th>
+                                        <th class="text-right">Aktif (kWh)</th>
+                                        <th class="text-right">Endüktif (kVArh)</th>
+                                        <th class="text-right">Kapasitif (kVArh)</th>
+                                        <th class="text-right">Kap. Oran (%)</th>
                                         <th class="text-center">İşlem</th>
                                     </tr>
                                 </thead>
-                                <tbody id="feeder-table-body">
-                                    <tr><td colspan="4" class="text-center">Yükleniyor...</td></tr>
+                                <tbody id="veri-table-body"></tbody>
+                            </table>
+                        </div>
+                        <div id="table-pagination"
+                            style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: 0 0 8px 8px; font-size: 13px;">
+                            <div class="pagination-info" style="color: var(--text-secondary);">
+                                Bu ay yüklenen toplam <span id="table-total-records"
+                                    style="font-weight: 600; color: var(--text-primary);">0</span> kayıt içinden <span
+                                    id="table-total-rows" style="font-weight: 600; color: var(--text-primary);">0</span>
+                                gösteriliyor.
+                                <span style="margin-left: 15px;">Sayfa başına:</span>
+                                <select id="table-per-page" class="select-sm"
+                                    style="display: inline-block; width: auto; padding: 2px 5px; height: auto; margin-left: 5px;">
+                                    <option value="20">20</option>
+                                    <option value="50" selected>50</option>
+                                    <option value="100">100</option>
+                                    <option value="all">Tümü</option>
+                                </select>
+                            </div>
+                            <div class="pagination-controls" style="display: flex; gap: 8px; align-items: center;">
+                                <button class="btn btn-outline" id="table-prev-page"
+                                    style="padding: 4px 10px; font-size: 12px;">Önceki</button>
+                                <span id="table-page-info" style="font-weight: 500; color: var(--text-primary);">1 /
+                                    1</span>
+                                <button class="btn btn-outline" id="table-next-page"
+                                    style="padding: 4px 10px; font-size: 12px;">Sonraki</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+
+                <!-- ─── Ekran 5: Manevra Öneri Modülü (Gelişmiş) ─── -->
+                <section id="screen-manevra" class="screen">
+
+
+                    <!-- Özet Kartları -->
+                    <div class="maneuver-summary-grid" id="maneuver-summary-grid">
+                        <div class="maneuver-stat-card">
+                            <div class="maneuver-stat-icon feeder">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M18 20V10M12 20V4M6 20v-6" />
+                                </svg>
+                            </div>
+                            <div class="maneuver-stat-info">
+                                <h4 id="stat-feeder-count">—</h4>
+                                <span>Toplam Fider</span>
+                            </div>
+                        </div>
+                        <div class="maneuver-stat-card">
+                            <div class="maneuver-stat-icon reactor">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M12 6v6l4 2" />
+                                </svg>
+                            </div>
+                            <div class="maneuver-stat-info">
+                                <h4 id="stat-reactor-count">—</h4>
+                                <span>Toplam Reaktör</span>
+                            </div>
+                        </div>
+                        <div class="maneuver-stat-card">
+                            <div class="maneuver-stat-icon suggestion">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
+                                </svg>
+                            </div>
+                            <div class="maneuver-stat-info">
+                                <h4 id="stat-suggestion-count">—</h4>
+                                <span>Aktif Öneri</span>
+                            </div>
+                        </div>
+                        <div class="maneuver-stat-card">
+                            <div class="maneuver-stat-icon history">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <polyline points="12 6 12 12 16 14" />
+                                </svg>
+                            </div>
+                            <div class="maneuver-stat-info">
+                                <h4 id="stat-history-count">—</h4>
+                                <span>Uygulanan İşlem</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sub-Tab Navigasyonu -->
+                    <div class="maneuver-subtab-nav" id="maneuver-subtab-nav">
+                        <button class="maneuver-subtab-btn active" data-subtab="varliklar">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                <path d="M3 9h18M9 21V9" />
+                            </svg>
+                            Varlıklar &amp; Öneriler
+                            <span class="subtab-count" id="subtab-count-varliklar">0</span>
+                        </button>
+                        <button class="maneuver-subtab-btn" data-subtab="gecmis">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <polyline points="12 6 12 12 16 14" />
+                            </svg>
+                            Manevra Geçmişi
+                            <span class="subtab-count" id="subtab-count-gecmis">0</span>
+                        </button>
+                    </div>
+
+                    <!-- Tab İçerikleri -->
+                    <!-- TAB 1: Varlıklar & Öneriler -->
+                    <div class="maneuver-tab-content active" id="tab-varliklar">
+
+                        <!-- Mini Şebeke Topoloji Diyagramı -->
+                        <div class="maneuver-topology-container" id="maneuver-topology-container">
+                            <div class="maneuver-topology-header"
+                                style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                                <h4>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                                    </svg>
+                                    Fider — Trafo Bağlantı Haritası
+                                </h4>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <div class="custom-dropdown" id="trafo-filter-dropdown-container"
+                                        style="position: relative;">
+                                        <button class="btn btn-sm btn-outline" id="btn-trafo-filter"
+                                            style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                                            </svg>
+                                            TM Filtrele
+                                        </button>
+                                        <div id="trafo-filter-menu"
+                                            style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-secondary, #1e293b); border: 1px solid var(--border-color, #334155); border-radius: 6px; padding: 10px; width: 220px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 5px; max-height: 300px; overflow-y: auto;">
+                                            <div
+                                                style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color, #334155);">
+                                                <label
+                                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-primary, #f8fafc);">
+                                                    <input type="checkbox" id="trafo-filter-all" checked>
+                                                    Tüm Merkezleri Göster
+                                                </label>
+                                            </div>
+                                            <div id="trafo-filter-list"
+                                                style="display: flex; flex-direction: column; gap: 6px; color: var(--text-secondary, #94a3b8);">
+                                                <!-- Checkboxes will be injected here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline" id="btn-toggle-edit-mode"
+                                        style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                        </svg>
+                                        <span id="txt-edit-mode">Düzenleme Modu</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline" id="btn-toggle-fullscreen"
+                                        style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path
+                                                d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                                        </svg>
+                                        Tam Ekran
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="maneuver-editor-toolbar"
+                                style="display: none; padding: 10px 16px; background: var(--bg-tertiary); border-bottom: 1px solid var(--border-color); align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <span
+                                    style="font-size: 12px; font-weight: 600; color: var(--color-warning); text-transform: uppercase; letter-spacing: 0.5px;">✏️
+                                    DÜZENLEME ARAÇLARI:</span>
+                                <button class="btn btn-sm btn-outline" id="btn-editor-add-trafo"
+                                    style="font-size: 12px;">+ Trafo Ekle</button>
+                                <button class="btn btn-sm btn-outline" id="btn-editor-add-feeder"
+                                    style="font-size: 12px;">+ Fider Ekle</button>
+                                <button class="btn btn-sm btn-outline" id="btn-editor-add-reactor"
+                                    style="font-size: 12px;">+ Reaktör Ekle</button>
+                                <button class="btn btn-sm btn-outline" id="btn-editor-add-kuplaj"
+                                    style="font-size: 12px; border-color: #8b5cf6; color: #8b5cf6;">+ Kuplaj
+                                    Ekle</button>
+                                <button class="btn btn-sm btn-outline" id="btn-editor-add-connection"
+                                    style="font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                    </svg> Bağlantı Düzenle
+                                </button>
+                                <div style="margin-left: auto; display: flex; gap: 8px;">
+                                    <button class="btn btn-sm btn-outline" id="btn-editor-cancel"
+                                        style="font-size: 12px; color: var(--text-muted);">Vazgeç</button>
+                                    <button class="btn btn-sm btn-primary" id="btn-editor-save-confirm"
+                                        style="font-size: 12px; background: var(--color-primary); color: #fff; font-weight: 600;">Değişiklikleri
+                                        Kaydet</button>
+                                </div>
+                            </div>
+                            <div class="maneuver-topology-canvas-wrap">
+                                <canvas id="maneuver-topology-canvas" width="900" height="440"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Fider & Reaktör Tabloları -->
+                        <div class="maneuver-asset-grid" style="margin-top: 20px;">
+                            <!-- Fider Listesi -->
+                            <div class="maneuver-asset-section">
+                                <div class="maneuver-asset-header">
+                                    <h4>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M18 20V10M12 20V4M6 20v-6" />
+                                        </svg>
+                                        Fiderler
+                                    </h4>
+                                    <button class="btn-add-asset" id="btn-add-feeder">+ Fider Ekle</button>
+                                </div>
+                                <div class="table-wrapper">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Fider Adı</th>
+                                                <th>Bağlı Trafo</th>
+                                                <th>Alternatif</th>
+                                                <th class="text-right">Yük (kW)</th>
+                                                <th class="text-center">İşlem</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="feeder-table-body">
+                                            <tr>
+                                                <td colspan="4" class="text-center">Yükleniyor...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Reaktör Listesi -->
+                            <div class="maneuver-asset-section">
+                                <div class="maneuver-asset-header">
+                                    <h4>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <path d="M12 6v6l4 2" />
+                                        </svg>
+                                        Reaktörler
+                                    </h4>
+                                    <button class="btn-add-asset" id="btn-add-reactor">+ Reaktör Ekle</button>
+                                </div>
+                                <div class="table-wrapper">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Reaktör Adı</th>
+                                                <th>Bağlı Trafo</th>
+                                                <th>Alternatif</th>
+                                                <th class="text-right">Kapasite (kVAr)</th>
+                                                <th class="text-center">Durum</th>
+                                                <th class="text-center">İşlem</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="reactor-table-body">
+                                            <tr>
+                                                <td colspan="5" class="text-center">Yükleniyor...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Akıllı Öneriler Paneli -->
+                        <div style="margin-top: 24px;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">
+                                    Akıllı Manevra Tavsiyeleri</h3>
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn btn-outline" id="btn-manuel-manevra">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                        Manuel Manevra
+                                    </button>
+                                    <button class="btn btn-primary" id="btn-manevra-onerisi-al">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                                            <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
+                                        </svg>
+                                        Öneri Analizi Çalıştır
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="suggestion-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
+                                <button class="btn btn-outline active" id="btn-sug-tab-normal"
+                                    style="flex: 1;">Kesinleşmiş Manevralar</button>
+                                <button class="btn btn-outline" id="btn-sug-tab-predictive"
+                                    style="flex: 1; border-color: var(--color-warning); color: var(--color-warning);">Proaktif
+                                    (Tahmini) Manevralar <span id="badge-predictive-count" class="badge"
+                                        style="background: var(--color-warning); color: white; display: none;">0</span></button>
+                            </div>
+                            <div class="suggestion-cards-container" id="manevra-onerileri-container-normal">
+                                <div
+                                    style="padding: 16px; border-radius: 8px; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
+                                    Manevra önerilerini hesaplamak için yukarıdaki <b>"Öneri Analizi Çalıştır"</b>
+                                    butonuna basınız.
+                                </div>
+                            </div>
+                            <div class="suggestion-cards-container" id="manevra-onerileri-container-predictive"
+                                style="display: none;">
+                                <div
+                                    style="padding: 16px; border-radius: 8px; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
+                                    Manevra önerilerini hesaplamak için yukarıdaki <b>"Öneri Analizi Çalıştır"</b>
+                                    butonuna basınız.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: Manevra Geçmişi -->
+                    <div class="maneuver-tab-content" id="tab-gecmis">
+                        <div class="maneuver-history-filters">
+                            <select id="history-filter-type">
+                                <option value="">Tümü</option>
+                                <option value="feeder_transfer">Fider Aktarımı</option>
+                                <option value="reactor_transfer">Reaktör Değişimi</option>
+                            </select>
+                            <select id="history-filter-status">
+                                <option value="">Tüm Durumlar</option>
+                                <option value="applied">Uygulanmış</option>
+                                <option value="rolled_back">Geri Alınmış</option>
+                            </select>
+                        </div>
+                        <div class="history-table-wrapper">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tarih</th>
+                                        <th>İşlem Tipi</th>
+                                        <th>Varlık</th>
+                                        <th>Kaynak Trafo</th>
+                                        <th>Hedef Trafo</th>
+                                        <th>Etki</th>
+                                        <th>Durum</th>
+                                        <th class="text-center">İşlem</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-table-body">
+                                    <tr>
+                                        <td colspan="8" class="text-center"
+                                            style="padding: 30px; color: var(--text-muted);">Henüz manevra geçmişi
+                                            bulunmuyor.</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                </section>
 
-                    <!-- Reaktör Listesi -->
-                    <div class="maneuver-asset-section">
-                        <div class="maneuver-asset-header">
-                            <h4>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                                Reaktörler
-                            </h4>
-                            <button class="btn-add-asset" id="btn-add-reactor">+ Reaktör Ekle</button>
-                        </div>
-                        <div class="table-wrapper">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Reaktör Adı</th>
-                                        <th>Bağlı Trafo</th>
-                                        <th>Alternatif</th>
-                                        <th class="text-right">Kapasite (kVAr)</th>
-                                        <th class="text-center">Durum</th>
-                                        <th class="text-center">İşlem</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="reactor-table-body">
-                                    <tr><td colspan="5" class="text-center">Yükleniyor...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Akıllı Öneriler Paneli -->
-                <div style="margin-top: 24px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-                        <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">Akıllı Manevra Tavsiyeleri</h3>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-outline" id="btn-manuel-manevra">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                Manuel Manevra
-                            </button>
-                            <button class="btn btn-primary" id="btn-manevra-onerisi-al">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>
-                                Öneri Analizi Çalıştır
-                            </button>
-                        </div>
-                    </div>
-                    <div class="suggestion-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
-                        <button class="btn btn-outline active" id="btn-sug-tab-normal" style="flex: 1;">Kesinleşmiş Manevralar</button>
-                        <button class="btn btn-outline" id="btn-sug-tab-predictive" style="flex: 1; border-color: var(--color-warning); color: var(--color-warning);">Proaktif (Tahmini) Manevralar <span id="badge-predictive-count" class="badge" style="background: var(--color-warning); color: white; display: none;">0</span></button>
-                    </div>
-                    <div class="suggestion-cards-container" id="manevra-onerileri-container-normal">
-                        <div style="padding: 16px; border-radius: 8px; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
-                            Manevra önerilerini hesaplamak için yukarıdaki <b>"Öneri Analizi Çalıştır"</b> butonuna basınız.
-                        </div>
-                    </div>
-                    <div class="suggestion-cards-container" id="manevra-onerileri-container-predictive" style="display: none;">
-                        <div style="padding: 16px; border-radius: 8px; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
-                            Manevra önerilerini hesaplamak için yukarıdaki <b>"Öneri Analizi Çalıştır"</b> butonuna basınız.
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 2: Manevra Geçmişi -->
-            <div class="maneuver-tab-content" id="tab-gecmis">
-                <div class="maneuver-history-filters">
-                    <select id="history-filter-type">
-                        <option value="">Tümü</option>
-                        <option value="feeder_transfer">Fider Aktarımı</option>
-                        <option value="reactor_transfer">Reaktör Değişimi</option>
-                    </select>
-                    <select id="history-filter-status">
-                        <option value="">Tüm Durumlar</option>
-                        <option value="applied">Uygulanmış</option>
-                        <option value="rolled_back">Geri Alınmış</option>
-                    </select>
-                </div>
-                <div class="history-table-wrapper">
-                    <table class="history-table">
-                        <thead>
-                            <tr>
-                                <th>Tarih</th>
-                                <th>İşlem Tipi</th>
-                                <th>Varlık</th>
-                                <th>Kaynak Trafo</th>
-                                <th>Hedef Trafo</th>
-                                <th>Etki</th>
-                                <th>Durum</th>
-                                <th class="text-center">İşlem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-table-body">
-                            <tr><td colspan="8" class="text-center" style="padding: 30px; color: var(--text-muted);">Henüz manevra geçmişi bulunmuyor.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- ─── Ekran 6: Teknik SCADA Tek Hat Şeması (SLD) ─── -->
-        <section id="screen-scada-sld" class="screen">
+                <!-- ─── Ekran 6: Teknik SCADA Tek Hat Şeması (SLD) ─── -->
+                <section id="screen-scada-sld" class="screen">
 
 
-            <div class="scada-sld-container">
-                <!-- SCADA Header & Tab Selector -->
-                <div class="scada-sld-header">
-                    <div class="scada-tabs">
-                        <select id="scada-tm-selector" class="scada-select" style="background: #1e293b; color: white; border: 1px solid #334155; padding: 6px 12px; border-radius: 4px; margin-right: 15px;">
-                            <!-- Dynamically populated via JS -->
-                        </select>
-                        <button class="scada-tab-btn" data-tab="R110kV">
-                            <span class="scada-status-indicator blue"></span> 154kV İLETİM
-                        </button>
-                        <button class="scada-tab-btn active" data-tab="R22kV">
-                            <span class="scada-status-indicator red"></span> 34.5kV DAĞITIM
-                        </button>
-                    </div>
-
-                    <div class="scada-toolbar">
-                        <div class="scada-badge">
-                            <span class="live-dot"></span> SCADA TELEMETRİ CANLI
-                        </div>
-                        <button id="btn-sld-toggle-sim" class="btn btn-primary" style="font-size: 12px; padding: 4px 12px;">Canlı Akış: AKTİF</button>
-                    </div>
-                </div>
-
-                <!-- SLD Board Canvas -->
-                <div class="sld-board">
-
-                    <!-- Left Substation Bay (T101) -->
-                    <div class="transformer-bay">
-                        <div class="bay-header">
-                            <div class="bay-title-box" id="sld-t101-title">Trafo 1</div>
-                            <div class="bay-status-numbers">
-                                <span class="bay-status-num n1">1</span>
-                                <span class="bay-status-num n2">2</span>
-                                <span class="bay-status-num n3">3</span>
-                            </div>
-                        </div>
-                        <div class="bay-control-mode">UZAKTAN</div>
-
-                        <!-- Transformer Icon -->
-                        <div class="transformer-symbol">
-                            <div class="trafo-circle top"></div>
-                            <div class="trafo-circle bottom"></div>
-                        </div>
-
-                        <!-- Vertical Feeder Line -->
-                        <div class="sld-line-vert live" style="height: 30px;"></div>
-
-                        <!-- Grounding / Disconnector QE & Q2 -->
-                        <div class="disconnector-group">
-                            <span class="earth-symbol">LON Blokaj / KAPALI</span>
-                            <span class="breaker-label" style="left:auto; right:-20px;">Q1</span>
-                            <div class="breaker-box" id="sld-t101-q1" data-breaker="t101-q1" title="Kesici Q1 (Tıklayarak aç/kapa)"></div>
-                        </div>
-
-                        <!-- Telemetry Box T101 -->
-                        <div class="telemetry-readouts">
-                            <div id="sld-t101-kw" class="telemetry-val" style="color: #ef4444;">-13 002.9 kW</div>
-                            <div id="sld-t101-kvar" class="telemetry-val" style="color: #38bdf8;">-2 549.9 kVAr</div>
-                            <div id="sld-t101-kv" class="telemetry-val">22.9 kV</div>
-                            <div id="sld-t101-a" class="telemetry-val" style="color: #eab308;">332.5 A</div>
-                        </div>
-
-                        <div class="disconnector-group" style="margin-top: 15px;">
-                            <span class="earth-symbol">Q2</span>
-                            <div class="disconnector-diamond"></div>
-                            <div class="disconnector-diamond" style="background:#05070a;" title="QE"></div>
-                            <span class="earth-symbol">QE</span>
-                        </div>
-
-                        <div class="sld-line-vert live" style="height: 25px;"></div>
-
-                        <!-- Main Busbar W1 -->
-                        <div class="busbar-container">
-                            <span class="busbar-title left">W1</span>
-                            <div class="sld-line-horiz"></div>
-                            <span class="busbar-title right">W1</span>
-                        </div>
-
-                        <!-- Feeders connected to W1 -->
-                        <div class="feeders-row">
-                            <!-- Feeder 1 -->
-                            <div class="feeder-column">
-                                <span class="feeder-tag">H-01</span>
-                                <div class="disconnector-group" style="padding: 1px 3px;">
-                                    <span class="earth-symbol">Q2</span>
-                                    <div class="disconnector-diamond"></div>
-                                </div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <div class="breaker-box" data-breaker="f1" title="Kesici Q1"></div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <span class="earth-symbol">I1</span>
-                                <span class="feeder-current" id="sld-f1-a">67.1 A</span>
-                                <div class="bay-controls-bottom">
-                                    <button class="bay-btn-label">Fider 1</button>
-                                </div>
+                    <div class="scada-sld-container">
+                        <!-- SCADA Header & Tab Selector -->
+                        <div class="scada-sld-header">
+                            <div class="scada-tabs">
+                                <select id="scada-tm-selector" class="scada-select"
+                                    style="background: #1e293b; color: white; border: 1px solid #334155; padding: 6px 12px; border-radius: 4px; margin-right: 15px;">
+                                    <!-- Dynamically populated via JS -->
+                                </select>
+                                <button class="scada-tab-btn" data-tab="R110kV">
+                                    <span class="scada-status-indicator blue"></span> 154kV İLETİM
+                                </button>
+                                <button class="scada-tab-btn active" data-tab="R22kV">
+                                    <span class="scada-status-indicator red"></span> 34.5kV DAĞITIM
+                                </button>
                             </div>
 
-                            <!-- Feeder 2 -->
-                            <div class="feeder-column">
-                                <span class="feeder-tag">H-02</span>
-                                <div class="disconnector-group" style="padding: 1px 3px;">
-                                    <span class="earth-symbol">Q2</span>
-                                    <div class="disconnector-diamond"></div>
+                            <div class="scada-toolbar">
+                                <div class="scada-badge">
+                                    <span class="live-dot"></span> SCADA TELEMETRİ CANLI
                                 </div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <div class="breaker-box" data-breaker="f2" title="Kesici Q1"></div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <span class="earth-symbol">I1</span>
-                                <span class="feeder-current" id="sld-f2-a">80.8 A</span>
-                                <div class="bay-controls-bottom">
-                                    <button class="bay-btn-label">Fider 3</button>
-                                </div>
+                                <button id="btn-sld-toggle-sim" class="btn btn-primary"
+                                    style="font-size: 12px; padding: 4px 12px;">Canlı Akış: AKTİF</button>
                             </div>
+                        </div>
 
-                            <!-- Feeder 3 -->
-                            <div class="feeder-column">
-                                <span class="feeder-tag">H-03</span>
-                                <div class="disconnector-group" style="padding: 1px 3px;">
-                                    <span class="earth-symbol">Q2</span>
-                                    <div class="disconnector-diamond"></div>
+                        <!-- SLD Board Canvas -->
+                        <div class="sld-board">
+
+                            <!-- Left Substation Bay (T101) -->
+                            <div class="transformer-bay">
+                                <div class="bay-header">
+                                    <div class="bay-title-box" id="sld-t101-title">Trafo 1</div>
+                                    <div class="bay-status-numbers">
+                                        <span class="bay-status-num n1">1</span>
+                                        <span class="bay-status-num n2">2</span>
+                                        <span class="bay-status-num n3">3</span>
+                                    </div>
                                 </div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <div class="breaker-box" data-breaker="f3" title="Kesici Q1"></div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <div class="transformer-symbol" style="transform: scale(0.6); margin:-10px 0;">
+                                <div class="bay-control-mode">UZAKTAN</div>
+
+                                <!-- Transformer Icon -->
+                                <div class="transformer-symbol">
                                     <div class="trafo-circle top"></div>
                                     <div class="trafo-circle bottom"></div>
                                 </div>
-                                <span class="feeder-current" id="sld-f3-a">0.0 A</span>
-                                <div class="bay-controls-bottom">
-                                    <button class="bay-btn-label">Ölçü Trafosu</button>
-                                </div>
-                            </div>
 
-                            <!-- Feeder 4 (Coupling) -->
-                            <div class="feeder-column">
-                                <span class="feeder-tag">H-04</span>
-                                <div class="sld-line-vert live" style="height: 45px;"></div>
-                                <div class="bay-controls-bottom" style="margin-top: 50px;">
-                                    <button class="bay-btn-label reserv">Kuplaj W1</button>
-                                </div>
-                            </div>
+                                <!-- Vertical Feeder Line -->
+                                <div class="sld-line-vert live" style="height: 30px;"></div>
 
-                            <!-- Feeder 5 -->
-                            <div class="feeder-column">
-                                <span class="feeder-tag">H-05</span>
-                                <div class="disconnector-group" style="padding: 1px 3px;">
+                                <!-- Grounding / Disconnector QE & Q2 -->
+                                <div class="disconnector-group">
+                                    <span class="earth-symbol">LON Blokaj / KAPALI</span>
+                                    <span class="breaker-label" style="left:auto; right:-20px;">Q1</span>
+                                    <div class="breaker-box" id="sld-t101-q1" data-breaker="t101-q1"
+                                        title="Kesici Q1 (Tıklayarak aç/kapa)"></div>
+                                </div>
+
+                                <!-- Telemetry Box T101 -->
+                                <div class="telemetry-readouts">
+                                    <div id="sld-t101-kw" class="telemetry-val" style="color: #ef4444;">-13 002.9 kW
+                                    </div>
+                                    <div id="sld-t101-kvar" class="telemetry-val" style="color: #38bdf8;">-2 549.9 kVAr
+                                    </div>
+                                    <div id="sld-t101-kv" class="telemetry-val">22.9 kV</div>
+                                    <div id="sld-t101-a" class="telemetry-val" style="color: #eab308;">332.5 A</div>
+                                </div>
+
+                                <div class="disconnector-group" style="margin-top: 15px;">
                                     <span class="earth-symbol">Q2</span>
                                     <div class="disconnector-diamond"></div>
+                                    <div class="disconnector-diamond" style="background:#05070a;" title="QE"></div>
+                                    <span class="earth-symbol">QE</span>
                                 </div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <div class="breaker-box" data-breaker="f4" title="Kesici Q1"></div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <span class="earth-symbol">I1</span>
-                                <span class="feeder-current" id="sld-f4-a">182.8 A</span>
-                                <div class="bay-controls-bottom">
-                                    <button class="bay-btn-label">Fider 5</button>
+
+                                <div class="sld-line-vert live" style="height: 25px;"></div>
+
+                                <!-- Main Busbar W1 -->
+                                <div class="busbar-container">
+                                    <span class="busbar-title left">W1</span>
+                                    <div class="sld-line-horiz"></div>
+                                    <span class="busbar-title right">W1</span>
+                                </div>
+
+                                <!-- Feeders connected to W1 -->
+                                <div class="feeders-row">
+                                    <!-- Feeder 1 -->
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">H-01</span>
+                                        <div class="disconnector-group" style="padding: 1px 3px;">
+                                            <span class="earth-symbol">Q2</span>
+                                            <div class="disconnector-diamond"></div>
+                                        </div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <div class="breaker-box" data-breaker="f1" title="Kesici Q1"></div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <span class="earth-symbol">I1</span>
+                                        <span class="feeder-current" id="sld-f1-a">67.1 A</span>
+                                        <div class="bay-controls-bottom">
+                                            <button class="bay-btn-label">Fider 1</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Feeder 2 -->
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">H-02</span>
+                                        <div class="disconnector-group" style="padding: 1px 3px;">
+                                            <span class="earth-symbol">Q2</span>
+                                            <div class="disconnector-diamond"></div>
+                                        </div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <div class="breaker-box" data-breaker="f2" title="Kesici Q1"></div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <span class="earth-symbol">I1</span>
+                                        <span class="feeder-current" id="sld-f2-a">80.8 A</span>
+                                        <div class="bay-controls-bottom">
+                                            <button class="bay-btn-label">Fider 3</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Feeder 3 -->
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">H-03</span>
+                                        <div class="disconnector-group" style="padding: 1px 3px;">
+                                            <span class="earth-symbol">Q2</span>
+                                            <div class="disconnector-diamond"></div>
+                                        </div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <div class="breaker-box" data-breaker="f3" title="Kesici Q1"></div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <div class="transformer-symbol" style="transform: scale(0.6); margin:-10px 0;">
+                                            <div class="trafo-circle top"></div>
+                                            <div class="trafo-circle bottom"></div>
+                                        </div>
+                                        <span class="feeder-current" id="sld-f3-a">0.0 A</span>
+                                        <div class="bay-controls-bottom">
+                                            <button class="bay-btn-label">Ölçü Trafosu</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Feeder 4 (Coupling) -->
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">H-04</span>
+                                        <div class="sld-line-vert live" style="height: 45px;"></div>
+                                        <div class="bay-controls-bottom" style="margin-top: 50px;">
+                                            <button class="bay-btn-label reserv">Kuplaj W1</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Feeder 5 -->
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">H-05</span>
+                                        <div class="disconnector-group" style="padding: 1px 3px;">
+                                            <span class="earth-symbol">Q2</span>
+                                            <div class="disconnector-diamond"></div>
+                                        </div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <div class="breaker-box" data-breaker="f4" title="Kesici Q1"></div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <span class="earth-symbol">I1</span>
+                                        <span class="feeder-current" id="sld-f4-a">182.8 A</span>
+                                        <div class="bay-controls-bottom">
+                                            <button class="bay-btn-label">Fider 5</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Feeder 6 (VT Measurement) -->
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">H-06</span>
+                                        <div class="sld-line-vert live" style="height: 30px;"></div>
+                                        <div style="font-size: 9px; line-height: 1.2; color: #38bdf8;">
+                                            <div>U12: 22.8 kV</div>
+                                            <div>U23: 22.9 kV</div>
+                                            <div>U31: 22.9 kV</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Feeder 6 (VT Measurement) -->
-                            <div class="feeder-column">
-                                <span class="feeder-tag">H-06</span>
-                                <div class="sld-line-vert live" style="height: 30px;"></div>
-                                <div style="font-size: 9px; line-height: 1.2; color: #38bdf8;">
-                                    <div>U12: 22.8 kV</div>
-                                    <div>U23: 22.9 kV</div>
-                                    <div>U31: 22.9 kV</div>
+                            <!-- Right Substation Bay (T102) -->
+                            <div class="transformer-bay">
+                                <div class="bay-header">
+                                    <div class="bay-title-box" style="background:#1e3a8a;" id="sld-t102-title">Trafo 2
+                                    </div>
+                                    <div class="bay-status-numbers">
+                                        <span class="bay-status-num n1">1</span>
+                                        <span class="bay-status-num n2">2</span>
+                                        <span class="bay-status-num n3">3</span>
+                                    </div>
+                                </div>
+                                <div class="bay-control-mode">UZAKTAN</div>
+
+                                <!-- Transformer Icon -->
+                                <div class="transformer-symbol">
+                                    <div class="trafo-circle top"></div>
+                                    <div class="trafo-circle bottom"></div>
+                                </div>
+
+                                <!-- Vertical Feeder Line -->
+                                <div class="sld-line-vert dead" style="height: 30px;"></div>
+
+                                <!-- Grounding / Disconnector QE & Q2 -->
+                                <div class="disconnector-group">
+                                    <span class="earth-symbol">LON Blokaj / KAPALI</span>
+                                    <span class="breaker-label" style="left:auto; right:-20px;">Q1</span>
+                                    <div class="breaker-box open" id="sld-t102-q1" data-breaker="t102-q1"
+                                        title="Kesici Q1 (Tıklayarak aç/kapa)"></div>
+                                </div>
+
+                                <!-- Telemetry Box T102 -->
+                                <div class="telemetry-readouts left-side">
+                                    <div id="sld-t102-kw" class="telemetry-val" style="color: #94a3b8;">0.0 kW</div>
+                                    <div id="sld-t102-kvar" class="telemetry-val" style="color: #94a3b8;">0.0 kVAr</div>
+                                    <div id="sld-t102-kv" class="telemetry-val">22.7 kV</div>
+                                    <div id="sld-t102-a" class="telemetry-val" style="color: #94a3b8;">0.0 A</div>
+                                </div>
+
+                                <div class="disconnector-group" style="margin-top: 15px;">
+                                    <span class="earth-symbol">Q2</span>
+                                    <div class="disconnector-diamond" style="background:#475569; border-color:#475569;">
+                                    </div>
+                                    <div class="disconnector-diamond" style="background:#eab308;" title="QE"></div>
+                                    <span class="earth-symbol">QE</span>
+                                </div>
+
+                                <div class="sld-line-vert live" style="height: 25px;"></div>
+
+                                <!-- Main Busbar W2 -->
+                                <div class="busbar-container">
+                                    <span class="busbar-title left">W2</span>
+                                    <div class="sld-line-horiz"></div>
+                                    <span class="busbar-title right">W2</span>
+                                </div>
+
+                                <!-- Feeders connected to W2 -->
+                                <div class="feeders-row">
+                                    <!-- Feeder VT -->
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">H-07</span>
+                                        <div class="sld-line-vert live" style="height: 30px;"></div>
+                                        <div style="font-size: 9px; line-height: 1.2; color: #38bdf8;">
+                                            <div>U12: 22.8 kV</div>
+                                            <div>U23: 22.9 kV</div>
+                                            <div>U31: 22.9 kV</div>
+                                        </div>
+                                        <div class="bay-controls-bottom" style="margin-top: 18px;">
+                                            <button class="bay-btn-label reserv">Kuplaj W2</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Feeder Coupler 2.03 -->
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">H-08</span>
+                                        <div class="sld-line-vert live" style="height: 45px;"></div>
+                                    </div>
+
+                                    <!-- Feeder 2.04 -->
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">H-09</span>
+                                        <div class="disconnector-group" style="padding: 1px 3px;">
+                                            <span class="earth-symbol">Q2</span>
+                                            <div class="disconnector-diamond"></div>
+                                        </div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <div class="breaker-box" data-breaker="f5" title="Kesici Q1"></div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <span class="earth-symbol">I1</span>
+                                        <span class="feeder-current" id="sld-f5-a">74.9 A</span>
+                                        <div class="bay-controls-bottom">
+                                            <button class="bay-btn-label">Fider 2</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Feeder 2.05 -->
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">H-10</span>
+                                        <div class="disconnector-group" style="padding: 1px 3px;">
+                                            <span class="earth-symbol">Q2</span>
+                                            <div class="disconnector-diamond"></div>
+                                        </div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <div class="breaker-box" data-breaker="f6" title="Kesici Q1"></div>
+                                        <div class="sld-line-vert live" style="height: 15px;"></div>
+                                        <span class="earth-symbol">I1</span>
+                                        <span class="feeder-current" id="sld-f6-a">105.5 A</span>
+                                        <div class="bay-controls-bottom">
+                                            <button class="bay-btn-label">Fider 4</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Feeder 2.06 (Spare) -->
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">H-11</span>
+                                        <div class="disconnector-group" style="padding: 1px 3px;">
+                                            <span class="earth-symbol">Q2</span>
+                                            <div class="disconnector-diamond" style="background:#eab308;"></div>
+                                        </div>
+                                        <div class="sld-line-vert dead" style="height: 15px;"></div>
+                                        <div class="breaker-box open" data-breaker="f7" title="Kesici Q1"></div>
+                                        <div class="sld-line-vert dead" style="height: 15px;"></div>
+                                        <span class="earth-symbol">I1</span>
+                                        <span class="feeder-current" id="sld-f7-a" style="color: #64748b;">0.0 A</span>
+                                        <div class="bay-controls-bottom">
+                                            <button class="bay-btn-label reserv">Yedek</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="feeder-column">
+                                        <span class="feeder-tag">W2</span>
+                                        <div class="sld-line-vert dead" style="height: 45px;"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </section>
 
-                    <!-- Right Substation Bay (T102) -->
-                    <div class="transformer-bay">
-                        <div class="bay-header">
-                            <div class="bay-title-box" style="background:#1e3a8a;" id="sld-t102-title">Trafo 2</div>
-                            <div class="bay-status-numbers">
-                                <span class="bay-status-num n1">1</span>
-                                <span class="bay-status-num n2">2</span>
-                                <span class="bay-status-num n3">3</span>
-                            </div>
-                        </div>
-                        <div class="bay-control-mode">UZAKTAN</div>
-
-                        <!-- Transformer Icon -->
-                        <div class="transformer-symbol">
-                            <div class="trafo-circle top"></div>
-                            <div class="trafo-circle bottom"></div>
-                        </div>
-
-                        <!-- Vertical Feeder Line -->
-                        <div class="sld-line-vert dead" style="height: 30px;"></div>
-
-                        <!-- Grounding / Disconnector QE & Q2 -->
-                        <div class="disconnector-group">
-                            <span class="earth-symbol">LON Blokaj / KAPALI</span>
-                            <span class="breaker-label" style="left:auto; right:-20px;">Q1</span>
-                            <div class="breaker-box open" id="sld-t102-q1" data-breaker="t102-q1" title="Kesici Q1 (Tıklayarak aç/kapa)"></div>
-                        </div>
-
-                        <!-- Telemetry Box T102 -->
-                        <div class="telemetry-readouts left-side">
-                            <div id="sld-t102-kw" class="telemetry-val" style="color: #94a3b8;">0.0 kW</div>
-                            <div id="sld-t102-kvar" class="telemetry-val" style="color: #94a3b8;">0.0 kVAr</div>
-                            <div id="sld-t102-kv" class="telemetry-val">22.7 kV</div>
-                            <div id="sld-t102-a" class="telemetry-val" style="color: #94a3b8;">0.0 A</div>
-                        </div>
-
-                        <div class="disconnector-group" style="margin-top: 15px;">
-                            <span class="earth-symbol">Q2</span>
-                            <div class="disconnector-diamond" style="background:#475569; border-color:#475569;"></div>
-                            <div class="disconnector-diamond" style="background:#eab308;" title="QE"></div>
-                            <span class="earth-symbol">QE</span>
-                        </div>
-
-                        <div class="sld-line-vert live" style="height: 25px;"></div>
-
-                        <!-- Main Busbar W2 -->
-                        <div class="busbar-container">
-                            <span class="busbar-title left">W2</span>
-                            <div class="sld-line-horiz"></div>
-                            <span class="busbar-title right">W2</span>
-                        </div>
-
-                        <!-- Feeders connected to W2 -->
-                        <div class="feeders-row">
-                            <!-- Feeder VT -->
-                            <div class="feeder-column">
-                                <span class="feeder-tag">H-07</span>
-                                <div class="sld-line-vert live" style="height: 30px;"></div>
-                                <div style="font-size: 9px; line-height: 1.2; color: #38bdf8;">
-                                    <div>U12: 22.8 kV</div>
-                                    <div>U23: 22.9 kV</div>
-                                    <div>U31: 22.9 kV</div>
-                                </div>
-                                <div class="bay-controls-bottom" style="margin-top: 18px;">
-                                    <button class="bay-btn-label reserv">Kuplaj W2</button>
-                                </div>
-                            </div>
-
-                            <!-- Feeder Coupler 2.03 -->
-                            <div class="feeder-column">
-                                <span class="feeder-tag">H-08</span>
-                                <div class="sld-line-vert live" style="height: 45px;"></div>
-                            </div>
-
-                            <!-- Feeder 2.04 -->
-                            <div class="feeder-column">
-                                <span class="feeder-tag">H-09</span>
-                                <div class="disconnector-group" style="padding: 1px 3px;">
-                                    <span class="earth-symbol">Q2</span>
-                                    <div class="disconnector-diamond"></div>
-                                </div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <div class="breaker-box" data-breaker="f5" title="Kesici Q1"></div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <span class="earth-symbol">I1</span>
-                                <span class="feeder-current" id="sld-f5-a">74.9 A</span>
-                                <div class="bay-controls-bottom">
-                                    <button class="bay-btn-label">Fider 2</button>
-                                </div>
-                            </div>
-
-                            <!-- Feeder 2.05 -->
-                            <div class="feeder-column">
-                                <span class="feeder-tag">H-10</span>
-                                <div class="disconnector-group" style="padding: 1px 3px;">
-                                    <span class="earth-symbol">Q2</span>
-                                    <div class="disconnector-diamond"></div>
-                                </div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <div class="breaker-box" data-breaker="f6" title="Kesici Q1"></div>
-                                <div class="sld-line-vert live" style="height: 15px;"></div>
-                                <span class="earth-symbol">I1</span>
-                                <span class="feeder-current" id="sld-f6-a">105.5 A</span>
-                                <div class="bay-controls-bottom">
-                                    <button class="bay-btn-label">Fider 4</button>
-                                </div>
-                            </div>
-
-                            <!-- Feeder 2.06 (Spare) -->
-                            <div class="feeder-column">
-                                <span class="feeder-tag">H-11</span>
-                                <div class="disconnector-group" style="padding: 1px 3px;">
-                                    <span class="earth-symbol">Q2</span>
-                                    <div class="disconnector-diamond" style="background:#eab308;"></div>
-                                </div>
-                                <div class="sld-line-vert dead" style="height: 15px;"></div>
-                                <div class="breaker-box open" data-breaker="f7" title="Kesici Q1"></div>
-                                <div class="sld-line-vert dead" style="height: 15px;"></div>
-                                <span class="earth-symbol">I1</span>
-                                <span class="feeder-current" id="sld-f7-a" style="color: #64748b;">0.0 A</span>
-                                <div class="bay-controls-bottom">
-                                    <button class="bay-btn-label reserv">Yedek</button>
-                                </div>
-                            </div>
-
-                            <div class="feeder-column">
-                                <span class="feeder-tag">W2</span>
-                                <div class="sld-line-vert dead" style="height: 45px;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-    </main>
+            </main>
         </div><!-- /.app-body -->
     </div><!-- /.app-layout -->
 
@@ -900,7 +1098,8 @@
                     <div class="modal-canvas-section">
                         <div class="canvas-title">
                             <h4>Fazör & Güç Üçgeni Vektör Diyagramı</h4>
-                            <span class="text-muted" style="font-size: 12px;">Aktif (P), Endüktif (QL), Kapasitif (QC) ve Görünür Güç (S)</span>
+                            <span class="text-muted" style="font-size: 12px;">Aktif (P), Endüktif (QL), Kapasitif (QC)
+                                ve Görünür Güç (S)</span>
                         </div>
                         <div class="canvas-wrapper">
                             <canvas id="power-triangle-canvas" width="480" height="340"></canvas>
@@ -946,19 +1145,23 @@
                 <form id="yeni-trafo-form" style="display: flex; flex-direction: column; gap: 16px;">
                     <div class="form-group">
                         <label for="new-trafo-id">Trafo ID (Kısa Kod)</label>
-                        <input type="text" id="new-trafo-id" required placeholder="Ör: YENI-TR" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
+                        <input type="text" id="new-trafo-id" required placeholder="Ör: YENI-TR"
+                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <div class="form-group">
                         <label for="new-trafo-adi">Trafo Adı</label>
-                        <input type="text" id="new-trafo-adi" required placeholder="Ör: Yeni Trafo Merkezi" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
+                        <input type="text" id="new-trafo-adi" required placeholder="Ör: Yeni Trafo Merkezi"
+                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <div class="form-group">
                         <label for="new-trafo-bolge">Bölgesi</label>
-                        <input type="text" id="new-trafo-bolge" required placeholder="Ör: Kadıköy" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
+                        <input type="text" id="new-trafo-bolge" required placeholder="Ör: Kadıköy"
+                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <div class="form-group">
                         <label for="new-trafo-guc">Gücü (MVA)</label>
-                        <input type="number" id="new-trafo-guc" value="100" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
+                        <input type="number" id="new-trafo-guc" value="100" required
+                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <button type="submit" class="btn btn-primary" style="margin-top: 8px;">KAYDET</button>
                 </form>
@@ -972,20 +1175,25 @@
             <div class="scada-modal-header">
                 <div>
                     <h3>Manevra Etki Simülasyonu</h3>
-                    <span class="text-muted" style="font-size: 12px;">Uygulamadan önce manevranın etkilerini analiz edin</span>
+                    <span class="text-muted" style="font-size: 12px;">Uygulamadan önce manevranın etkilerini analiz
+                        edin</span>
                 </div>
                 <button class="modal-close-btn" id="btn-close-sim-modal">✕</button>
             </div>
             <div class="scada-modal-body" style="padding-top: 0;">
                 <div class="sim-modal-body" id="sim-modal-body">
                     <div style="text-align: center; padding: 40px;">
-                        <div class="loading-spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto 10px;"></div>
+                        <div class="loading-spinner"
+                            style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto 10px;"></div>
                         <span>Simülasyon hesaplanıyor...</span>
                     </div>
                 </div>
                 <div style="margin-top: 8px;">
-                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Manevra Gerekçesi (Opsiyonel)</label>
-                    <textarea class="sim-reason-input" id="sim-reason-input" placeholder="Bu manevranın uygulanma gerekçesini belirtebilirsiniz..."></textarea>
+                    <label
+                        style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Manevra
+                        Gerekçesi (Opsiyonel)</label>
+                    <textarea class="sim-reason-input" id="sim-reason-input"
+                        placeholder="Bu manevranın uygulanma gerekçesini belirtebilirsiniz..."></textarea>
                 </div>
                 <div class="confirm-modal-actions">
                     <button class="btn-confirm outline" id="btn-sim-cancel">İptal</button>
@@ -1001,16 +1209,19 @@
             <div class="scada-modal-header">
                 <div>
                     <h3 id="breaker-modal-title" style="color: var(--color-danger-light);">Kritik SCADA İşlemi</h3>
-                    <span class="badge" id="breaker-modal-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">Uyarı</span>
+                    <span class="badge" id="breaker-modal-badge"
+                        style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">Uyarı</span>
                 </div>
                 <button class="modal-close-btn" id="btn-close-breaker-modal">✕</button>
             </div>
             <div class="scada-modal-body">
                 <div class="info-box danger-box mb-md">
-                    <p id="breaker-modal-message">Bu hattın enerjisini kesmek üzeresiniz. Bu işlem bölgede kesintiye neden olacaktır.</p>
+                    <p id="breaker-modal-message">Bu hattın enerjisini kesmek üzeresiniz. Bu işlem bölgede kesintiye
+                        neden olacaktır.</p>
                 </div>
-                
-                <div style="background: var(--bg-level2); padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid var(--border-color);">
+
+                <div
+                    style="background: var(--bg-level2); padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid var(--border-color);">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                         <span style="color: var(--text-muted);">İşlem Yapılacak Kesici:</span>
                         <strong id="breaker-modal-id" style="color: var(--text-color);">FDR-XXX-Q1</strong>
@@ -1022,9 +1233,11 @@
                 </div>
 
                 <div class="form-group" style="margin-bottom: 24px;">
-                    <label class="checkbox-label" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                    <label class="checkbox-label"
+                        style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="chk-breaker-confirm" style="margin-top: 4px;">
-                        <span style="font-size: 13px; color: var(--text-color);">Bu manevranın sonuçlarını ve potansiyel risklerini okudum, işlemin uygulanmasını onaylıyorum ve sorumluluğu kabul ediyorum.</span>
+                        <span style="font-size: 13px; color: var(--text-color);">Bu manevranın sonuçlarını ve potansiyel
+                            risklerini okudum, işlemin uygulanmasını onaylıyorum ve sorumluluğu kabul ediyorum.</span>
                     </label>
                 </div>
 
@@ -1042,15 +1255,18 @@
             <div class="scada-modal-header">
                 <div>
                     <h3 style="color: var(--color-primary);">Toplu Yük Aktarımı (Kuplaj)</h3>
-                    <span class="badge" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border-color: rgba(139, 92, 246, 0.3);">Toplu İşlem</span>
+                    <span class="badge"
+                        style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border-color: rgba(139, 92, 246, 0.3);">Toplu
+                        İşlem</span>
                 </div>
                 <button class="modal-close-btn" id="btn-close-kuplaj-transfer-modal">✕</button>
             </div>
             <div class="scada-modal-body">
                 <div class="info-box info-box-primary mb-md">
-                    <p>Bir trafodaki <b>tüm aktif fiderleri</b> diğerine bağlayarak yük aktarımı yapabilirsiniz (Örn: Tam bakım senaryosu).</p>
+                    <p>Bir trafodaki <b>tüm aktif fiderleri</b> diğerine bağlayarak yük aktarımı yapabilirsiniz (Örn:
+                        Tam bakım senaryosu).</p>
                 </div>
-                
+
                 <div class="form-group mb-md">
                     <label>Aktarım Yönü</label>
                     <select class="form-control" id="kuplaj-transfer-direction" style="margin-top: 8px;">
@@ -1058,7 +1274,8 @@
                     </select>
                 </div>
 
-                <div style="background: var(--bg-level2); padding: 12px; border-radius: 8px; margin-bottom: 24px; border: 1px solid var(--border-color);">
+                <div
+                    style="background: var(--bg-level2); padding: 12px; border-radius: 8px; margin-bottom: 24px; border: 1px solid var(--border-color);">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                         <span style="color: var(--text-muted);">Aktarılacak Fider Sayısı:</span>
                         <strong id="kuplaj-transfer-count" style="color: var(--text-color);">0</strong>
@@ -1081,7 +1298,9 @@
     <div class="scada-modal-overlay" id="add-feeder-modal" style="display: none; z-index: 100005;">
         <div class="scada-modal-card" style="max-width: 500px;">
             <div class="scada-modal-header">
-                <div><h3>Yeni Fider Ekle</h3></div>
+                <div>
+                    <h3>Yeni Fider Ekle</h3>
+                </div>
                 <button class="modal-close-btn" id="btn-close-add-feeder">✕</button>
             </div>
             <div class="scada-modal-body" style="padding-top: 0;">
@@ -1100,7 +1319,9 @@
                     </div>
                     <div class="form-group">
                         <label for="new-feeder-alt-trafo">Alternatif Trafo</label>
-                        <select id="new-feeder-alt-trafo"><option value="">— Yok —</option></select>
+                        <select id="new-feeder-alt-trafo">
+                            <option value="">— Yok —</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="new-feeder-load">Simüle Yük (kW)</label>
@@ -1116,7 +1337,9 @@
     <div class="scada-modal-overlay" id="add-reactor-modal" style="display: none; z-index: 100005;">
         <div class="scada-modal-card" style="max-width: 500px;">
             <div class="scada-modal-header">
-                <div><h3>Yeni Reaktör Ekle</h3></div>
+                <div>
+                    <h3>Yeni Reaktör Ekle</h3>
+                </div>
                 <button class="modal-close-btn" id="btn-close-add-reactor">✕</button>
             </div>
             <div class="scada-modal-body" style="padding-top: 0;">
@@ -1135,7 +1358,9 @@
                     </div>
                     <div class="form-group">
                         <label for="new-reactor-alt-trafo">Alternatif Trafo</label>
-                        <select id="new-reactor-alt-trafo"><option value="">— Yok —</option></select>
+                        <select id="new-reactor-alt-trafo">
+                            <option value="">— Yok —</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="new-reactor-capacity">Kapasite (kVAr)</label>
@@ -1158,7 +1383,9 @@
     <div class="scada-modal-overlay" id="add-trafo-modal" style="display: none; z-index: 100005;">
         <div class="scada-modal-card" style="max-width: 500px;">
             <div class="scada-modal-header">
-                <div><h3>Yeni Trafo Ekle</h3></div>
+                <div>
+                    <h3>Yeni Trafo Ekle</h3>
+                </div>
                 <button class="modal-close-btn" id="btn-close-add-trafo">✕</button>
             </div>
             <div class="scada-modal-body" style="padding-top: 0;">
@@ -1209,7 +1436,8 @@
             <div class="scada-modal-header">
                 <div>
                     <h3>Bağlantı Düzenle</h3>
-                    <span class="text-muted" style="font-size: 12px;">Varlığın bağlı olduğu ana ve alternatif trafoları değiştirin</span>
+                    <span class="text-muted" style="font-size: 12px;">Varlığın bağlı olduğu ana ve alternatif trafoları
+                        değiştirin</span>
                 </div>
                 <button class="modal-close-btn" id="btn-close-edit-conn">✕</button>
             </div>
@@ -1225,9 +1453,12 @@
                     </div>
                     <div class="form-group">
                         <label for="conn-alt-trafo">Alternatif Trafo</label>
-                        <select id="conn-alt-trafo"><option value="">— Yok —</option></select>
+                        <select id="conn-alt-trafo">
+                            <option value="">— Yok —</option>
+                        </select>
                     </div>
-                    <button type="submit" class="btn-confirm primary" style="margin-top: 8px;">Bağlantıyı Güncelle</button>
+                    <button type="submit" class="btn-confirm primary" style="margin-top: 8px;">Bağlantıyı
+                        Güncelle</button>
                 </form>
             </div>
         </div>
@@ -1239,7 +1470,8 @@
             <div class="scada-modal-header">
                 <div>
                     <h3 style="color: #8b5cf6;">Trafo Kuplajı Oluştur</h3>
-                    <span class="text-muted" style="font-size: 12px;">İki trafo merkezi arasına kuplaj (bus-tie) bağlantısı ekleyin</span>
+                    <span class="text-muted" style="font-size: 12px;">İki trafo merkezi arasına kuplaj (bus-tie)
+                        bağlantısı ekleyin</span>
                 </div>
                 <button class="modal-close-btn" id="btn-close-edit-kuplaj">✕</button>
             </div>
@@ -1250,13 +1482,19 @@
                         <select id="kuplaj-trafo-1" required></select>
                     </div>
                     <div class="form-group" style="text-align: center; margin: 0; color: #8b5cf6;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                        </svg>
                     </div>
                     <div class="form-group">
                         <label for="kuplaj-trafo-2">Trafo 2</label>
                         <select id="kuplaj-trafo-2" required></select>
                     </div>
-                    <button type="submit" class="btn-confirm primary" style="margin-top: 8px; background: #8b5cf6; border-color: #8b5cf6;">Kuplajı Ekle / Güncelle</button>
+                    <button type="submit" class="btn-confirm primary"
+                        style="margin-top: 8px; background: #8b5cf6; border-color: #8b5cf6;">Kuplajı Ekle /
+                        Güncelle</button>
                 </form>
             </div>
         </div>
@@ -1268,17 +1506,20 @@
             <div class="scada-modal-header">
                 <div>
                     <h3>Topoloji Değişikliklerini Kaydet</h3>
-                    <span class="text-muted" style="font-size: 12px;">Yapılan fiziksel dizilim ve nesne değişiklikleri veritabanına işlenecek</span>
+                    <span class="text-muted" style="font-size: 12px;">Yapılan fiziksel dizilim ve nesne değişiklikleri
+                        veritabanına işlenecek</span>
                 </div>
                 <button class="modal-close-btn" id="btn-close-topology-save">✕</button>
             </div>
             <div class="scada-modal-body">
-                <div id="topology-save-summary-body" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+                <div id="topology-save-summary-body"
+                    style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
                     <!-- JS ile dinamik doldurulacak -->
                 </div>
                 <div class="confirm-modal-actions">
                     <button class="btn-confirm outline" id="btn-topology-save-cancel">Vazgeç</button>
-                    <button class="btn-confirm primary" id="btn-topology-save-execute">Değişiklikleri Onayla ve Kaydet</button>
+                    <button class="btn-confirm primary" id="btn-topology-save-execute">Değişiklikleri Onayla ve
+                        Kaydet</button>
                 </div>
             </div>
         </div>
@@ -1298,12 +1539,18 @@
                     Kesici durumunu değiştirmek istediğinize emin misiniz?
                 </p>
                 <div class="form-group mt-md">
-                    <label for="scada-confirm-reason" style="font-size: 12px; color: #94a3b8;">Manevra Gerekçesi (Opsiyonel)</label>
-                    <input type="text" id="scada-confirm-reason" placeholder="Örn: Rutin test manevrası / Bakım çalışması" style="width: 100%; padding: 8px; border-radius: 4px; background: #0f172a; border: 1px solid #334155; color: white;">
+                    <label for="scada-confirm-reason" style="font-size: 12px; color: #94a3b8;">Manevra Gerekçesi
+                        (Opsiyonel)</label>
+                    <input type="text" id="scada-confirm-reason"
+                        placeholder="Örn: Rutin test manevrası / Bakım çalışması"
+                        style="width: 100%; padding: 8px; border-radius: 4px; background: #0f172a; border: 1px solid #334155; color: white;">
                 </div>
-                <div class="confirm-modal-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <div class="confirm-modal-actions"
+                    style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                     <button class="btn btn-outline" id="btn-cancel-scada-confirm">İptal</button>
-                    <button class="btn btn-primary" id="btn-execute-scada-confirm" style="background: #eab308; color: #000; border: none; font-weight: bold;">Manevrayı Uygula ve Kaydet</button>
+                    <button class="btn btn-primary" id="btn-execute-scada-confirm"
+                        style="background: #eab308; color: #000; border: none; font-weight: bold;">Manevrayı Uygula ve
+                        Kaydet</button>
                 </div>
             </div>
         </div>
@@ -1316,7 +1563,7 @@
     <!-- ═══ Scripts (sıra önemli!) ═══ -->
     <script src="js/core/data.js?v=1012"></script>
     <script src="js/core/api_client.js?v=1012"></script>
-    <script src="js/core/theme.js?v=1012"></script>
+    <script src="js/core/theme.js?v=1014"></script>
     <script src="js/modules/calculations.js?v=1012"></script>
     <script src="js/modules/forecast.js?v=1012"></script>
     <script src="js/modules/scenarios.js?v=1012"></script>
@@ -1330,4 +1577,5 @@
     <script src="js/ui/scada_sld_v4.js?v=1012"></script>
     <script src="js/core/app.js?v=1012"></script>
 </body>
+
 </html>

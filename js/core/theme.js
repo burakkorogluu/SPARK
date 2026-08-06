@@ -28,6 +28,20 @@ const ThemeManager = (() => {
         if (iconEl) iconEl.textContent = themeName === 'light' ? '🌙' : '☀️';
         if (textEl) textEl.textContent = themeName === 'light' ? 'Koyu' : 'Açık';
 
+        // Logo Değişimi
+        const customLogo = document.getElementById('custom-logo');
+        const favicon = document.getElementById('favicon');
+
+        const ts = new Date().getTime(); // Önbelleği (cache) kırmak için
+        if (customLogo) {
+            // style.display='none' kalmışsa diye blokluyoruz
+            customLogo.style.display = 'block';
+            customLogo.src = themeName === 'light' ? 'icon.png?v=' + ts : 'icon1.png?v=' + ts;
+        }
+        if (favicon) {
+            favicon.href = themeName === 'light' ? 'icon.png?v=' + ts : 'icon1.png?v=' + ts;
+        }
+
         if (typeof GrafikModulu !== 'undefined' && GrafikModulu.updateTheme) {
             GrafikModulu.updateTheme(themeName === 'light');
         }

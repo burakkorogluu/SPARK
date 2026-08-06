@@ -1,0 +1,56 @@
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Panel -->
+  <rect width="256" height="256" rx="48" fill="#12151a"/>
+  <rect x="6" y="6" width="244" height="244" rx="42" fill="none" stroke="#f2a71b" stroke-opacity="0.35" stroke-width="2"/>
+
+  <!-- Blueprint grid (subtle) -->
+  <g stroke="#e8e6df" stroke-opacity="0.05" stroke-width="1">
+    <line x1="32" y1="24" x2="32" y2="232"/>
+    <line x1="80" y1="24" x2="80" y2="232"/>
+    <line x1="176" y1="24" x2="176" y2="232"/>
+    <line x1="224" y1="24" x2="224" y2="232"/>
+    <line x1="24" y1="64" x2="232" y2="64"/>
+    <line x1="24" y1="192" x2="232" y2="192"/>
+  </g>
+
+  <!-- Ana proses hattı -->
+  <line x1="44" y1="150" x2="212" y2="150" stroke="#e8e6df" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 62 143 L 74 150 L 62 157 Z" fill="#4a5568"/>
+
+  <!-- Vana (P&ID kelebek vana simgesi) -->
+  <path d="M 108 132 L 108 168 L 128 150 Z" fill="#12151a" stroke="#e8e6df" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M 148 132 L 148 168 L 128 150 Z" fill="#12151a" stroke="#e8e6df" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Vana aktüatörü -->
+  <line x1="128" y1="150" x2="128" y2="118" stroke="#e8e6df" stroke-width="3"/>
+  <circle cx="128" cy="106" r="12" fill="#12151a" stroke="#e8e6df" stroke-width="3"/>
+  <line x1="120" y1="106" x2="136" y2="106" stroke="#e8e6df" stroke-width="2"/>
+  <line x1="128" y1="98" x2="128" y2="114" stroke="#e8e6df" stroke-width="2"/>
+
+  <!-- Gösterge dalı -->
+  <line x1="190" y1="150" x2="190" y2="110" stroke="#e8e6df" stroke-width="3"/>
+
+  <!-- Basınç göstergesi -->
+  <circle cx="190" cy="84" r="26" fill="#12151a" stroke="#e8e6df" stroke-width="3"/>
+  <g stroke="#e8e6df" stroke-width="2">
+    <line x1="190" y1="60" x2="190" y2="65"/>
+    <line x1="212" y1="84" x2="207" y2="84"/>
+    <line x1="168" y1="84" x2="173" y2="84"/>
+    <line x1="205" y1="99" x2="201" y2="95"/>
+  </g>
+  <line x1="190" y1="84" x2="178" y2="68" stroke="#f2a71b" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="190" cy="84" r="4" fill="#f2a71b"/>
+
+  <!-- RTU / uzak terminal birimi -->
+  <rect x="168" y="182" width="40" height="26" rx="4" fill="#12151a" stroke="#e8e6df" stroke-width="3"/>
+  <line x1="176" y1="208" x2="176" y2="216" stroke="#e8e6df" stroke-width="2"/>
+  <line x1="188" y1="208" x2="188" y2="216" stroke="#e8e6df" stroke-width="2"/>
+  <line x1="200" y1="208" x2="200" y2="216" stroke="#e8e6df" stroke-width="2"/>
+
+  <!-- Telemetri sinyal hattı (kesikli) -->
+  <path d="M 213 92 L 199 182" stroke="#4a5568" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+
+  <!-- Durum LED'i -->
+  <circle cx="52" cy="200" r="10" fill="none" stroke="#f2a71b" stroke-opacity="0.3" stroke-width="2"/>
+  <circle cx="52" cy="200" r="5" fill="#f2a71b"/>
+</svg>

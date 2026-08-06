@@ -184,7 +184,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-primary);
+    background: transparent;
     border-radius: var(--radius-md);
     font-size: 18px;
     flex-shrink: 0;
@@ -196,6 +196,7 @@ body {
     letter-spacing: 1.5px;
     color: var(--text-primary);
     line-height: 1.2;
+    margin-left: 20px;
 }
 
 .brand-text span {
@@ -2360,8 +2361,10 @@ input::placeholder {
 /* Light Theme Variables */
 [data-theme="light"] {
     /* Colors — Professional Soft Light Theme */
-    --bg-primary: #F4F7F9; /* Very soft cool gray background */
-    --bg-secondary: #FFFFFF; /* Pure white headers/sidebars */
+    --bg-primary: #F4F7F9;
+    /* Very soft cool gray background */
+    --bg-secondary: #FFFFFF;
+    /* Pure white headers/sidebars */
     --bg-tertiary: #E8EEF2;
     --bg-card: #FFFFFF;
     --bg-card-hover: #F8FAFC;
@@ -2376,7 +2379,8 @@ input::placeholder {
     --color-accent: #7C3AED;
 
     /* Text */
-    --text-primary: #111827; /* Darkest slate for high readability */
+    --text-primary: #111827;
+    /* Darkest slate for high readability */
     --text-secondary: #4B5563;
     --text-muted: #6B7280;
     --text-dim: #9CA3AF;
@@ -2389,13 +2393,13 @@ input::placeholder {
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    
+
     /* Glows for interactive elements */
     --shadow-glow-blue: 0 4px 14px 0 rgba(0, 102, 255, 0.25);
     --shadow-glow-red: 0 4px 14px 0 rgba(239, 68, 68, 0.25);
     --shadow-glow-green: 0 4px 14px 0 rgba(16, 185, 129, 0.25);
     --shadow-glow-amber: 0 4px 14px 0 rgba(245, 158, 11, 0.25);
-    
+
     /* Modern soft corners for light theme specifically */
     --radius-sm: 6px;
     --radius-md: 10px;
@@ -3180,7 +3184,8 @@ input::placeholder {
 }
 
 [data-theme="light"] .maneuver-topology-container {
-    background: #F8FAFC; /* Kartlardan biraz daha koyu, tuval hissiyatı */
+    background: #F8FAFC;
+    /* Kartlardan biraz daha koyu, tuval hissiyatı */
     box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.04);
     border-color: #E2E8F0;
     /* İsteğe bağlı noktalı arka plan */
