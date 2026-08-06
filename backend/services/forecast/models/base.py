@@ -180,9 +180,9 @@ def generate_predictions_from_model(model_aktif, model_kap, model_end, df, steps
 
             base_row = [is_weekend, is_holiday, d.hour, d.weekday(), math.sin(2 * math.pi * d.hour / 24.0), math.cos(2 * math.pi * d.hour / 24.0), math.sin(2 * math.pi * d.weekday() / 7.0), math.cos(2 * math.pi * d.weekday() / 7.0), t, rh, w_feat.get("wind_speed", 0.0), w_feat.get("cloud_cover", 0.0), thi]
             
-            feat_aktif = np.array([base_row + lags_a])
-            feat_kap   = np.array([base_row + lags_k])
-            feat_end   = np.array([base_row + lags_e])
+            feat_aktif = pd.DataFrame([base_row + lags_a], columns=cols_aktif)
+            feat_kap   = pd.DataFrame([base_row + lags_k], columns=cols_kap)
+            feat_end   = pd.DataFrame([base_row + lags_e], columns=cols_end)
                 
             pa = max(0, model_aktif.predict(feat_aktif)[0])
             pk = max(0, model_kap.predict(feat_kap)[0])

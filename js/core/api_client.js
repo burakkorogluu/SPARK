@@ -96,6 +96,10 @@ const ApiClient = (() => {
         return _fetch(`${API_BASE_URL}/maneuver/assets`);
     }
 
+    async function fetchPandapowerTrafos() {
+        return _fetch(`${API_BASE_URL}/scada/pandapower/trafos`);
+    }
+
     async function fetchManeuverSuggestions() {
         return _fetch(`${API_BASE_URL}/maneuver/suggest`);
     }
@@ -247,6 +251,7 @@ const ApiClient = (() => {
         fetchAnalysisSummary,
         fetchForecast,
         fetchManeuverAssets,
+        fetchPandapowerTrafos,
         fetchManeuverSuggestions,
         simulateManeuver,
         applyManeuver,

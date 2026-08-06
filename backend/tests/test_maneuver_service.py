@@ -7,7 +7,7 @@ from services.maneuver_service import (
     rollback_maneuver,
     get_maneuver_history
 )
-import models
+from db import models
 
 def test_calculate_risk_level():
     assert _calculate_risk_level(90) == "tehlikeli"

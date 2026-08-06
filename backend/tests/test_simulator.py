@@ -1,6 +1,6 @@
 from datetime import datetime
 from simulator import generate_measurement_values, get_historical_baseline
-import models
+from db import models
 
 def test_generate_measurement_values(db_session):
     trafo = models.Transformer(id="TEST-TRAFO", name="Test Trafo", power_mva=10, status="active")

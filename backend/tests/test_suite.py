@@ -5,7 +5,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from services.analysis_service import hesapla_risk_durumu
-from database import SessionLocal, Base, engine
+from db.database import SessionLocal, Base, engine
 
 class TestSparkBackend(unittest.TestCase):
     @classmethod

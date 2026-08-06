@@ -1,5 +1,5 @@
 import logging
-from database import SessionLocal
+from db.database import SessionLocal
 from services.forecast_service import run_weekly_batch_forecast
 
 logging.basicConfig(level=logging.INFO)

@@ -142,5 +142,19 @@ class GridTopologyService:
                 
             raise ValueError(f"Power flow error after changing {element_type} {element_id}: {str(e)}. Action reverted.")
 
+    def get_trafos(self):
+        """Returns the list of transformers from the pandapower network."""
+        if not self.net or not hasattr(self.net, 'trafo'):
+            return []
+            
+        trafos = []
+        for idx, row in self.net.trafo.iterrows():
+            trafos.append({
+                "index": int(idx),
+                "name": str(row.get('name', f"Trafo {idx}")),
+                "sn_mva": float(row.get('sn_mva', 0.0))
+            })
+        return trafos
+
 # Create a singleton instance
 topology_service = GridTopologyService()

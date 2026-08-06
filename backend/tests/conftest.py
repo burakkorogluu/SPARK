@@ -10,9 +10,9 @@ from sqlalchemy.orm import sessionmaker
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from fastapi.testclient import TestClient
-import models
+from db import models
 from main import app, get_db
-from database import Base
+from db.database import Base
 
 from sqlalchemy.pool import StaticPool
 

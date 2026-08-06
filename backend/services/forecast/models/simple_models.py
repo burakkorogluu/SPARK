@@ -1,7 +1,7 @@
 import datetime
 from sqlalchemy.orm import Session
 
-import models
+from db import models
 from services.forecast.data_prep import prepare_dataframe, calculate_confidence
 
 def forecast_ortalama(db: Session, transformer_id: str, steps: int = 168):

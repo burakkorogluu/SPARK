@@ -6,7 +6,7 @@ import random
 import math
 from datetime import datetime
 from sqlalchemy.orm import Session
-import models
+from db import models
 
 # In-memory SCADA Breaker ve Şebeke Durumu
 SCADA_BREAKER_STATES = {
@@ -57,6 +57,15 @@ def toggle_breaker(db: Session, breaker_id: str, target_state: bool, trafo_id: s
     old_state = SCADA_BREAKER_STATES.get(breaker_id, False)
     SCADA_BREAKER_STATES[breaker_id] = target_state
     
+    # Check if this breaker belongs to a reactor and update its status in the DB
+    if breaker_id.endswith("-q1"):
+        base_asset_id = breaker_id[:-3] # e.g. 'sis-tra-r1'
+        from sqlalchemy import func
+        reactor = db.query(models.Reactor).filter(func.lower(models.Reactor.id) == base_asset_id).first()
+        if reactor:
+            reactor.status = "active" if target_state else "inactive"
+            # It will be committed below along with the log
+
     # Manevrayı veritabanına kaydet (ManeuverLog)
     action_text = "Kesici Kapatıldı (Enerji Verildi)" if target_state else "Kesici Açıldı (Enerji Kesildi)"
     

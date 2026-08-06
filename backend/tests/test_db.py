@@ -1,4 +1,4 @@
-from database import SessionLocal
+from db.database import SessionLocal
 from models import ForecastMeasurement, Measurement
 import datetime
 import calendar

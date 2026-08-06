@@ -1,7 +1,7 @@
 import requests
 import datetime
 from sqlalchemy.orm import Session
-import models
+from db import models
 import logging
 
 logger = logging.getLogger("spark.weather")

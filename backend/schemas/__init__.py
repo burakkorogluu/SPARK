@@ -146,10 +146,23 @@ class AssetPositionUpdate(BaseModel):
     current_transformer_id: Optional[str] = None
     alternative_transformer_id: Optional[str] = None
 
+class KuplajCreate(BaseModel):
+    t1: str
+    t2: str
+
+class KuplajResponse(BaseModel):
+    id: int
+    t1: str
+    t2: str
+
+    class Config:
+        from_attributes = True
+
 class TopologyBulkUpdateRequest(BaseModel):
     new_transformers: List[TransformerCreate] = []
     new_feeders: List[FeederCreate] = []
     new_reactors: List[ReactorCreate] = []
+    new_kuplajlar: List[KuplajCreate] = []
     updated_assets: List[AssetPositionUpdate] = []
 
 # ── Manevra Uygulama İsteği ──

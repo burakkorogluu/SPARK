@@ -3,7 +3,7 @@ import logging
 from sqlalchemy.orm import Session
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
-import models
+from db import models
 from services.forecast.data_prep import prepare_dataframe, calculate_confidence
 
 logger = logging.getLogger("spark.forecast")

@@ -193,6 +193,14 @@ const GrafikModulu = (() => {
         // O yüzden datasets sırasını tersine çeviriyoruz, fakat legend sırasını korumak için 
         // legend oluşturulurken ayar yapacağız.
         const sortedDatasets = hasTahmin ? [datasets[1], datasets[0]] : datasets;
+        
+        // Dinamik maksimum değer hesaplama
+        let maxValue = Math.max(...values.map(v => typeof v === 'number' ? v : 0));
+        if (hasTahmin) {
+            const maxTahmin = Math.max(...tahminValues.map(v => (typeof v === 'number' && v !== null) ? v : 0));
+            maxValue = Math.max(maxValue, maxTahmin);
+        }
+        const dynamicMax = Math.max(22, Math.ceil(maxValue * 1.15)); // En az 22, veya max değerin %15 fazlası
 
         _charts[canvasId] = new Chart(ctx, {
             type: 'bar',
@@ -273,7 +281,7 @@ const GrafikModulu = (() => {
                 scales: {
                     x: {
                         beginAtZero: true,
-                        max: 22,
+                        max: dynamicMax,
                         grid: { color: 'rgba(148, 163, 184, 0.06)' },
                         ticks: { callback: (v) => `%${v}` },
                     },

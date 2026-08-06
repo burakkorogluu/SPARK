@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 # pyrefly: ignore [missing-import]
 from sqlalchemy import extract
-import models
+from db import models
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import logging
@@ -139,40 +139,31 @@ def get_monthly_summary(
     """
     sim_now = datetime.now()
 
-    query = db.query(models.Measurement).filter(
+    from sqlalchemy import func
+
+    results_query = db.query(
+        models.Measurement.transformer_id,
+        func.sum(models.Measurement.active_kwh).label("aktif"),
+        func.sum(models.Measurement.inductive_kvarh).label("enduktif"),
+        func.sum(models.Measurement.capacitive_kvarh).label("kapasitif"),
+        func.count(func.distinct(func.date(models.Measurement.timestamp))).label("gun_sayisi")
+    ).filter(
         models.Measurement.timestamp <= sim_now,
         extract("year",  models.Measurement.timestamp) == year,
         extract("month", models.Measurement.timestamp) == month,
     )
     if transformer_id:
-        query = query.filter(models.Measurement.transformer_id == transformer_id)
+        results_query = results_query.filter(models.Measurement.transformer_id == transformer_id)
 
-    measurements = query.all()
-    logger.debug(f"get_monthly_summary: {year}-{month:02d} → {len(measurements)} ölçüm")
-
-    # Tek geçiş aggregation
-    t_groups: Dict[str, Dict] = {}
-    for m in measurements:
-        tid = m.transformer_id
-        if tid not in t_groups:
-            t_groups[tid] = {
-                "aktif":    0,
-                "enduktif": 0,
-                "kapasitif": 0,
-                "gun_seti": set(),
-            }
-        g = t_groups[tid]
-        g["aktif"]     += m.active_kwh
-        g["enduktif"]  += m.inductive_kvarh
-        g["kapasitif"] += m.capacitive_kvarh
-        g["gun_seti"].add(m.timestamp.date())
+    aggregated_data = results_query.group_by(models.Measurement.transformer_id).all()
+    logger.debug(f"get_monthly_summary: {year}-{month:02d} → {len(aggregated_data)} transformer results")
 
     results = []
-    for tid, data in t_groups.items():
-        aktif    = data["aktif"]
-        enduktif = data["enduktif"]
-        kapasitif = data["kapasitif"]
-        gun_sayisi = len(data["gun_seti"])
+    for tid, aktif, enduktif, kapasitif, gun_sayisi in aggregated_data:
+        aktif = aktif or 0
+        enduktif = enduktif or 0
+        kapasitif = kapasitif or 0
+        gun_sayisi = gun_sayisi or 0
 
         # Her iki bileşen de değerlendiriliyor
         genel_seviye, oran_kapasitif, oran_enduktif, kap_seviye, end_seviye = hesapla_risk_durumu(
@@ -205,5 +196,6 @@ def get_monthly_summary(
                 "enduktifRisk":     {"seviye": end_seviye},
             },
         })
-
+    results.sort(key=lambda x: 0 if x["trafo"]["id"] == "UMR-TRA" else 1)
+    
     return results

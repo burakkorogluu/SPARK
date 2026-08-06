@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 from typing import cast, Optional, Tuple
 # pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
-from database import SessionLocal
-import models
+from db.database import SessionLocal
+from db import models
 import logging
 
 logging.basicConfig(level=logging.INFO)

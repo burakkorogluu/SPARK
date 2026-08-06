@@ -4,7 +4,7 @@ import calendar
 import logging
 from sqlalchemy.orm import Session
 
-import models
+from db import models
 from services.forecast.cache_manager import FORECAST_CACHE, CACHE_TTL, _purge_expired_forecast_cache
 
 from services.forecast.models.xgboost_model import forecast_xgboost
@@ -50,7 +50,7 @@ def _run_raw_forecast_algorithm(db: Session, transformer_id: str, method: str, s
     return preds, conf
 
 def apply_topology_scaling_to_forecast(db: Session, transformer_id: str, method: str, steps: int):
-    from simulator import ORIGINAL_FEEDER_MAPPING, ORIGINAL_TRAFO_WEIGHTS, ORIGINAL_REACTOR_COMPENSATION
+    from core.simulator import ORIGINAL_FEEDER_MAPPING, ORIGINAL_TRAFO_WEIGHTS, ORIGINAL_REACTOR_COMPENSATION
     
     current_feeders = db.query(models.Feeder).filter(models.Feeder.current_transformer_id == transformer_id).all()
     
@@ -226,13 +226,17 @@ def get_cached_forecast(db: Session, transformer_id: str, year: int, month: int,
 
     data, confidence = apply_topology_scaling_to_forecast(db, transformer_id, method, steps)
 
+    # Veritabanında eksik veri olduğu fark edildi, bu trafoya ait verileri arka planda hesaplayıp tabloyu doldurması için tetikliyoruz.
+    import threading
+    threading.Thread(target=run_weekly_batch_forecast, args=([transformer_id],)).start()
+
     result = {"predictions": data, "confidence_score": confidence, "model_used": method}
     FORECAST_CACHE[cache_key] = (now, result)
     return result
 
 
 def _process_single_transformer_batch(t_id, methods, steps):
-    from database import SessionLocal
+    from db.database import SessionLocal
     db = SessionLocal()
     try:
         all_new_rows = []
@@ -261,27 +265,38 @@ def _process_single_transformer_batch(t_id, methods, steps):
             except Exception as e:
                 logger.error(f"{t_id} - {m} hatasi: {e}. Bu metodun onceki verisi silinmeyecek.")
         
-        try:
-            if succeeded_methods:
-                db.query(models.ForecastMeasurement).filter(
-                    models.ForecastMeasurement.transformer_id == t_id,
-                    models.ForecastMeasurement.model_type.in_(succeeded_methods)
-                ).delete(synchronize_session=False)
+        # SQLite db locking on delete retry loop
+        import time
+        max_retries = 3
+        for retry in range(max_retries):
+            try:
+                if succeeded_methods:
+                    db.query(models.ForecastMeasurement).filter(
+                        models.ForecastMeasurement.transformer_id == t_id,
+                        models.ForecastMeasurement.model_type.in_(succeeded_methods)
+                    ).delete(synchronize_session=False)
 
-                db.add_all(all_new_rows)
-                db.commit()
-                logger.info(f"Batch forecast kaydedildi: {t_id} (Metotlar: {succeeded_methods})")
-            else:
-                logger.warning(f"{t_id} icin hicbir metot basarili olmadi, veriler korunuyor.")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"{t_id} DB kayit hatasi: {e}")
+                    db.add_all(all_new_rows)
+                    db.commit()
+                    logger.info(f"Batch forecast kaydedildi: {t_id} (Metotlar: {succeeded_methods})")
+                else:
+                    logger.warning(f"{t_id} icin hicbir metot basarili olmadi, veriler korunuyor.")
+                break
+            except Exception as e:
+                db.rollback()
+                if "database is locked" in str(e).lower() and retry < max_retries - 1:
+                    logger.warning(f"{t_id} DB locked, retrying {retry+1}/{max_retries} in 2s...")
+                    time.sleep(2)
+                else:
+                    logger.error(f"{t_id} DB kayit hatasi: {e}")
+                    break
     finally:
         db.close()
 
+_CURRENTLY_FORECASTING = set()
+
 def run_weekly_batch_forecast(transformer_ids=None):
-    import concurrent.futures
-    from database import SessionLocal
+    from db.database import SessionLocal
     db = SessionLocal()
     try:
         if transformer_ids:
@@ -295,18 +310,24 @@ def run_weekly_batch_forecast(transformer_ids=None):
     methods = ["ensemble", "xgboost", "randomForest", "regression", "lightgbm"]
     steps = 720
     
-    max_workers = 4
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(_process_single_transformer_batch, t_id, methods, steps) for t_id in t_ids]
-        concurrent.futures.wait(futures)
+    for t_id in t_ids:
+        if t_id in _CURRENTLY_FORECASTING:
+            logger.info(f"{t_id} is already being forecasted by another thread, skipping.")
+            continue
+        
+        _CURRENTLY_FORECASTING.add(t_id)
+        try:
+            _process_single_transformer_batch(t_id, methods, steps)
+        finally:
+            _CURRENTLY_FORECASTING.remove(t_id)
         
     logger.info("Weekly batch forecast basariyla tamamlandi.")
 
 def seed_missing_forecasts():
     import datetime
     import calendar
-    import models
-    from database import SessionLocal
+    from db import models
+    from db.database import SessionLocal
     
     db = SessionLocal()
     try:

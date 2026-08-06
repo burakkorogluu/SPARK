@@ -562,6 +562,7 @@
                         <button class="btn btn-sm btn-outline" id="btn-editor-add-trafo" style="font-size: 12px;">+ Trafo Ekle</button>
                         <button class="btn btn-sm btn-outline" id="btn-editor-add-feeder" style="font-size: 12px;">+ Fider Ekle</button>
                         <button class="btn btn-sm btn-outline" id="btn-editor-add-reactor" style="font-size: 12px;">+ Reaktör Ekle</button>
+                        <button class="btn btn-sm btn-outline" id="btn-editor-add-kuplaj" style="font-size: 12px; border-color: #8b5cf6; color: #8b5cf6;">+ Kuplaj Ekle</button>
                         <button class="btn btn-sm btn-outline" id="btn-editor-add-connection" style="font-size: 12px; display: flex; align-items: center; gap: 4px;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg> Bağlantı Düzenle
                         </button>
@@ -1163,6 +1164,88 @@
         </div>
     </div>
 
+    <!-- ═══ SCADA Kesici Onay Modalı ═══ -->
+    <div class="scada-modal-overlay" id="scada-breaker-modal" style="display: none; z-index: 100005;">
+        <div class="scada-modal-card" style="max-width: 500px;">
+            <div class="scada-modal-header">
+                <div>
+                    <h3 id="breaker-modal-title" style="color: var(--color-danger-light);">Kritik SCADA İşlemi</h3>
+                    <span class="badge" id="breaker-modal-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">Uyarı</span>
+                </div>
+                <button class="modal-close-btn" id="btn-close-breaker-modal">✕</button>
+            </div>
+            <div class="scada-modal-body">
+                <div class="info-box danger-box mb-md">
+                    <p id="breaker-modal-message">Bu hattın enerjisini kesmek üzeresiniz. Bu işlem bölgede kesintiye neden olacaktır.</p>
+                </div>
+                
+                <div style="background: var(--bg-level2); padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--text-muted);">İşlem Yapılacak Kesici:</span>
+                        <strong id="breaker-modal-id" style="color: var(--text-color);">FDR-XXX-Q1</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-muted);">Hedef Durum:</span>
+                        <strong id="breaker-modal-target-state">Açık (Enerjisiz)</strong>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label class="checkbox-label" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="chk-breaker-confirm" style="margin-top: 4px;">
+                        <span style="font-size: 13px; color: var(--text-color);">Bu manevranın sonuçlarını ve potansiyel risklerini okudum, işlemin uygulanmasını onaylıyorum ve sorumluluğu kabul ediyorum.</span>
+                    </label>
+                </div>
+
+                <div class="confirm-modal-actions" style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" id="btn-cancel-breaker">İptal</button>
+                    <button class="btn btn-danger" id="btn-apply-breaker" disabled>Sisteme Uygula</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Kuplaj Transfer Modalı ═══ -->
+    <div class="scada-modal-overlay" id="kuplaj-transfer-modal" style="display: none; z-index: 100005;">
+        <div class="scada-modal-card" style="max-width: 500px;">
+            <div class="scada-modal-header">
+                <div>
+                    <h3 style="color: var(--color-primary);">Toplu Yük Aktarımı (Kuplaj)</h3>
+                    <span class="badge" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border-color: rgba(139, 92, 246, 0.3);">Toplu İşlem</span>
+                </div>
+                <button class="modal-close-btn" id="btn-close-kuplaj-transfer-modal">✕</button>
+            </div>
+            <div class="scada-modal-body">
+                <div class="info-box info-box-primary mb-md">
+                    <p>Bir trafodaki <b>tüm aktif fiderleri</b> diğerine bağlayarak yük aktarımı yapabilirsiniz (Örn: Tam bakım senaryosu).</p>
+                </div>
+                
+                <div class="form-group mb-md">
+                    <label>Aktarım Yönü</label>
+                    <select class="form-control" id="kuplaj-transfer-direction" style="margin-top: 8px;">
+                        <!-- Dinamik doldurulacak -->
+                    </select>
+                </div>
+
+                <div style="background: var(--bg-level2); padding: 12px; border-radius: 8px; margin-bottom: 24px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--text-muted);">Aktarılacak Fider Sayısı:</span>
+                        <strong id="kuplaj-transfer-count" style="color: var(--text-color);">0</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-muted);">Toplam Yük (Tahmini):</span>
+                        <strong id="kuplaj-transfer-load" style="color: var(--color-warning);">0 kW</strong>
+                    </div>
+                </div>
+
+                <div class="confirm-modal-actions" style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" id="btn-cancel-kuplaj-transfer">İptal</button>
+                    <button class="btn btn-primary" id="btn-apply-kuplaj-transfer">Onayla ve Tümünü Aktar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══ Fider Ekleme Modalı ═══ -->
     <div class="scada-modal-overlay" id="add-feeder-modal" style="display: none; z-index: 100005;">
         <div class="scada-modal-card" style="max-width: 500px;">
@@ -1250,20 +1333,38 @@
             <div class="scada-modal-body" style="padding-top: 0;">
                 <form class="crud-form" id="add-trafo-form">
                     <div class="form-group">
-                        <label for="new-trafo-id">Trafo ID (Kod)</label>
-                        <input type="text" id="new-trafo-id" required placeholder="Ör: KRT-TRC">
+                        <label for="editor-pandapower-trafo">Ağdan Trafo Seç (Pandapower)</label>
+                        <select id="editor-pandapower-trafo">
+                            <option value="">-- Yeni / Mevcut Olmayan Trafo --</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label for="new-trafo-name">Trafo Adı</label>
-                        <input type="text" id="new-trafo-name" required placeholder="Ör: Kartal TM - TRC">
+                        <label for="editor-new-trafo-id">Trafo ID (Kod)</label>
+                        <input type="text" id="editor-new-trafo-id" required placeholder="Ör: KRT-TRC">
                     </div>
                     <div class="form-group">
-                        <label for="new-trafo-region">Bölge</label>
-                        <input type="text" id="new-trafo-region" value="İstanbul-Anadolu" required>
+                        <label for="editor-new-trafo-name">Trafo Adı</label>
+                        <input type="text" id="editor-new-trafo-name" required placeholder="Ör: Kartal TM - TRC">
                     </div>
                     <div class="form-group">
-                        <label for="new-trafo-power">Güç (MVA)</label>
-                        <input type="number" id="new-trafo-power" value="50" min="1" step="5" required>
+                        <label for="editor-new-trafo-region">Bölge</label>
+                        <input type="text" id="editor-new-trafo-region" value="İstanbul-Anadolu" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editor-new-trafo-power">Güç (MVA)</label>
+                        <input type="number" id="editor-new-trafo-power" value="50" min="1" step="0.1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editor-alt-feeder">Alternatif Fider Ata (Opsiyonel)</label>
+                        <select id="editor-alt-feeder">
+                            <option value="">-- Yok --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editor-alt-reactor">Alternatif Reaktör Ata (Opsiyonel)</label>
+                        <select id="editor-alt-reactor">
+                            <option value="">-- Yok --</option>
+                        </select>
                     </div>
                     <button type="submit" class="btn-confirm primary" style="margin-top: 8px;">Trafo Oluştur</button>
                 </form>
@@ -1296,6 +1397,35 @@
                         <select id="conn-alt-trafo"><option value="">— Yok —</option></select>
                     </div>
                     <button type="submit" class="btn-confirm primary" style="margin-top: 8px;">Bağlantıyı Güncelle</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Kuplaj Düzenleme Modalı ═══ -->
+    <div class="scada-modal-overlay" id="edit-kuplaj-modal" style="display: none; z-index: 100005;">
+        <div class="scada-modal-card" style="max-width: 500px;">
+            <div class="scada-modal-header">
+                <div>
+                    <h3 style="color: #8b5cf6;">Trafo Kuplajı Oluştur</h3>
+                    <span class="text-muted" style="font-size: 12px;">İki trafo merkezi arasına kuplaj (bus-tie) bağlantısı ekleyin</span>
+                </div>
+                <button class="modal-close-btn" id="btn-close-edit-kuplaj">✕</button>
+            </div>
+            <div class="scada-modal-body" style="padding-top: 0;">
+                <form class="crud-form" id="edit-kuplaj-form">
+                    <div class="form-group">
+                        <label for="kuplaj-trafo-1">Trafo 1</label>
+                        <select id="kuplaj-trafo-1" required></select>
+                    </div>
+                    <div class="form-group" style="text-align: center; margin: 0; color: #8b5cf6;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+                    </div>
+                    <div class="form-group">
+                        <label for="kuplaj-trafo-2">Trafo 2</label>
+                        <select id="kuplaj-trafo-2" required></select>
+                    </div>
+                    <button type="submit" class="btn-confirm primary" style="margin-top: 8px; background: #8b5cf6; border-color: #8b5cf6;">Kuplajı Ekle / Güncelle</button>
                 </form>
             </div>
         </div>
@@ -1365,7 +1495,7 @@
     <script src="js/ui/data_entry.js?v=1011"></script>
     <script src="js/ui/detail.js?v=1011"></script>
     <script src="js/ui/forecast_ui.js?v=1011"></script>
-    <script src="js/ui/maneuver_ui.js?v=1011"></script>
+    <script src="js/ui/maneuver_ui.js?v=5"></script>
     <script src="js/ui/alerts.js?v=1011"></script>
     <script src="js/ui/scada_sld_v4.js?v=1011"></script>
     <script src="js/core/app.js?v=1011"></script>

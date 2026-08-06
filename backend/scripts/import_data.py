@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 import random
 # pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
-from database import engine, SessionLocal
-import models
+from db.database import engine, SessionLocal
+from db import models
 import math
 
 def setup_db():

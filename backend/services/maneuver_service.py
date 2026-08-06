@@ -1,6 +1,6 @@
 from typing import Optional
 from sqlalchemy.orm import Session
-import models
+from db import models
 from datetime import datetime, timedelta
 import logging
 from services.forecast_service import get_cached_forecast, clear_caches, run_weekly_batch_forecast
@@ -251,16 +251,18 @@ def analyze_and_suggest_maneuvers(db: Session):
                         suggestion_id += 1
 
         # 2. Check Reactive Compensation / Reactor Maneuvers
-        if stats["ind_ratio"] > 15:
+        
+        # 2.A: High Capacitive Ratio -> We need INDUCTIVE compensation -> Turn ON a reactor or borrow one
+        if stats["cap_ratio"] > 15:
             for reactor in sorted(stats["model"].reactors, key=lambda r: r.capacity_kvar, reverse=True):
                 # İnaktif reaktörü devreye almayı öner
                 if reactor.status == "inactive":
-                    score = _calculate_suggestion_score(stats, stats, stats["ind_ratio"], is_reactive=True)
+                    score = _calculate_suggestion_score(stats, stats, stats["cap_ratio"], is_reactive=True)
                     suggestions.append({
                         "id": f"MAN-{suggestion_id:03d}",
                         "title": f"Reaktör Devreye Alma: {reactor.name}",
                         "action_type": "reactor_transfer",
-                        "impact": "Yüksek",
+                        "impact": "Yüksek" if stats["cap_ratio"] > 19 else "Orta",
                         "score": score,
                         "source_trafo_id": trafo.id,
                         "source_trafo_name": trafo.name,
@@ -268,7 +270,7 @@ def analyze_and_suggest_maneuvers(db: Session):
                         "target_trafo_name": trafo.name,
                         "target_asset": reactor.name,
                         "description": (
-                            f"{trafo.name} üzerinde endüktif oran %{stats['ind_ratio']:.1f} seviyesinde. "
+                            f"{trafo.name} üzerinde kapasitif oran %{stats['cap_ratio']:.1f} seviyesinde. "
                             f"Pasif durumdaki '{reactor.name}' reaktörünün ({reactor.capacity_kvar:.0f} kVAr) "
                             f"devreye alınması önerilmektedir."
                         ),
@@ -282,38 +284,71 @@ def analyze_and_suggest_maneuvers(db: Session):
                     })
                     suggestion_id += 1
 
+                # Veya başka trafodan reaktör aktar (Eğer o trafonun ihtiyacı daha azsa)
                 elif reactor.alternative_transformer_id and reactor.alternative_transformer_id in trafo_stats:
                     alt_id = reactor.alternative_transformer_id
                     if not is_transformer_energized(alt_id):
                         continue
                     alt_stats = trafo_stats[alt_id]
-                    if alt_stats["ind_ratio"] > stats["ind_ratio"] + 10:
-                        score = _calculate_suggestion_score(stats, alt_stats, alt_stats["ind_ratio"] - stats["ind_ratio"], is_reactive=True)
+                    if alt_stats["cap_ratio"] < stats["cap_ratio"] - 5:
+                        score = _calculate_suggestion_score(stats, alt_stats, stats["cap_ratio"] - alt_stats["cap_ratio"], is_reactive=True)
                         suggestions.append({
                             "id": f"MAN-{suggestion_id:03d}",
                             "title": f"Reaktör Bağlantı Değişimi: {reactor.name}",
                             "action_type": "reactor_transfer",
                             "impact": "Orta",
                             "score": score,
-                            "source_trafo_id": trafo.id,
-                            "source_trafo_name": trafo.name,
-                            "target_trafo_id": alt_stats["model"].id,
-                            "target_trafo_name": alt_stats["model"].name,
+                            "source_trafo_id": alt_stats["model"].id,
+                            "source_trafo_name": alt_stats["model"].name,
+                            "target_trafo_id": trafo.id,
+                            "target_trafo_name": trafo.name,
                             "target_asset": reactor.name,
                             "description": (
-                                f"Endüktif kompanzasyon ihtiyacı daha yüksek olan {alt_stats['model'].name} "
-                                f"(%{alt_stats['ind_ratio']:.1f}) için '{reactor.name}' reaktörünün "
-                                f"bu trafoya aktarılması önerilmektedir."
+                                f"Kapasitif kompanzasyon ihtiyacı daha yüksek olan {trafo.name} "
+                                f"(%{stats['cap_ratio']:.1f}) için '{reactor.name}' reaktörünün "
+                                f"{alt_stats['model'].name} üzerinden bu trafoya aktarılması önerilmektedir."
                             ),
                             "reactor_id": reactor.id,
                             "simulation_preview": {
-                                "source_load_before": round(stats["load_ratio"], 1),
-                                "source_load_after": round(stats["load_ratio"], 1),
-                                "target_load_before": round(alt_stats["load_ratio"], 1),
-                                "target_load_after": round(alt_stats["load_ratio"], 1),
+                                "source_load_before": round(alt_stats["load_ratio"], 1),
+                                "source_load_after": round(alt_stats["load_ratio"], 1),
+                                "target_load_before": round(stats["load_ratio"], 1),
+                                "target_load_after": round(stats["load_ratio"], 1),
                             }
                         })
                         suggestion_id += 1
+
+        # 2.B: High Inductive Ratio -> We need to REDUCE INDUCTIVE compensation -> Turn OFF an active reactor
+        if stats["ind_ratio"] > 15:
+            for reactor in sorted(stats["model"].reactors, key=lambda r: r.capacity_kvar, reverse=True):
+                # Aktif reaktörü devre dışı bırakmayı öner
+                if reactor.status == "active":
+                    score = _calculate_suggestion_score(stats, stats, stats["ind_ratio"], is_reactive=True)
+                    suggestions.append({
+                        "id": f"MAN-{suggestion_id:03d}",
+                        "title": f"Reaktör Devre Dışı Bırakma: {reactor.name}",
+                        "action_type": "reactor_transfer",
+                        "impact": "Yüksek" if stats["ind_ratio"] > 19 else "Orta",
+                        "score": score,
+                        "source_trafo_id": trafo.id,
+                        "source_trafo_name": trafo.name,
+                        "target_trafo_id": trafo.id,
+                        "target_trafo_name": trafo.name,
+                        "target_asset": reactor.name,
+                        "description": (
+                            f"{trafo.name} üzerinde endüktif oran %{stats['ind_ratio']:.1f} seviyesinde. "
+                            f"Aktif durumdaki '{reactor.name}' reaktörünün ({reactor.capacity_kvar:.0f} kVAr) "
+                            f"devre dışı bırakılması önerilmektedir."
+                        ),
+                        "reactor_id": reactor.id,
+                        "simulation_preview": {
+                            "source_load_before": round(stats["load_ratio"], 1),
+                            "source_load_after": round(stats["load_ratio"], 1),
+                            "target_load_before": round(stats["load_ratio"], 1),
+                            "target_load_after": round(stats["load_ratio"], 1),
+                        }
+                    })
+                    suggestion_id += 1
 
         # 3. Night-time capacitive risk warnings
         if stats["offpeak_cap_ratio"] > 12:
@@ -354,6 +389,9 @@ def analyze_and_suggest_maneuvers(db: Session):
         if proj_kap_ratio > 14.5:
             # Score: 60 base + up to 40 points based on severity
             pred_score = min(100, 60 + int((proj_kap_ratio - 14.5) * 10))
+            suggestion_added = False
+            
+            # 1. Try to turn on an inactive reactor on this transformer
             for reactor in stats["reactors"]:
                 if reactor.status == "inactive":
                     suggestions.append({
@@ -371,7 +409,7 @@ def analyze_and_suggest_maneuvers(db: Session):
                         "description": (
                             f"Tahmin algoritmalarına (Ensemble) göre {trafo.name} trafosunda ay sonu kapasitif oranının "
                             f"%{proj_kap_ratio:.1f} seviyesine ulaşması öngörülüyor. "
-                            f"Önlem olarak '{reactor.name}' reaktörünün devreye alınması tavsiye edilir."
+                            f"Önlem olarak kendi üzerindeki '{reactor.name}' reaktörünün devreye alınması tavsiye edilir."
                         ),
                         "reactor_id": reactor.id,
                         "simulation_preview": {
@@ -382,18 +420,89 @@ def analyze_and_suggest_maneuvers(db: Session):
                         }
                     })
                     suggestion_id += 1
+                    suggestion_added = True
                     break # Suggest one reactor is enough for predictive
+            
+            # 2. If no inactive reactor found, try to borrow a reactor from another transformer
+            if not suggestion_added:
+                for other_t_id, other_stats in trafo_stats.items():
+                    if other_t_id == trafo.id:
+                        continue
+                    for reactor in other_stats["reactors"]:
+                        if reactor.alternative_transformer_id == trafo.id:
+                            suggestions.append({
+                                "id": f"MAN-PRED-{suggestion_id:03d}",
+                                "title": f"Proaktif Uyarı (Kapasitif): {reactor.name} Aktarımı",
+                                "action_type": "predictive_reactor_transfer",
+                                "impact": "Yüksek" if proj_kap_ratio > 15.0 else "Orta",
+                                "score": pred_score,
+                                "source_trafo_id": other_t_id,
+                                "source_trafo_name": other_stats["model"].name,
+                                "target_trafo_id": trafo.id,
+                                "target_trafo_name": trafo.name,
+                                "target_asset": reactor.name,
+                                "is_predictive": True,
+                                "description": (
+                                    f"Tahminlere göre {trafo.name} trafosunda kapasitif oran %{proj_kap_ratio:.1f} seviyesine ulaşacak. "
+                                    f"Kendi reaktörleri yetersiz olduğundan '{other_stats['model'].name}' üzerindeki '{reactor.name}' "
+                                    f"reaktörünün bu trafoya aktarılması tavsiye edilir."
+                                ),
+                                "reactor_id": reactor.id,
+                                "simulation_preview": {
+                                    "source_load_before": round(other_stats["load_ratio"], 1),
+                                    "source_load_after": round(other_stats["load_ratio"], 1),
+                                    "target_load_before": round(stats["load_ratio"], 1),
+                                    "target_load_after": round(stats["load_ratio"], 1),
+                                }
+                            })
+                            suggestion_id += 1
+                            suggestion_added = True
+                            break
+                    if suggestion_added:
+                        break
                     
         if proj_end_ratio > 19.5:
             pred_score = min(100, 60 + int((proj_end_ratio - 19.5) * 10))
+            suggestion_added = False
             for reactor in stats["reactors"]:
-                if reactor.alternative_transformer_id and reactor.alternative_transformer_id in trafo_stats:
+                # 1. If it's active, suggest turning it off
+                if reactor.status == "active":
+                    suggestions.append({
+                        "id": f"MAN-PRED-{suggestion_id:03d}",
+                        "title": f"Proaktif Uyarı (Endüktif): {reactor.name} Devre Dışı",
+                        "action_type": "predictive_reactor_transfer",
+                        "impact": "Yüksek" if proj_end_ratio > 20.0 else "Orta",
+                        "score": pred_score,
+                        "source_trafo_id": trafo.id,
+                        "source_trafo_name": trafo.name,
+                        "target_trafo_id": trafo.id,
+                        "target_trafo_name": trafo.name,
+                        "target_asset": reactor.name,
+                        "is_predictive": True,
+                        "description": (
+                            f"Tahmin algoritmalarına (Ensemble) göre {trafo.name} trafosunda ay sonu endüktif oranının "
+                            f"%{proj_end_ratio:.1f} seviyesine ulaşması öngörülüyor. "
+                            f"Önlem olarak aktif durumdaki '{reactor.name}' reaktörünün devre dışı bırakılması tavsiye edilir."
+                        ),
+                        "reactor_id": reactor.id,
+                        "simulation_preview": {
+                            "source_load_before": round(stats["load_ratio"], 1),
+                            "source_load_after": round(stats["load_ratio"], 1),
+                            "target_load_before": round(stats["load_ratio"], 1),
+                            "target_load_after": round(stats["load_ratio"], 1),
+                        }
+                    })
+                    suggestion_id += 1
+                    suggestion_added = True
+                    break
+                # 2. Or transfer away
+                elif reactor.alternative_transformer_id and reactor.alternative_transformer_id in trafo_stats:
                     alt_id = reactor.alternative_transformer_id
                     if not is_transformer_energized(alt_id):
                         continue
                     suggestions.append({
                         "id": f"MAN-PRED-{suggestion_id:03d}",
-                        "title": f"Proaktif Uyarı (Endüktif): {reactor.name}",
+                        "title": f"Proaktif Uyarı (Endüktif): {reactor.name} Aktarımı",
                         "action_type": "predictive_reactor_transfer",
                         "impact": "Yüksek" if proj_end_ratio > 20.0 else "Orta",
                         "score": pred_score,
@@ -406,7 +515,7 @@ def analyze_and_suggest_maneuvers(db: Session):
                         "description": (
                             f"Tahmin algoritmalarına (Ensemble) göre {trafo.name} trafosunda ay sonu endüktif oranının "
                             f"%{proj_end_ratio:.1f} seviyesine ulaşması öngörülüyor. "
-                            f"Önlem olarak '{reactor.name}' reaktörünün alternatif trafoya aktarılması / incelenmesi tavsiye edilir."
+                            f"Önlem olarak '{reactor.name}' reaktörünün alternatif trafoya ({trafo_stats[alt_id]['model'].name}) aktarılması tavsiye edilir."
                         ),
                         "reactor_id": reactor.id,
                         "simulation_preview": {
@@ -417,6 +526,7 @@ def analyze_and_suggest_maneuvers(db: Session):
                         }
                     })
                     suggestion_id += 1
+                    suggestion_added = True
                     break
 
     # Fallback: if no suggestions, generate a preventive one
@@ -498,10 +608,11 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     else:
         return None
 
-    # Edge Case 1: Same Transformer Transfer (No-Op unless activating inactive reactor)
+    # Edge Case 1: Same Transformer Transfer (State Toggle)
     if source_id == target_trafo_id:
-        if not (asset_type == "reactor" and getattr(asset, 'status', 'active') == "inactive"):
-            raise ValueError(f"'{asset_name}' zaten '{target_trafo_id}' trafosuna bağlı ve aktif durumda.")
+        if asset_type == "feeder":
+            raise ValueError(f"'{asset_name}' zaten '{target_trafo_id}' trafosuna bağlı.")
+        # If it's a reactor, it's a toggle (active <-> inactive). We allow this.
 
     # Edge Case 2: Topology / Physical Line Check
     if asset.alternative_transformer_id and target_trafo_id != asset.alternative_transformer_id:
@@ -589,11 +700,24 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     elif asset_type == "reactor":
         cap_diff = asset.capacity_kvar * future_hours
         
-        src_eom_cap_after = src_eom_cap_before + cap_diff
-        source_cap_ratio_after = (src_eom_cap_after / src_eom_active_before) * 100 if src_eom_active_before > 0 else 0
-        
-        tgt_eom_cap_after = max(0, tgt_eom_cap_before - cap_diff)
-        target_cap_ratio_after = (tgt_eom_cap_after / tgt_eom_active_before) * 100 if tgt_eom_active_before > 0 else 0
+        if source_id == target_trafo_id:
+            # It's a state toggle on the same transformer
+            if getattr(asset, 'status', 'active') == "inactive":
+                # Turning ON -> Decreases capacitive power
+                new_cap = max(0, src_eom_cap_before - cap_diff)
+            else:
+                # Turning OFF -> Increases capacitive power
+                new_cap = src_eom_cap_before + cap_diff
+                
+            source_cap_ratio_after = (new_cap / src_eom_active_before) * 100 if src_eom_active_before > 0 else 0
+            target_cap_ratio_after = source_cap_ratio_after
+        else:
+            # Transfer between transformers
+            src_eom_cap_after = src_eom_cap_before + cap_diff
+            source_cap_ratio_after = (src_eom_cap_after / src_eom_active_before) * 100 if src_eom_active_before > 0 else 0
+            
+            tgt_eom_cap_after = max(0, tgt_eom_cap_before - cap_diff)
+            target_cap_ratio_after = (tgt_eom_cap_after / tgt_eom_active_before) * 100 if tgt_eom_active_before > 0 else 0
 
     is_overload = target_ratio_after > 100
     overload_warning = None
@@ -603,11 +727,17 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
     # Determine reactive improvement message
     reactive_msg = None
     if asset_type == "reactor":
-        reactive_msg = (
-            f"'{asset_name}' reaktörü ({asset.capacity_kvar:.0f} kVAr) "
-            f"{source_stats['model'].name} → {target_stats['model'].name} aktarımı ile "
-            f"hedef trafodaki endüktif kompanzasyon güçlendirilecektir."
-        )
+        if source_id == target_trafo_id:
+            if getattr(asset, 'status', 'active') == "inactive":
+                reactive_msg = f"'{asset_name}' reaktörünün devreye alınması ile kapasitif ceza riski azaltılacaktır."
+            else:
+                reactive_msg = f"'{asset_name}' reaktörünün devre dışı bırakılması ile endüktif ceza riski azaltılacaktır."
+        else:
+            reactive_msg = (
+                f"'{asset_name}' reaktörü ({asset.capacity_kvar:.0f} kVAr) "
+                f"{source_stats['model'].name} → {target_stats['model'].name} aktarımı ile "
+                f"hedef trafodaki endüktif kompanzasyon güçlendirilecektir."
+            )
     elif source_stats["cap_ratio"] > 10:
         reactive_msg = (
             f"Kaynak trafodan {asset_load:.0f} kW yük çıkarılması, aktif enerji azalmasına bağlı olarak "
@@ -705,7 +835,7 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         db.refresh(log)
         
         # Trigger forecast updates
-        clear_caches()
+        clear_caches([old_trafo_id, target_trafo_id])
         db.query(models.ForecastMeasurement).filter(
             models.ForecastMeasurement.transformer_id.in_([old_trafo_id, target_trafo_id])
         ).delete(synchronize_session=False)
@@ -724,8 +854,8 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         if old_trafo_id == target_trafo_id:
             if str(asset.status) == "inactive":
                 asset.status = "active"  # type: ignore
-            else:
-                raise ValueError(f"Reaktör zaten '{target_trafo_id}' trafosuna bağlı ve aktif durumda.")
+            elif str(asset.status) == "active":
+                asset.status = "inactive"  # type: ignore
             
         if asset.alternative_transformer_id and target_trafo_id != asset.alternative_transformer_id and old_trafo_id != target_trafo_id:
             raise ValueError(f"Reaktör sadece alternatif trafosuna ({asset.alternative_transformer_id}) aktarılabilir.")
@@ -760,7 +890,7 @@ def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id:
         db.refresh(log)
         
         # Trigger forecast updates
-        clear_caches()
+        clear_caches([old_trafo_id, target_trafo_id])
         db.query(models.ForecastMeasurement).filter(
             models.ForecastMeasurement.transformer_id.in_([old_trafo_id, target_trafo_id])
         ).delete(synchronize_session=False)
@@ -928,6 +1058,12 @@ def bulk_update_topology(db: Session, bulk_data):
         r = create_reactor(db, r_data)
         if r:
             created_reactors.append(r.id)
+            
+    created_kuplajlar = []
+    for k_data in bulk_data.new_kuplajlar:
+        k = models.Kuplaj(t1=k_data.t1, t2=k_data.t2)
+        db.add(k)
+        created_kuplajlar.append(k_data.t1 + "-" + k_data.t2)
 
     for item in bulk_data.updated_assets:
         if item.type == 'trafo':
@@ -959,6 +1095,7 @@ def bulk_update_topology(db: Session, bulk_data):
         "created_transformers": created_trafos,
         "created_feeders": created_feeders,
         "created_reactors": created_reactors,
+        "created_kuplajlar": created_kuplajlar,
         "updated_positions_count": len(bulk_data.updated_assets)
     }
 

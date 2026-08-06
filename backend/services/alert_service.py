@@ -1,7 +1,7 @@
 # pyrefly: ignore [missing-import]
 from typing import Optional
 from sqlalchemy.orm import Session
-import models
+from db import models
 from services.analysis_service import get_monthly_summary, SINIRLAR
 from datetime import datetime
 import logging

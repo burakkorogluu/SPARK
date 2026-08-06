@@ -1,4 +1,4 @@
-from database import SessionLocal
+from db.database import SessionLocal
 from services.forecast.engine import get_cached_forecast
 import time
 import logging

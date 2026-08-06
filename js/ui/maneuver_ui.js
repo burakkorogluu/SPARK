@@ -14,6 +14,8 @@ const ManeuverUI = (() => {
         bindManevraSubTabs();
         bindManevraCRUDModals();
         bindSimulationModal();
+        bindBreakerModal();
+        bindKuplajTransferModal();
 
         const btnOneri = document.getElementById('btn-manevra-onerisi-al');
         if (btnOneri && !btnOneri.dataset.bound) {
@@ -354,6 +356,223 @@ const ManeuverUI = (() => {
         }
     }
 
+    let _pendingBreakerHit = null;
+
+    function bindBreakerModal() {
+        const modal = document.getElementById('scada-breaker-modal');
+        const closeBtn = document.getElementById('btn-close-breaker-modal');
+        const cancelBtn = document.getElementById('btn-cancel-breaker');
+        const applyBtn = document.getElementById('btn-apply-breaker');
+        const chkConfirm = document.getElementById('chk-breaker-confirm');
+
+        if (!modal) return;
+        if (modal.dataset.bound) return;
+        modal.dataset.bound = "true";
+
+        const closeModal = () => { modal.style.display = 'none'; _pendingBreakerHit = null; chkConfirm.checked = false; applyBtn.disabled = true; };
+        
+        closeBtn?.addEventListener('click', closeModal);
+        cancelBtn?.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+        chkConfirm?.addEventListener('change', (e) => {
+            applyBtn.disabled = !e.target.checked;
+        });
+
+        applyBtn?.addEventListener('click', async () => {
+            if (!_pendingBreakerHit) return;
+            const hit = _pendingBreakerHit;
+            const newState = !hit.currentState;
+            
+            try {
+                applyBtn.disabled = true;
+                applyBtn.textContent = 'Uygulanıyor...';
+                await ApiClient.toggleScadaBreaker(hit.id, newState, hit.trafoId || "Bilinmiyor", "Kullanıcı Onaylı Manuel Manevra");
+                
+                _scadaBreakerStates[hit.id] = newState;
+                App.showToast(`${hit.id} kesicisi ${newState ? 'Kapatıldı (Enerjilendirildi)' : 'Açıldı (Enerji Kesildi)'}.`, 'success');
+                closeModal();
+                
+                // Force redraw if not animating actively
+                if (_cachedAssets) drawManevraTopology(_cachedAssets);
+            } catch (err) {
+                App.showToast(`Kesici durumu değiştirilemedi: ${err}`, 'error');
+            } finally {
+                applyBtn.textContent = 'Sisteme Uygula';
+            }
+        });
+    }
+
+    function openBreakerConfirmModal(hit) {
+        _pendingBreakerHit = hit;
+        const modal = document.getElementById('scada-breaker-modal');
+        if (!modal) return;
+        
+        const newState = !hit.currentState; // false -> keseceğiz, true -> enerji vereceğiz
+        
+        const titleEl = document.getElementById('breaker-modal-title');
+        const badgeEl = document.getElementById('breaker-modal-badge');
+        const messageEl = document.getElementById('breaker-modal-message');
+        const idEl = document.getElementById('breaker-modal-id');
+        const stateEl = document.getElementById('breaker-modal-target-state');
+        const chk = document.getElementById('chk-breaker-confirm');
+        const btn = document.getElementById('btn-apply-breaker');
+        
+        idEl.textContent = hit.id.toUpperCase();
+        chk.checked = false;
+        btn.disabled = true;
+        
+        const isReactor = hit.id.toUpperCase().includes('-R1') || hit.id.toUpperCase().includes('RCT') || hit.id.toUpperCase().includes('-R2');
+
+        if (!newState) {
+            // Enerji Kesme
+            titleEl.textContent = isReactor ? 'SCADA İşlemi (Reaktör Kesme)' : 'Kritik SCADA İşlemi (Enerji Kesme)';
+            titleEl.style.color = isReactor ? 'var(--color-warning)' : 'var(--color-danger-light)';
+            badgeEl.textContent = isReactor ? 'Bilgi' : 'Uyarı';
+            badgeEl.style.background = isReactor ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+            badgeEl.style.color = isReactor ? '#f59e0b' : '#ef4444';
+            badgeEl.style.borderColor = isReactor ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+            
+            if (isReactor) {
+                messageEl.innerHTML = `Bu işlem <b>${hit.id.toUpperCase()}</b> kesicisini açarak şönt reaktörü devreden çıkaracaktır. Trafonun aktif enerji akışı (kW) devam edecek olup hatta elektrik kesintisi yaşanmaz.`;
+            } else {
+                messageEl.innerHTML = `Bu işlem <b>${hit.id.toUpperCase()}</b> kesicisini açarak hattın enerjisini tamamen kesecektir. Hattın bağlı olduğu bölgelerde elektrik kesintisi meydana gelebilir.`;
+            }
+            
+            stateEl.textContent = 'Açık (Devre Dışı)';
+            stateEl.style.color = isReactor ? '#f59e0b' : '#ef4444';
+        } else {
+            // Enerji Verme
+            titleEl.textContent = isReactor ? 'SCADA İşlemi (Reaktör Devrede)' : 'SCADA İşlemi (Enerji Verme)';
+            titleEl.style.color = 'var(--color-success)';
+            badgeEl.textContent = 'Bilgi';
+            badgeEl.style.background = 'rgba(34, 197, 94, 0.15)';
+            badgeEl.style.color = '#22c55e';
+            badgeEl.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+            
+            if (isReactor) {
+                messageEl.innerHTML = `Bu işlem <b>${hit.id.toUpperCase()}</b> kesicisini kapatarak şönt reaktörü devreye alacaktır.`;
+            } else {
+                messageEl.innerHTML = `Bu işlem <b>${hit.id.toUpperCase()}</b> kesicisini kapatarak hatta yeniden enerji verecektir.`;
+            }
+            
+            stateEl.textContent = 'Kapalı (Devrede)';
+            stateEl.style.color = '#22c55e';
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    let _currentKuplaj = null;
+
+    function bindKuplajTransferModal() {
+        const modal = document.getElementById('kuplaj-transfer-modal');
+        const closeBtn = document.getElementById('btn-close-kuplaj-transfer-modal');
+        const cancelBtn = document.getElementById('btn-cancel-kuplaj-transfer');
+        const applyBtn = document.getElementById('btn-apply-kuplaj-transfer');
+        const dirSelect = document.getElementById('kuplaj-transfer-direction');
+
+        if (!modal) return;
+        if (modal.dataset.bound) return;
+        modal.dataset.bound = "true";
+
+        const closeModal = () => { modal.style.display = 'none'; _currentKuplaj = null; };
+        
+        closeBtn?.addEventListener('click', closeModal);
+        cancelBtn?.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+        dirSelect?.addEventListener('change', updateKuplajTransferStats);
+
+        applyBtn?.addEventListener('click', async () => {
+            if (!_currentKuplaj || !dirSelect) return;
+            const direction = dirSelect.value;
+            if (!direction) return;
+
+            const [sourceId, targetId] = direction.split('|');
+            const data = _cachedAssets || await ApiClient.fetchManeuverAssets();
+            
+            // Find all feeders connected to sourceId
+            const sourceFeeders = data.feeders.filter(f => f.current_transformer_id === sourceId);
+            
+            if (sourceFeeders.length === 0) {
+                App.showToast(`${sourceId} trafosuna bağlı aktif fider bulunamadı.`, 'warning');
+                return;
+            }
+
+            try {
+                applyBtn.disabled = true;
+                applyBtn.textContent = 'Aktarılıyor...';
+                
+                let successCount = 0;
+                for (const f of sourceFeeders) {
+                    await ApiClient.applyManeuver('feeder', f.id, targetId, "Kuplaj Toplu Aktarımı", true);
+                    successCount++;
+                }
+                
+                App.showToast(`${successCount} adet fider başarıyla ${targetId} trafosuna aktarıldı.`, 'success');
+                closeModal();
+                _cachedAssets = null;
+                await loadManevraAssets();
+                await loadManevraSummaryStats();
+                await fetchAndRenderManevraSuggestions();
+            } catch (err) {
+                App.showToast(`Kuplaj aktarımı sırasında hata: ${err.message}`, 'error');
+            } finally {
+                applyBtn.disabled = false;
+                applyBtn.textContent = 'Onayla ve Tümünü Aktar';
+            }
+        });
+    }
+
+    function openKuplajTransferModal(hit) {
+        _currentKuplaj = hit;
+        const modal = document.getElementById('kuplaj-transfer-modal');
+        const dirSelect = document.getElementById('kuplaj-transfer-direction');
+        if (!modal || !dirSelect) return;
+
+        // Populate select
+        dirSelect.innerHTML = `
+            <option value="${hit.t1}|${hit.t2}">${hit.t1} -> ${hit.t2} (Tüm Yükü ${hit.t2}'ye Taşı)</option>
+            <option value="${hit.t2}|${hit.t1}">${hit.t2} -> ${hit.t1} (Tüm Yükü ${hit.t1}'e Taşı)</option>
+        `;
+        
+        updateKuplajTransferStats();
+        modal.style.display = 'flex';
+    }
+
+    function updateKuplajTransferStats() {
+        const dirSelect = document.getElementById('kuplaj-transfer-direction');
+        if (!dirSelect || !_cachedAssets) return;
+        const direction = dirSelect.value;
+        if (!direction) return;
+
+        const [sourceId, _] = direction.split('|');
+        const sourceFeeders = _cachedAssets.feeders.filter(f => f.current_transformer_id === sourceId);
+        
+        // Count and estimate load
+        const count = sourceFeeders.length;
+        let totalLoad = 0;
+        let hasLoadData = false;
+        
+        if (_topologyState.nodes) {
+            sourceFeeders.forEach(f => {
+                const node = _topologyState.nodes.find(n => n.id === f.id && n.type === 'feeder');
+                if (node && node.asset && node.asset.simulated_load_kw != null) {
+                    totalLoad += node.asset.simulated_load_kw;
+                    hasLoadData = true;
+                }
+            });
+        }
+        
+        document.getElementById('kuplaj-transfer-count').textContent = count;
+        if (hasLoadData) {
+            document.getElementById('kuplaj-transfer-load').textContent = `${totalLoad.toLocaleString('tr-TR')} kW`;
+        } else {
+            document.getElementById('kuplaj-transfer-load').textContent = count > 0 ? "Bilinmiyor" : "0 kW";
+        }
+    }
+
     async function openSimulationModal(assetType, assetId, targetTrafoId) {
         const modal = document.getElementById('maneuver-simulation-modal');
         const body = document.getElementById('sim-modal-body');
@@ -571,7 +790,7 @@ const ManeuverUI = (() => {
     let _animFrameId = null;
     let _isEditMode = false;
     let _isFullscreen = false;
-    let _pendingAdditions = { transformers: [], feeders: [], reactors: [] };
+    let _pendingAdditions = { transformers: [], feeders: [], reactors: [], kuplajlar: [] };
     let _pendingPositionUpdates = {};
 
     let _topologyState = {
@@ -807,13 +1026,27 @@ const ManeuverUI = (() => {
             };
 
             const hitTest = (x, y) => {
-                for (let i = _topologyState.breakers.length - 1; i >= 0; i--) {
-                    const b = _topologyState.breakers[i];
-                    if (x >= b.x - b.size && x <= b.x + b.size && y >= b.y - b.size && y <= b.y + b.size) {
-                        return { type: 'breaker', id: b.id, asset: b.asset, currentState: b.state, trafoId: b.trafoId };
+                // Check breakers first (smallest targets)
+                if (_topologyState.breakers) {
+                    for (const b of _topologyState.breakers) {
+                        if (x >= b.x - b.size/2 && x <= b.x + b.size/2 && y >= b.y - b.size/2 && y <= b.y + b.size/2) {
+                            return { type: 'breaker', id: b.id, trafoId: b.trafoId, currentState: b.state, asset: b.asset };
+                        }
+                    }
+                }
+                
+                // Check kuplaj icons
+                if (_topologyState.kuplajIcons) {
+                    for (const k of _topologyState.kuplajIcons) {
+                        const dx = x - k.x;
+                        const dy = y - k.y;
+                        if (dx*dx + dy*dy <= k.r * k.r) {
+                            return { type: 'kuplaj', t1: k.t1, t2: k.t2 };
+                        }
                     }
                 }
 
+                // Check nodes
                 for (let i = _topologyState.nodes.length - 1; i >= 0; i--) {
                     const n = _topologyState.nodes[i];
                     if (n.type === 'reactor') {
@@ -875,15 +1108,9 @@ const ManeuverUI = (() => {
                 const hit = hitTest(pos.x, pos.y);
                 if (hit) {
                     if (hit.type === 'breaker') {
-                        const newState = !hit.currentState;
-                        try {
-                            await ApiClient.toggleScadaBreaker(hit.id, newState, hit.trafoId || "Bilinmiyor", "Harita Üzerinden Manuel Manevra");
-                            
-                            _scadaBreakerStates[hit.id] = newState;
-                            App.showToast(`${hit.id} kesicisi ${newState ? 'Kapatıldı (Enerjilendirildi)' : 'Açıldı (Enerji Kesildi)'}.`, 'success');
-                        } catch (err) {
-                            App.showToast(`Kesici durumu değiştirilemedi: ${err}`, 'error');
-                        }
+                        openBreakerConfirmModal(hit);
+                    } else if (hit.type === 'kuplaj') {
+                        openKuplajTransferModal(hit);
                     } else if (_isEditMode || hit.type === 'feeder' || hit.type === 'reactor') {
                         _topologyState.draggedNode = hit;
                         _topologyState.dragX = pos.x;
@@ -937,6 +1164,23 @@ const ManeuverUI = (() => {
             ctx.scale(dpr, dpr);
             
             const isLight = document.body.getAttribute('data-theme') === 'light';
+            
+            // Polyfill roundRect
+            if (!CanvasRenderingContext2D.prototype.roundRect) {
+                CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                    if (w < 2 * r) r = w / 2;
+                    if (h < 2 * r) r = h / 2;
+                    this.beginPath();
+                    this.moveTo(x + r, y);
+                    this.arcTo(x + w, y, x + w, y + h, r);
+                    this.arcTo(x + w, y + h, x, y + h, r);
+                    this.arcTo(x, y + h, x, y, r);
+                    this.arcTo(x, y, x + w, y, r);
+                    this.closePath();
+                    return this;
+                };
+            }
+
             const textColor = isLight ? '#334155' : '#f8fafc';
             const mutedColor = isLight ? '#94a3b8' : '#94a3b8';
             const borderColor = isLight ? '#e2e8f0' : '#334155';
@@ -990,6 +1234,7 @@ const ManeuverUI = (() => {
             
             const drawLines = () => {
                 _topologyState.breakers = [];
+                _topologyState.kuplajIcons = []; // Reset on redraw
                 _topologyState.nodes.forEach(n => {
                     if (n.type === 'reactor') {
                         const tn = _topologyState.nodes.find(t => t.id === n.asset.current_transformer_id);
@@ -1024,6 +1269,43 @@ const ManeuverUI = (() => {
                         }
                     }
                 });
+
+                // Draw Kuplaj Connections
+                const allKuplajlar = [...(assets.kuplajlar || []), ...(_pendingAdditions.kuplajlar || [])];
+                if (allKuplajlar.length > 0) {
+                    allKuplajlar.forEach(k => {
+                        const t1 = _topologyState.nodes.find(t => t.id === k.t1);
+                        const t2 = _topologyState.nodes.find(t => t.id === k.t2);
+                        if (t1 && t2) {
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.moveTo(t1.x, t1.y);
+                            ctx.lineTo(t2.x, t2.y);
+                            ctx.strokeStyle = '#8b5cf6';
+                            ctx.lineWidth = 3;
+                            ctx.setLineDash([8, 6]);
+                            ctx.stroke();
+                            ctx.restore();
+                            
+                            // Draw kuplaj icon in middle
+                            const mx = (t1.x + t2.x) / 2;
+                            const my = (t1.y + t2.y) / 2;
+                            ctx.fillStyle = '#8b5cf6';
+                            ctx.beginPath();
+                            ctx.arc(mx, my, 8, 0, Math.PI*2);
+                            ctx.fill();
+                            ctx.fillStyle = '#fff';
+                            ctx.font = '10px Inter, sans-serif';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('K', mx, my);
+                            
+                            // Store kuplaj hit box
+                            if (!_topologyState.kuplajIcons) _topologyState.kuplajIcons = [];
+                            _topologyState.kuplajIcons.push({ t1: t1.id, t2: t2.id, x: mx, y: my, r: 12 });
+                        }
+                    });
+                }
             };
             drawLines();
 
@@ -1038,12 +1320,13 @@ const ManeuverUI = (() => {
             }
 
             _topologyState.particles.forEach(p => {
-                let isAssetEnergized = true;
-                if (p.source && p.source.type === 'trafo' && p.target && p.target.type === 'feeder') {
-                    isAssetEnergized = _scadaBreakerStates[`${p.target.id.toLowerCase()}-q1`] !== false;
-                } else if (p.target && p.target.type === 'trafo' && p.source && p.source.type === 'reactor') {
-                    isAssetEnergized = _scadaBreakerStates[`${p.source.id.toLowerCase()}-q1`] !== false;
-                }
+                try {
+                    let isAssetEnergized = true;
+                    if (p.source && p.source.type === 'trafo' && p.target && p.target.type === 'feeder') {
+                        isAssetEnergized = _scadaBreakerStates[`${p.target.id.toLowerCase()}-q1`] !== false;
+                    } else if (p.source && p.source.type === 'trafo' && p.target && p.target.type === 'reactor') {
+                        isAssetEnergized = _scadaBreakerStates[`${p.target.id.toLowerCase()}-q1`] !== false;
+                    }
                 if (!isAssetEnergized) return;
                 p.progress += p.speed;
                 if (p.progress >= 1) p.progress = 0;
@@ -1078,15 +1361,19 @@ const ManeuverUI = (() => {
                 ctx.arc(px, py, 2.5, 0, Math.PI*2);
                 ctx.fillStyle = p.color;
                 ctx.fill();
+                } catch (e) {
+                    // silently ignore particle errors to not break rendering
+                }
             });
 
             _topologyState.nodes.forEach(n => {
-                const isHovered = hoveredNode && (hoveredNode.id === n.id || 
-                    (hoveredNode.type === 'feeder' && (hoveredNode.asset.current_transformer_id === n.id || hoveredNode.asset.alternative_transformer_id === n.id)) ||
-                    (hoveredNode.type === 'reactor' && hoveredNode.asset.current_transformer_id === n.id) ||
-                    (n.type === 'feeder' && (n.asset.current_transformer_id === hoveredNode.id || n.asset.alternative_transformer_id === hoveredNode.id)) ||
-                    (n.type === 'reactor' && n.asset.current_transformer_id === hoveredNode.id)
-                );
+                try {
+                    const isHovered = hoveredNode && (hoveredNode.id === n.id || 
+                        (hoveredNode.type === 'feeder' && (hoveredNode.asset.current_transformer_id === n.id || hoveredNode.asset.alternative_transformer_id === n.id)) ||
+                        (hoveredNode.type === 'reactor' && hoveredNode.asset.current_transformer_id === n.id) ||
+                        (n.type === 'feeder' && (n.asset.current_transformer_id === hoveredNode.id || n.asset.alternative_transformer_id === hoveredNode.id)) ||
+                        (n.type === 'reactor' && n.asset.current_transformer_id === hoveredNode.id)
+                    );
                 
                 const isFaded = hoveredNode && !isHovered;
                 const isDragged = _topologyState.draggedNode && _topologyState.draggedNode.id === n.id;
@@ -1186,15 +1473,23 @@ const ManeuverUI = (() => {
                     ctx.font = '500 11px Inter, sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    const shortName = n.asset.name.length > 14 ? n.asset.name.substring(0, 14) + '…' : n.asset.name;
+                    const fName = n.asset.name || 'Bilinmiyor';
+                    const shortName = fName.length > 14 ? fName.substring(0, 14) + '…' : fName;
                     ctx.fillText(shortName, nx, ny - 5);
                     
                     ctx.fillStyle = mutedColor;
                     ctx.font = '400 10px Inter, sans-serif';
-                    ctx.fillText(`${n.asset.simulated_load_kw.toLocaleString('tr-TR')} kW`, nx, ny + 9);
+                    const simLoad = n.asset.simulated_load_kw || 0;
+                    ctx.fillText(`${simLoad.toLocaleString('tr-TR')} kW`, nx, ny + 9);
                 }
                 
                 ctx.globalAlpha = 1.0;
+                } catch (e) {
+                    ctx.fillStyle = 'red';
+                    ctx.font = '12px sans-serif';
+                    ctx.fillText(e.message, n.x, n.y);
+                    ctx.globalAlpha = 1.0;
+                }
             });
 
             ctx.fillStyle = mutedColor;
@@ -1501,7 +1796,42 @@ const ManeuverUI = (() => {
 
         if (addTrafoBtn && trafoModal && !addTrafoBtn.dataset.bound) {
             addTrafoBtn.dataset.bound = "true";
-            addTrafoBtn.addEventListener('click', () => { trafoModal.style.display = 'flex'; });
+            addTrafoBtn.addEventListener('click', async () => { 
+                trafoModal.style.display = 'flex'; 
+                try {
+                    const ppTrafos = await ApiClient.fetchPandapowerTrafos();
+                    const ppSelect = document.getElementById('editor-pandapower-trafo');
+                    if (ppSelect) {
+                        ppSelect.innerHTML = '<option value="">-- Yeni / Mevcut Olmayan Trafo --</option>';
+                        ppTrafos.forEach(t => {
+                            ppSelect.innerHTML += `<option value="${t.index}" data-name="${t.name}" data-sn="${t.sn_mva}">Trafo ${t.index} (${t.name}, ${t.sn_mva} MVA)</option>`;
+                        });
+                        
+                        ppSelect.onchange = (e) => {
+                            const opt = e.target.options[e.target.selectedIndex];
+                            if (opt && opt.value !== "") {
+                                document.getElementById('editor-new-trafo-name').value = opt.getAttribute('data-name');
+                                document.getElementById('editor-new-trafo-power').value = opt.getAttribute('data-sn');
+                            }
+                        };
+                    }
+                    
+                    const data = _cachedAssets || await ApiClient.fetchManeuverAssets();
+                    const allF = [...(data.feeders || []), ..._pendingAdditions.feeders];
+                    const allR = [...(data.reactors || []), ..._pendingAdditions.reactors];
+                    
+                    const fSelect = document.getElementById('editor-alt-feeder');
+                    if (fSelect) {
+                        fSelect.innerHTML = '<option value="">-- Yok --</option>' + allF.map(f => `<option value="${f.id}">${App.escapeHTML(f.name)} (${f.id})</option>`).join('');
+                    }
+                    const rSelect = document.getElementById('editor-alt-reactor');
+                    if (rSelect) {
+                        rSelect.innerHTML = '<option value="">-- Yok --</option>' + allR.map(r => `<option value="${r.id}">${App.escapeHTML(r.name)} (${r.id})</option>`).join('');
+                    }
+                } catch (err) {
+                    console.error("Pandapower trafo yüklenemedi", err);
+                }
+            });
             closeTrafoBtn?.addEventListener('click', () => { trafoModal.style.display = 'none'; });
             trafoModal.addEventListener('click', (e) => { if (e.target === trafoModal) trafoModal.style.display = 'none'; });
             
@@ -1531,16 +1861,30 @@ const ManeuverUI = (() => {
             trafoForm?.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const newT = {
-                    id: document.getElementById('new-trafo-id').value.trim(),
-                    name: document.getElementById('new-trafo-name').value.trim(),
-                    region: document.getElementById('new-trafo-region').value.trim(),
-                    power_mva: parseInt(document.getElementById('new-trafo-power').value, 10),
+                    id: document.getElementById('editor-new-trafo-id').value.trim(),
+                    name: document.getElementById('editor-new-trafo-name').value.trim(),
+                    region: document.getElementById('editor-new-trafo-region').value.trim(),
+                    power_mva: parseFloat(document.getElementById('editor-new-trafo-power').value),
                     status: 'active',
                     pos_x: 450,
                     pos_y: 220
                 };
+                
+                const altFeeder = document.getElementById('editor-alt-feeder')?.value;
+                const altReactor = document.getElementById('editor-alt-reactor')?.value;
+                
                 if (_isEditMode) {
                     _pendingAdditions.transformers.push(newT);
+                    
+                    if (altFeeder) {
+                        if (!_pendingPositionUpdates[altFeeder]) _pendingPositionUpdates[altFeeder] = { id: altFeeder, type: 'feeder' };
+                        _pendingPositionUpdates[altFeeder].alternative_transformer_id = newT.id;
+                    }
+                    if (altReactor) {
+                        if (!_pendingPositionUpdates[altReactor]) _pendingPositionUpdates[altReactor] = { id: altReactor, type: 'reactor' };
+                        _pendingPositionUpdates[altReactor].alternative_transformer_id = newT.id;
+                    }
+                    
                     App.showToast(`Yeni trafo '${newT.name}' haritaya eklendi (Kaydetmeyi unutmayın).`, 'success');
                     trafoModal.style.display = 'none';
                     trafoForm.reset();
@@ -1644,6 +1988,50 @@ const ManeuverUI = (() => {
             });
         }
 
+        // ── Kuplaj Ekleme Modalı ──
+        const addKuplajBtn = document.getElementById('btn-editor-add-kuplaj');
+        const kuplajModal = document.getElementById('edit-kuplaj-modal');
+        const closeKuplajBtn = document.getElementById('btn-close-edit-kuplaj');
+        const kuplajForm = document.getElementById('edit-kuplaj-form');
+        const kupTrafo1Sel = document.getElementById('kuplaj-trafo-1');
+        const kupTrafo2Sel = document.getElementById('kuplaj-trafo-2');
+
+        if (addKuplajBtn && kuplajModal && !addKuplajBtn.dataset.bound) {
+            addKuplajBtn.dataset.bound = "true";
+
+            addKuplajBtn.addEventListener('click', async () => {
+                const data = _cachedAssets || await ApiClient.fetchManeuverAssets();
+                const allT = [...(data.transformers || []), ..._pendingAdditions.transformers];
+                
+                const tOpts = '<option value="">— Trafo Seçin —</option>' + allT.map(t => `<option value="${t.id}">${App.escapeHTML(t.name)} (${t.id})</option>`).join('');
+                if (kupTrafo1Sel) kupTrafo1Sel.innerHTML = tOpts;
+                if (kupTrafo2Sel) kupTrafo2Sel.innerHTML = tOpts;
+                
+                kuplajModal.style.display = 'flex';
+            });
+
+            closeKuplajBtn?.addEventListener('click', () => { kuplajModal.style.display = 'none'; });
+            kuplajModal.addEventListener('click', (e) => { if (e.target === kuplajModal) kuplajModal.style.display = 'none'; });
+
+            kuplajForm?.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const t1 = kupTrafo1Sel.value;
+                const t2 = kupTrafo2Sel.value;
+                if (!t1 || !t2 || t1 === t2) {
+                    App.showToast("Lütfen iki farklı trafo seçin.", "warning");
+                    return;
+                }
+                
+                if (!_pendingAdditions.kuplajlar) _pendingAdditions.kuplajlar = [];
+                _pendingAdditions.kuplajlar.push({ t1, t2 });
+                
+                App.showToast("Trafo kuplajı oluşturuldu (Kaydetmeyi unutmayın).", "success");
+                kuplajModal.style.display = 'none';
+                kuplajForm.reset();
+                if (_cachedAssets) drawManevraTopology(_cachedAssets);
+            });
+        }
+
         // Toolbar Fider / Reaktör Butonları
         const editorAddFeederBtn = document.getElementById('btn-editor-add-feeder');
         if (editorAddFeederBtn && !editorAddFeederBtn.dataset.bound) {
@@ -1670,7 +2058,7 @@ const ManeuverUI = (() => {
         if (btnEditorCancel && !btnEditorCancel.dataset.bound) {
             btnEditorCancel.dataset.bound = "true";
             btnEditorCancel.addEventListener('click', () => {
-                _pendingAdditions = { transformers: [], feeders: [], reactors: [] };
+                _pendingAdditions = { transformers: [], feeders: [], reactors: [], kuplajlar: [] };
                 _pendingPositionUpdates = {};
                 _isEditMode = false;
                 if (editorToolbar) editorToolbar.style.display = 'none';
@@ -1696,10 +2084,11 @@ const ManeuverUI = (() => {
                 const addTCount = _pendingAdditions.transformers.length;
                 const addFCount = _pendingAdditions.feeders.length;
                 const addRCount = _pendingAdditions.reactors.length;
+                const addKCount = _pendingAdditions.kuplajlar ? _pendingAdditions.kuplajlar.length : 0;
                 const posUpdatesList = Object.values(_pendingPositionUpdates);
                 const posCount = posUpdatesList.length;
 
-                if (addTCount === 0 && addFCount === 0 && addRCount === 0 && posCount === 0) {
+                if (addTCount === 0 && addFCount === 0 && addRCount === 0 && posCount === 0 && addKCount === 0) {
                     App.showToast("Kaydedilecek herhangi bir değişiklik yapılmadı.", "warning");
                     return;
                 }
@@ -1712,6 +2101,7 @@ const ManeuverUI = (() => {
                                 ${addTCount > 0 ? `<li><b style="color: var(--color-success);">${addTCount} Yeni Trafo:</b> ${App.escapeHTML(_pendingAdditions.transformers.map(t => t.name).join(', '))}</li>` : ''}
                                 ${addFCount > 0 ? `<li><b style="color: var(--color-success);">${addFCount} Yeni Fider:</b> ${App.escapeHTML(_pendingAdditions.feeders.map(f => f.name).join(', '))}</li>` : ''}
                                 ${addRCount > 0 ? `<li><b style="color: var(--color-success);">${addRCount} Yeni Reaktör:</b> ${App.escapeHTML(_pendingAdditions.reactors.map(r => r.name).join(', '))}</li>` : ''}
+                                ${_pendingAdditions.kuplajlar && _pendingAdditions.kuplajlar.length > 0 ? `<li><b style="color: var(--color-success);">${_pendingAdditions.kuplajlar.length} Yeni Kuplaj</b></li>` : ''}
                                 ${posCount > 0 ? `<li><b style="color: var(--color-primary);">${posCount} Varlığın Konumu / Bağlantısı Güncellendi:</b> ${App.escapeHTML(posUpdatesList.map(u => u.id).join(', '))}</li>` : ''}
                             </ul>
                         </div>
@@ -1731,7 +2121,8 @@ const ManeuverUI = (() => {
                     new_transformers: _pendingAdditions.transformers,
                     new_feeders: _pendingAdditions.feeders,
                     new_reactors: _pendingAdditions.reactors,
-                    updated_assets: Object.values(_pendingPositionUpdates)
+                    updated_assets: Object.values(_pendingPositionUpdates),
+                    new_kuplajlar: _pendingAdditions.kuplajlar || []
                 };
                 try {
                     execSaveModal.disabled = true;
@@ -1739,7 +2130,7 @@ const ManeuverUI = (() => {
                     const res = await ApiClient.bulkUpdateTopology(bulkPayload);
                     App.showToast(res.message || "Topoloji başarıyla kaydedildi!", "success");
                     saveModal.style.display = 'none';
-                    _pendingAdditions = { transformers: [], feeders: [], reactors: [] };
+                    _pendingAdditions = { transformers: [], feeders: [], reactors: [], kuplajlar: [] };
                     _pendingPositionUpdates = {};
                     _isEditMode = false;
                     if (editorToolbar) editorToolbar.style.display = 'none';

@@ -1,5 +1,5 @@
-import models
-from database import engine, SessionLocal
+from db import models
+from db.database import engine, SessionLocal
 # pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 

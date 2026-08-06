@@ -2,7 +2,7 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, UniqueConstraint
 # pyrefly: ignore [missing-import]
 from sqlalchemy.orm import relationship
-from database import Base
+from db.database import Base
 import datetime
 from typing import Any
 
@@ -20,6 +20,12 @@ class Transformer(Base):
     measurements = relationship("Measurement", back_populates="transformer")
     feeders = relationship("Feeder", foreign_keys="[Feeder.current_transformer_id]", back_populates="current_transformer")
     reactors = relationship("Reactor", foreign_keys="[Reactor.current_transformer_id]", back_populates="current_transformer")
+
+class Kuplaj(Base):
+    __tablename__ = "kuplajlar"
+    id = Column(Integer, primary_key=True, index=True)
+    t1 = Column(String, index=True)
+    t2 = Column(String, index=True)
 
 class Measurement(Base):
     __tablename__ = "measurements"

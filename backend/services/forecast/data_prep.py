@@ -5,7 +5,7 @@ import datetime
 import holidays
 import logging
 from sqlalchemy.orm import Session
-import models
+from db import models
 from services.weather_service import get_weather_data, get_weather_features_for_timestamp
 
 logger = logging.getLogger("spark.forecast")

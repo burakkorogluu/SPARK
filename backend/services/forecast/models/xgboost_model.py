@@ -39,6 +39,16 @@ def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
     predictions = []
     last_168 = df[['y_aktif', 'y_kapasitif', 'y_enduktif']].tail(168).to_dict('records')
 
+    def _get_feat_cols(m, fallback):
+        val = getattr(m, "feature_names_in_", None)
+        if val is not None:
+            return list(val)
+        return fallback
+
+    cols_aktif = _get_feat_cols(xgb_aktif, base_features + ['aktif_lag_24', 'aktif_lag_168', 'aktif_roll_mean_24', 'aktif_roll_std_24', 'aktif_diff_1'])
+    cols_kap   = _get_feat_cols(xgb_kap, base_features + ['kapasitif_lag_24', 'kapasitif_lag_168', 'kapasitif_roll_mean_24', 'kapasitif_roll_std_24', 'kapasitif_diff_1'])
+    cols_end   = _get_feat_cols(xgb_end, base_features + ['enduktif_lag_24', 'enduktif_lag_168', 'enduktif_roll_mean_24', 'enduktif_roll_std_24', 'enduktif_diff_1'])
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         for i in range(steps):
@@ -57,9 +67,9 @@ def forecast_xgboost(db: Session, transformer_id: str, steps: int = 168):
             lags_k = _extract_series_features(last_168, 'y_kapasitif')
             lags_e = _extract_series_features(last_168, 'y_enduktif')
 
-            f_a = np.array([row_base + lags_a])
-            f_k = np.array([row_base + lags_k])
-            f_e = np.array([row_base + lags_e])
+            f_a = pd.DataFrame([row_base + lags_a], columns=cols_aktif)
+            f_k = pd.DataFrame([row_base + lags_k], columns=cols_kap)
+            f_e = pd.DataFrame([row_base + lags_e], columns=cols_end)
 
             pa = max(0, xgb_aktif.predict(f_a)[0])
             pk = max(0, xgb_kap.predict(f_k)[0])

@@ -6,8 +6,8 @@ import numpy as np
 import xgboost as xgb
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-from database import SessionLocal
-import models
+from db.database import SessionLocal
+from db import models
 from services.forecast_service import prepare_dataframe
 from services.weather_service import get_weather_data
 import holidays

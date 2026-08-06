@@ -19,8 +19,8 @@ except ImportError:
 # Add parent directory to path to import backend modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from database import SessionLocal
-import models
+from db.database import SessionLocal
+from db import models
 
 def generate_hybrid_data(sb_code="1-HV-urban--0-sw", years=[2023, 2024, 2025, 2026]):
     logger.info(f"Loading SimBench network and profiles for {sb_code}...")

@@ -1,0 +1,203 @@
+INFO:     Will watch for changes in these directories: ['/Users/alimertcaylak/Desktop/SPARK/backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [13131] using WatchFiles
+INFO:     Started server process [13135]
+INFO:     Waiting for application startup.
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+/Users/alimertcaylak/Desktop/SPARK/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:core.simulator:OSOS Simulation: Catch-up/Generated data up to 2026-08-05 21:00:00
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "generate_hourly_data" to job store "default"
+INFO:spark.forecast:Eksik tahminler arka planda olusturuluyor: ['KAD-TRA', 'BSK-TRA']
+INFO:spark.forecast:Batch forecast uretimi basliyor: BSK-TRA
+INFO:spark.forecast:Model hesaplaniyor: BSK-TRA - ensemble
+INFO:spark.forecast:Batch forecast uretimi basliyor: KAD-TRA
+INFO:spark.forecast:Model hesaplaniyor: KAD-TRA - ensemble
+INFO:apscheduler.scheduler:Added job "lifespan.<locals>.run_alert_check_job" to job store "default"
+INFO:apscheduler.scheduler:Added job "run_weekly_batch_forecast" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'services/analysis_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:apscheduler.scheduler:Scheduler has been shut down
+INFO:     Application shutdown complete.
+INFO:     Finished server process [13135]
+INFO:     Started server process [13159]
+INFO:     Waiting for application startup.
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+/Users/alimertcaylak/Desktop/SPARK/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:core.simulator:OSOS Simulation: Catch-up/Generated data up to 2026-08-05 21:00:00
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "generate_hourly_data" to job store "default"
+INFO:spark.forecast:Eksik tahminler arka planda olusturuluyor: ['KAD-TRA', 'BSK-TRA']
+INFO:spark.forecast:Batch forecast uretimi basliyor: BSK-TRA
+INFO:spark.forecast:Model hesaplaniyor: BSK-TRA - ensemble
+INFO:spark.forecast:Batch forecast uretimi basliyor: KAD-TRA
+INFO:spark.forecast:Model hesaplaniyor: KAD-TRA - ensemble
+INFO:apscheduler.scheduler:Added job "lifespan.<locals>.run_alert_check_job" to job store "default"
+INFO:apscheduler.scheduler:Added job "run_weekly_batch_forecast" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:     Application startup complete.
+Transformers already seeded.
+Feeders and Reactors seeded successfully.
+INFO:     127.0.0.1:56113 - "GET /api/transformers HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'api/routes/osos.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:apscheduler.scheduler:Scheduler has been shut down
+INFO:     Application shutdown complete.
+INFO:     Finished server process [13159]
+INFO:     Started server process [13166]
+INFO:     Waiting for application startup.
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+/Users/alimertcaylak/Desktop/SPARK/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:core.simulator:OSOS Simulation: Catch-up/Generated data up to 2026-08-05 21:00:00
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "generate_hourly_data" to job store "default"
+INFO:apscheduler.scheduler:Added job "lifespan.<locals>.run_alert_check_job" to job store "default"
+INFO:apscheduler.scheduler:Added job "run_weekly_batch_forecast" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:     Application startup complete.
+INFO:spark.forecast:Eksik tahminler arka planda olusturuluyor: ['KAD-TRA', 'BSK-TRA']
+INFO:spark.forecast:Batch forecast uretimi basliyor: BSK-TRA
+INFO:spark.forecast:Model hesaplaniyor: BSK-TRA - ensemble
+INFO:spark.forecast:Batch forecast uretimi basliyor: KAD-TRA
+INFO:spark.forecast:Model hesaplaniyor: KAD-TRA - ensemble
+Transformers already seeded.
+Feeders and Reactors seeded successfully.
+INFO:     127.0.0.1:56135 - "GET /api/osos/fetch?start_date=2026-08-01&end_date=2026-08-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56133 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56137 - "GET /api/osos/fetch?start_date=2026-08-01&end_date=2026-08-31 HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56154 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56155 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56155 - "GET /api/transformers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56155 - "GET /api/scada/state HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56155 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56155 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56155 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56162 - "WebSocket /ws" [accepted]
+INFO:spark.ws:WebSocket istemcisi bağlandı. Toplam: 1
+INFO:     connection open
+INFO:     127.0.0.1:56163 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56163 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56164 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:spark.ws:WebSocket istemcisi ayrıldı. Kalan: 0
+INFO:     connection closed
+INFO:     127.0.0.1:56170 - "GET /api/transformers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56170 - "GET /api/osos/fetch?start_date=2026-08-01&end_date=2026-08-31 HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56171 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56174 - "GET /api/scada/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56173 - "GET /api/transformers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56176 - "WebSocket /ws" [accepted]
+INFO:spark.ws:WebSocket istemcisi bağlandı. Toplam: 1
+INFO:     connection open
+API called: year=2026, month=8
+INFO:     127.0.0.1:56175 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56172 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56172 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56175 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56175 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56193 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56229 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:spark.ws:WebSocket istemcisi ayrıldı. Kalan: 0
+INFO:     connection closed
+INFO:     127.0.0.1:56262 - "GET /api/transformers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56262 - "GET /api/osos/fetch?start_date=2026-08-01&end_date=2026-08-31 HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56267 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56270 - "GET /api/scada/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56269 - "GET /api/transformers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56272 - "WebSocket /ws" [accepted]
+INFO:spark.ws:WebSocket istemcisi bağlandı. Toplam: 1
+INFO:     connection open
+API called: year=2026, month=8
+INFO:     127.0.0.1:56271 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56268 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56268 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56271 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56271 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56271 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56269 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56269 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56269 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56269 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56271 - "GET /api/maneuver/assets HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56271 - "GET /api/scada/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56269 - "GET /api/maneuver/assets HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56269 - "GET /api/maneuver/history?limit=1&offset=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56269 - "GET /api/scada/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56271 - "GET /api/maneuver/assets HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56271 - "GET /api/maneuver/history?limit=1&offset=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56271 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56271 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56271 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56269 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56269 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:spark.ws:WebSocket istemcisi ayrıldı. Kalan: 0
+INFO:     connection closed
+INFO:     127.0.0.1:56292 - "GET /api/transformers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56292 - "GET /api/osos/fetch?start_date=2026-08-01&end_date=2026-08-31 HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56295 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56295 - "GET /api/transformers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56297 - "GET /api/scada/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56298 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56296 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56299 - "WebSocket /ws" [accepted]
+INFO:spark.ws:WebSocket istemcisi bağlandı. Toplam: 1
+INFO:     connection open
+INFO:     127.0.0.1:56296 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56298 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56298 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56302 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56303 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56303 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:spark.ws:WebSocket istemcisi ayrıldı. Kalan: 0
+INFO:     connection closed
+INFO:     127.0.0.1:56314 - "GET /api/transformers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56314 - "GET /api/osos/fetch?start_date=2026-08-01&end_date=2026-08-31 HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56320 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56323 - "GET /api/scada/state HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56322 - "GET /api/transformers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56325 - "WebSocket /ws" [accepted]
+INFO:spark.ws:WebSocket istemcisi bağlandı. Toplam: 1
+INFO:     connection open
+API called: year=2026, month=8
+INFO:     127.0.0.1:56324 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56321 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56321 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56324 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56324 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+API called: year=2026, month=8
+INFO:     127.0.0.1:56324 - "GET /api/alerts?limit=50&year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56322 - "GET /api/analysis/summary?year=2026&month=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56322 - "GET /api/forecast?transformer_id=UMR-TRA&year=2026&month=8&method=ensemble HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'services/forecast/engine.py'. Reloading...
+INFO:     Shutting down
+INFO:spark.ws:WebSocket istemcisi ayrıldı. Kalan: 0
+INFO:     connection closed
+INFO:     Waiting for connections to close. (CTRL+C to force quit)
+INFO:     127.0.0.1:56319 - "GET /api/maneuver/suggest HTTP/1.1" 200 OK
+INFO:     Waiting for background tasks to complete. (CTRL+C to force quit)
+INFO:apscheduler.executors.default:Running job "generate_hourly_data (trigger: cron[minute='1'], next run at: 2026-08-05 22:01:00 +03)" (scheduled at 2026-08-05 22:01:00+03:00)
+INFO:core.simulator:OSOS Simulation: Catch-up/Generated data up to 2026-08-05 22:00:00
+INFO:apscheduler.executors.default:Job "generate_hourly_data (trigger: cron[minute='1'], next run at: 2026-08-05 23:01:00 +03)" executed successfully
+WARNING:apscheduler.executors.default:Run time of job "lifespan.<locals>.run_alert_check_job (trigger: cron[minute='5'], next run at: 2026-08-05 23:05:00 +03)" was missed by 0:00:15.422329
+ERROR:spark.weather:Weather API Error: HTTPSConnectionPool(host='archive-api.open-meteo.com', port=443): Read timed out. (read timeout=10)
+ERROR:spark.weather:Weather API Error: HTTPSConnectionPool(host='archive-api.open-meteo.com', port=443): Read timed out. (read timeout=10)
