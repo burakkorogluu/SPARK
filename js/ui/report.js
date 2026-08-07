@@ -471,13 +471,13 @@ const RaporlamaUI = (() => {
 
     function _kpiCard(label, value, unit, color) {
         return `
-        <div style="padding:20px 24px; background:var(--bg-card); border: none !important; border-radius:12px;
+        <div style="padding:16px 20px; background:var(--bg-card); border: none !important; border-radius:12px;
             position:relative; overflow:hidden; ">
             <div style="position:absolute; top:0; left:0; width:100%; height:3px; background:${color}; opacity:0.9;"></div>
-            <div style="font-size:12px; color:var(--text-muted); text-transform:uppercase; font-weight:600;
-                letter-spacing:1px; margin-bottom:12px;">${label}</div>
-            <div style="font-size:26px; font-weight:800; color:var(--text-primary); line-height:1; margin-bottom:6px;">${value}</div>
-            <div style="font-size:13px; font-weight:600; color:${color};">${unit}</div>
+            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:700;
+                letter-spacing:0.5px; margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${label}">${label}</div>
+            <div style="font-size:24px; font-weight:800; color:var(--text-primary); line-height:1; margin-bottom:4px; white-space:nowrap;">${value}</div>
+            <div style="font-size:12px; font-weight:600; color:${color}; white-space:nowrap;">${unit}</div>
         </div>`;
     }
 
