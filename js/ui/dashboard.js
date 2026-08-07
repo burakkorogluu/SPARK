@@ -185,7 +185,7 @@ const DashboardUI = (() => {
             const suggestions = await ApiClient.fetchManeuverSuggestions();
             if (!suggestions || suggestions.length === 0) {
                 container.innerHTML = `
-                    <div class="alert alert-success" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);">
+                    <div class="alert alert-success" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 0; margin-bottom: 20px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                         <div>
                             <strong style="color: var(--color-success);">Sistem Optimizasyonu Tamam</strong>
@@ -210,7 +210,7 @@ const DashboardUI = (() => {
                             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <strong class="maneuver-title-text" style="color: var(--color-primary);">Aktif Manevra Önerisi Var</strong>
-                                    <span class="badge maneuver-count-badge" style="background: var(--color-primary); color: white; padding: 2px 6px; font-size: 11px; border-radius: 4px;">${suggestions.length} Öneri</span>
+                                    <span class="badge maneuver-count-badge" style="background: var(--color-primary); color: white; padding: 2px 6px; font-size: 11px; border-radius: 0;">${suggestions.length} Öneri</span>
                                 </div>
                             </div>
                             
@@ -520,7 +520,7 @@ window.toggleManeuverAlert = async function(element) {
         
         if (!suggestions || suggestions.length === 0) {
             element.className = "alert alert-success";
-            element.style = "display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); width: 100%;";
+            element.style = "display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 0; margin-bottom: 20px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); width: 100%;";
             element.onclick = null;
             element.parentElement.classList.add('expanded');
             element.innerHTML = `

@@ -233,8 +233,13 @@ async def upload_excel(file: UploadFile = File(...), db: Session = Depends(get_d
             # Trafo veritabanında var mı kontrol et
             trafo = db.query(models.Transformer).filter(models.Transformer.name == trafo_name).first()
             if not trafo:
-                # Trafo ID'sini oluştur (boşlukları tire yap)
+                # Trafo ID'sini oluştur (boşlukları tire yap, Türkçe karakterleri düzelt)
                 trafo_id = trafo_name.replace(' ', '-').upper()
+                tr_map = {'Ç': 'C', 'Ğ': 'G', 'İ': 'I', 'Ö': 'O', 'Ş': 'S', 'Ü': 'U', 
+                          'ç': 'C', 'ğ': 'G', 'ı': 'I', 'ö': 'O', 'ş': 'S', 'ü': 'U'}
+                for tr, eng in tr_map.items():
+                    trafo_id = trafo_id.replace(tr, eng)
+                    
                 if not re.match(r"^[a-zA-Z0-9_-]+$", trafo_id):
                     raise HTTPException(status_code=400, detail=f"Trafo adı geçerli değil: {trafo_name}")
                 

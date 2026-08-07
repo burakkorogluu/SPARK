@@ -21,8 +21,8 @@
         src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 
     <!-- App Styles -->
-    <link rel="stylesheet" href="css/style.css?v=1023">
-    <link rel="stylesheet" href="css/scada-sld.css?v=2">
+    <link rel="stylesheet" href="css/style.css?v=1025">
+    <link rel="stylesheet" href="css/scada-sld.css?v=1025">
 </head>
 
 <body>
@@ -59,7 +59,7 @@
             </div>
             <div class="header-info" style="display: flex; align-items: center; gap: 15px;">
                 <select id="global-yontem-select" class="select-sm"
-                    style="background-color: var(--bg-secondary, #1e293b); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-weight: 500; cursor: pointer; height: 36px; min-width: 160px; font-size: 14px;">
+                    style="background-color: var(--bg-secondary, #1e293b); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 0; padding: 6px 12px; font-weight: 500; cursor: pointer; height: 36px; min-width: 160px; font-size: 14px;">
                     <option value="ensemble" selected>Topluluk Modeli</option>
                     <option value="xgboost">XGBoost & SHAP</option>
                     <option value="randomForest">Random Forest</option>
@@ -67,7 +67,7 @@
                     <option value="lightgbm">LightGBM (Hızlı)</option>
                 </select>
                 <select id="global-ay-select" class="select-sm"
-                    style="background-color: var(--bg-secondary, #1e293b); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; font-weight: 500; cursor: pointer; height: 36px; min-width: 140px; font-size: 14px;"></select>
+                    style="background-color: var(--bg-secondary, #1e293b); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 0; padding: 6px 12px; font-weight: 500; cursor: pointer; height: 36px; min-width: 140px; font-size: 14px;"></select>
                 <div class="notification-container" style="position: relative;">
                     <button class="theme-toggle-btn" id="btn-notifications" title="Bildirimler" aria-label="Bildirimler"
                         style="position: relative;">
@@ -80,7 +80,7 @@
                             style="display: none; position: absolute; top: -5px; right: -5px; background: var(--color-danger); color: white; border-radius: 50%; font-size: 10px; width: 16px; height: 16px; align-items: center; justify-content: center; font-weight: bold;">0</span>
                     </button>
                     <div id="notification-dropdown" class="notification-dropdown"
-                        style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; width: 350px; max-height: 400px; overflow-y: auto; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 10px; flex-direction: column;">
+                        style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 0; width: 350px; max-height: 400px; overflow-y: auto; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-top: 10px; flex-direction: column;">
                         <div
                             style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); font-weight: bold; color: var(--text-primary); display: flex; flex-direction: column; gap: 8px; position: sticky; top: 0; background: var(--bg-secondary); z-index: 1;">
                             <div
@@ -106,11 +106,6 @@
                         </div>
                     </div>
                 </div>
-                <button class="theme-toggle-btn" id="btn-theme-toggle" title="Temayı Değiştir (Açık / Koyu)"
-                    aria-label="Tema Değiştir">
-                    <span id="theme-icon" class="theme-icon">☀️</span>
-                    <span class="theme-text" id="theme-text">Açık</span>
-                </button>
             </div>
         </header>
 
@@ -151,6 +146,14 @@
                             <line x1="12" y1="17" x2="12" y2="21"></line>
                         </svg>
                         <span class="nav-text">Teknik SCADA (SLD)</span>
+                    </button>
+                    <button class="nav-btn" data-screen="ayarlar" id="nav-ayarlar" title="Ayarlar" data-i18n-title="menu_settings">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                        <span class="nav-text" data-i18n="menu_settings">Ayarlar</span>
                     </button>
                 </nav>
             </aside>
@@ -274,11 +277,11 @@
                                 <div
                                     style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
                                     <input type="datetime-local" id="osos-date-start" class="input-sm"
-                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px; flex: 1;"
+                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 0; padding: 6px; flex: 1;"
                                         title="Başlangıç">
                                     <span>-</span>
                                     <input type="datetime-local" id="osos-date-end" class="input-sm"
-                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px; flex: 1;"
+                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 0; padding: 6px; flex: 1;"
                                         title="Bitiş">
                                 </div>
                                 <div style="margin-bottom: 15px;">
@@ -293,7 +296,7 @@
                                             </svg>
                                         </button>
                                         <div id="osos-trafo-filter-menu"
-                                            style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 5px; max-height: 250px; overflow-y: auto;">
+                                            style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 0; padding: 10px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 5px; max-height: 250px; overflow-y: auto;">
                                             <div
                                                 style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
                                                 <label
@@ -331,11 +334,11 @@
                                 style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                                 <div class="date-filter" style="display: flex; gap: 6px; align-items: center;">
                                     <input type="date" id="table-date-start" class="input-sm"
-                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;"
+                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 0; padding: 4px 8px;"
                                         title="Başlangıç Tarihi">
                                     <span style="color: var(--text-muted);">-</span>
                                     <input type="date" id="table-date-end" class="input-sm"
-                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 8px;"
+                                        style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 0; padding: 4px 8px;"
                                         title="Bitiş Tarihi">
                                 </div>
                                 <select id="table-trafo-filter" class="select-sm"
@@ -494,7 +497,7 @@
                                             TM Filtrele
                                         </button>
                                         <div id="trafo-filter-menu"
-                                            style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-secondary, #1e293b); border: 1px solid var(--border-color, #334155); border-radius: 6px; padding: 10px; width: 220px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 5px; max-height: 300px; overflow-y: auto;">
+                                            style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-secondary, #1e293b); border: 1px solid var(--border-color, #334155); border-radius: 0; padding: 10px; width: 220px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 5px; max-height: 300px; overflow-y: auto;">
                                             <div
                                                 style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color, #334155);">
                                                 <label
@@ -667,7 +670,7 @@
                             </div>
                             <div class="suggestion-cards-container" id="manevra-onerileri-container-normal">
                                 <div
-                                    style="padding: 16px; border-radius: 8px; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
+                                    style="padding: 16px; border-radius: 0; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
                                     Manevra önerilerini hesaplamak için yukarıdaki <b>"Öneri Analizi Çalıştır"</b>
                                     butonuna basınız.
                                 </div>
@@ -675,7 +678,7 @@
                             <div class="suggestion-cards-container" id="manevra-onerileri-container-predictive"
                                 style="display: none;">
                                 <div
-                                    style="padding: 16px; border-radius: 8px; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
+                                    style="padding: 16px; border-radius: 0; background: rgba(49, 116, 246, 0.06); border: 1px solid rgba(49, 116, 246, 0.15); color: var(--text-secondary); font-size: 14px;">
                                     Manevra önerilerini hesaplamak için yukarıdaki <b>"Öneri Analizi Çalıştır"</b>
                                     butonuna basınız.
                                 </div>
@@ -732,7 +735,7 @@
                         <div class="scada-sld-header">
                             <div class="scada-tabs">
                                 <select id="scada-tm-selector" class="scada-select"
-                                    style="background: #1e293b; color: white; border: 1px solid #334155; padding: 6px 12px; border-radius: 4px; margin-right: 15px;">
+                                    style="background: #1e293b; color: white; border: 1px solid #334155; padding: 6px 12px; border-radius: 0; margin-right: 15px;">
                                     <!-- Dynamically populated via JS -->
                                 </select>
                                 <button class="scada-tab-btn" data-tab="R110kV">
@@ -1043,6 +1046,41 @@
                     </div>
                 </section>
 
+                <!-- ─── Ekran: Ayarlar ─── -->
+                <section id="screen-ayarlar" class="screen">
+                    <div class="settings-layout" style="padding: 20px; max-width: 800px; margin: 0 auto;">
+                        <div class="card form-card">
+                            <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px;">
+                                <h3><span data-i18n="menu_settings">Ayarlar</span></h3>
+                            </div>
+                            <div class="settings-group" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border-color);">
+                                <div class="settings-info">
+                                    <h4 style="margin: 0 0 5px 0; font-size: 15px;">Açık / Koyu Tema</h4>
+                                    <p style="margin: 0; color: var(--text-muted); font-size: 13px;">Uygulama arayüzünün temasını değiştirin.</p>
+                                </div>
+                                <div class="settings-action">
+                                    <button class="theme-toggle-btn" id="btn-theme-toggle" title="Temayı Değiştir (Açık / Koyu)" aria-label="Tema Değiştir" style="padding: 8px 16px; border: 1px solid var(--border-color); background: var(--bg-secondary); border-radius: 0; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text-primary); font-size: 14px; font-weight: 500; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                        <span id="theme-icon" class="theme-icon">☀️</span>
+                                        <span class="theme-text" id="theme-text">Açık</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="settings-group" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border-color);">
+                                <div class="settings-info">
+                                    <h4 style="margin: 0 0 5px 0; font-size: 15px;">Dil Seçimi</h4>
+                                    <p style="margin: 0; color: var(--text-muted); font-size: 13px;">Uygulama dilini değiştirin.</p>
+                                </div>
+                                <div class="settings-action">
+                                    <select id="global-lang-select" class="select-sm" style="background-color: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 0; padding: 8px 12px; font-weight: 500; cursor: pointer; height: 38px; min-width: 120px; font-size: 14px;">
+                                        <option value="tr">Türkçe</option>
+                                        <option value="en">English</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
             </main>
         </div><!-- /.app-body -->
     </div><!-- /.app-layout -->
@@ -1146,22 +1184,22 @@
                     <div class="form-group">
                         <label for="new-trafo-id">Trafo ID (Kısa Kod)</label>
                         <input type="text" id="new-trafo-id" required placeholder="Ör: YENI-TR"
-                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
+                            style="width: 100%; padding: 8px; border-radius: 0; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <div class="form-group">
                         <label for="new-trafo-adi">Trafo Adı</label>
                         <input type="text" id="new-trafo-adi" required placeholder="Ör: Yeni Trafo Merkezi"
-                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
+                            style="width: 100%; padding: 8px; border-radius: 0; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <div class="form-group">
                         <label for="new-trafo-bolge">Bölgesi</label>
                         <input type="text" id="new-trafo-bolge" required placeholder="Ör: Kadıköy"
-                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
+                            style="width: 100%; padding: 8px; border-radius: 0; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <div class="form-group">
                         <label for="new-trafo-guc">Gücü (MVA)</label>
                         <input type="number" id="new-trafo-guc" value="100" required
-                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
+                            style="width: 100%; padding: 8px; border-radius: 0; border: 1px solid var(--border-color, rgba(148, 163, 184, 0.3)); background: var(--bg-surface, rgba(30, 41, 59, 0.5)); color: var(--text-main, #fff);">
                     </div>
                     <button type="submit" class="btn btn-primary" style="margin-top: 8px;">KAYDET</button>
                 </form>
@@ -1221,7 +1259,7 @@
                 </div>
 
                 <div
-                    style="background: var(--bg-level2); padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid var(--border-color);">
+                    style="background: var(--bg-level2); padding: 12px; border-radius: 0; margin-bottom: 16px; border: 1px solid var(--border-color);">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                         <span style="color: var(--text-muted);">İşlem Yapılacak Kesici:</span>
                         <strong id="breaker-modal-id" style="color: var(--text-color);">FDR-XXX-Q1</strong>
@@ -1275,7 +1313,7 @@
                 </div>
 
                 <div
-                    style="background: var(--bg-level2); padding: 12px; border-radius: 8px; margin-bottom: 24px; border: 1px solid var(--border-color);">
+                    style="background: var(--bg-level2); padding: 12px; border-radius: 0; margin-bottom: 24px; border: 1px solid var(--border-color);">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                         <span style="color: var(--text-muted);">Aktarılacak Fider Sayısı:</span>
                         <strong id="kuplaj-transfer-count" style="color: var(--text-color);">0</strong>
@@ -1543,7 +1581,7 @@
                         (Opsiyonel)</label>
                     <input type="text" id="scada-confirm-reason"
                         placeholder="Örn: Rutin test manevrası / Bakım çalışması"
-                        style="width: 100%; padding: 8px; border-radius: 4px; background: #0f172a; border: 1px solid #334155; color: white;">
+                        style="width: 100%; padding: 8px; border-radius: 0; background: #0f172a; border: 1px solid #334155; color: white;">
                 </div>
                 <div class="confirm-modal-actions"
                     style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
@@ -1560,9 +1598,10 @@
 
     <div class="toast-container" id="toast-container"></div>
 
-    <!-- ═══ Scripts (sıra önemli!) ═══ -->
+    <!-- Uygulama JavaScript Dosyaları -->
+    <script src="js/core/i18n.js?v=1012"></script>
     <script src="js/core/data.js?v=1012"></script>
-    <script src="js/core/api_client.js?v=1012"></script>
+    <script src="js/core/api_client.js?v=1013"></script>
     <script src="js/core/theme.js?v=1014"></script>
     <script src="js/modules/calculations.js?v=1012"></script>
     <script src="js/modules/forecast.js?v=1012"></script>
@@ -1570,7 +1609,7 @@
     <script src="js/ui/charts.js?v=1030"></script>
     <script src="js/ui/topology.js?v=1012"></script>
     <script src="js/ui/dashboard.js?v=1031"></script>
-    <script src="js/ui/data_entry.js?v=1012"></script>
+    <script src="js/ui/data_entry.js?v=1013"></script>
     <script src="js/ui/detail.js?v=1027"></script>
     <script src="js/ui/maneuver_ui.js?v=6"></script>
     <script src="js/ui/alerts.js?v=1012"></script>

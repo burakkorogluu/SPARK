@@ -312,7 +312,7 @@ const DataEntryUI = (() => {
             }
         } catch (error) {
             console.error('Excel Yükleme Hatası:', error);
-            App.showToast(error.message || 'Sunucu ile bağlantı hatası oluştu.', 'error');
+            App.showToast(error.message || 'Excel yükleme sırasında bir hata oluştu.', 'error');
         }
     }
 

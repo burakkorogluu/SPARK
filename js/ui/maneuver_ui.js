@@ -224,7 +224,7 @@ const ManeuverUI = (() => {
             }
 
             const renderCards = (suggs, emptyMsg) => {
-                if (suggs.length === 0) return `<div style="padding: 16px; border-radius: 8px; background: rgba(46, 125, 50, 0.06); border: 1px solid rgba(46, 125, 50, 0.15); color: var(--text-secondary); font-size: 14px;">${emptyMsg}</div>`;
+                if (suggs.length === 0) return `<div style="padding: 16px; border-radius: 0; background: rgba(46, 125, 50, 0.06); border: 1px solid rgba(46, 125, 50, 0.15); color: var(--text-secondary); font-size: 14px;">${emptyMsg}</div>`;
                 
                 return suggs.map((s, idx) => {
                     const assetType = s.feeder_id ? 'feeder' : 'reactor';
@@ -296,7 +296,7 @@ const ManeuverUI = (() => {
 
         } catch (err) {
             console.error("Manevra önerileri çekilirken hata:", err);
-            const errHtml = `<div style="padding: 16px; border-radius: 8px; background: rgba(198, 40, 40, 0.06); border: 1px solid rgba(198, 40, 40, 0.15); color: var(--color-danger-light); font-size: 14px;">Öneriler alınırken sunucu hatası oluştu.</div>`;
+            const errHtml = `<div style="padding: 16px; border-radius: 0; background: rgba(198, 40, 40, 0.06); border: 1px solid rgba(198, 40, 40, 0.15); color: var(--color-danger-light); font-size: 14px;">Öneriler alınırken sunucu hatası oluştu.</div>`;
             contNormal.innerHTML = errHtml;
             contPred.innerHTML = errHtml;
         }
@@ -606,7 +606,7 @@ const ManeuverUI = (() => {
 
             body.innerHTML = `
                 ${sim.is_overload ? `
-                <div style="margin-bottom: 16px; padding: 12px 16px; border-radius: 8px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; font-size: 13px;">
+                <div style="margin-bottom: 16px; padding: 12px 16px; border-radius: 0; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; font-size: 13px;">
                     <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 4px;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         ${App.escapeHTML(sim.overload_warning || 'Aşırı Yük Uyarısı!')}
@@ -2095,7 +2095,7 @@ const ManeuverUI = (() => {
 
                 if (summaryBody) {
                     summaryBody.innerHTML = `
-                        <div style="background: rgba(15, 23, 42, 0.4); padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 16px;">
+                        <div style="background: rgba(15, 23, 42, 0.4); padding: 12px 16px; border-radius: 0; border: 1px solid var(--border-color); margin-bottom: 16px;">
                             <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 14px;">Yapılan Değişiklikler Özet Listesi:</h4>
                             <ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.6;">
                                 ${addTCount > 0 ? `<li><b style="color: var(--color-success);">${addTCount} Yeni Trafo:</b> ${App.escapeHTML(_pendingAdditions.transformers.map(t => t.name).join(', '))}</li>` : ''}

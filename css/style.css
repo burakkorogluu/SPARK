@@ -62,11 +62,11 @@
     --space-xl: 32px;
     --space-2xl: 48px;
 
-    /* Radius - Very slight rounded corners for practical look */
-    --radius-sm: 2px;
-    --radius-md: 4px;
-    --radius-lg: 4px;
-    --radius-xl: 6px;
+    /* Radius - Sharp corners */
+    --radius-sm: 0;
+    --radius-md: 0;
+    --radius-lg: 0;
+    --radius-xl: 0;
 
     /* Transition */
     --transition-fast: 100ms ease;
@@ -110,7 +110,7 @@ body {
 
 ::-webkit-scrollbar-thumb {
     background: rgba(148, 163, 184, 0.2);
-    border-radius: 3px;
+    border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -423,7 +423,7 @@ body {
     background: transparent;
     border: none;
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: 0;
     color: var(--text-secondary);
     font-size: 13px;
     font-weight: 600;
@@ -509,7 +509,7 @@ body {
 .summary-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border-color);
-    border-radius: 26px;
+    border-radius: 0;
     padding: 0 16px;
     height: 52px;
     display: flex;
@@ -763,14 +763,14 @@ body {
 .ratio-meter-bar {
     height: 8px;
     background: rgba(148, 163, 184, 0.1);
-    border-radius: 4px;
+    border-radius: 0;
     overflow: visible;
     position: relative;
 }
 
 .ratio-meter-fill {
     height: 100%;
-    border-radius: 4px;
+    border-radius: 0;
     transition: width var(--transition-slow);
     position: relative;
 }
@@ -781,7 +781,7 @@ body {
     bottom: -4px;
     width: 2px;
     background: var(--color-danger);
-    border-radius: 1px;
+    border-radius: 0;
     z-index: 2;
 }
 
@@ -830,7 +830,7 @@ body {
     align-items: center;
     gap: 4px;
     padding: 4px 10px;
-    border-radius: 20px;
+    border-radius: 0;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.3px;
@@ -1756,7 +1756,7 @@ input::placeholder {
     background: transparent;
     border: 1px solid var(--border-color);
     padding: 6px 12px;
-    border-radius: 20px;
+    border-radius: 0;
     border: 1px solid rgba(6, 182, 212, 0.3);
 }
 
@@ -2087,13 +2087,13 @@ input::placeholder {
     width: 100%;
     height: 6px;
     background: var(--bg-card);
-    border-radius: 3px;
+    border-radius: 0;
     overflow: hidden;
 }
 
 .meter-bar-fill {
     height: 100%;
-    border-radius: 3px;
+    border-radius: 0;
     transition: width 0.6s ease;
 }
 
@@ -2401,10 +2401,10 @@ input::placeholder {
     --shadow-glow-amber: 0 4px 14px 0 rgba(245, 158, 11, 0.25);
 
     /* Modern soft corners for light theme specifically */
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
+    --radius-sm: 0;
+    --radius-md: 0;
+    --radius-lg: 0;
+    --radius-xl: 0;
 }
 
 
@@ -2423,7 +2423,7 @@ input::placeholder {
 .maneuver-stat-card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 0;
     padding: 20px;
     display: flex;
     align-items: center;
@@ -2439,7 +2439,7 @@ input::placeholder {
 .maneuver-stat-icon {
     width: 48px;
     height: 48px;
-    border-radius: 12px;
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2524,7 +2524,7 @@ input::placeholder {
     color: var(--text-secondary);
     font-size: 11px;
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: 0;
     font-weight: 600;
 }
 
@@ -2570,7 +2570,7 @@ input::placeholder {
 .maneuver-asset-section {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 0;
     overflow: hidden;
 }
 
@@ -2596,7 +2596,7 @@ input::placeholder {
     padding: 6px 14px;
     font-size: 12px;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid var(--color-primary);
     background: rgba(49, 116, 246, 0.1);
     color: var(--color-primary);
@@ -2622,14 +2622,14 @@ input::placeholder {
     flex: 1;
     height: 8px;
     background: var(--bg-tertiary);
-    border-radius: 4px;
+    border-radius: 0;
     overflow: hidden;
     position: relative;
 }
 
 .load-bar-fill {
     height: 100%;
-    border-radius: 4px;
+    border-radius: 0;
     transition: width 0.6s ease;
     background: var(--color-primary);
 }
@@ -2665,7 +2665,7 @@ input::placeholder {
 .suggestion-card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 0;
     padding: 20px;
     transition: border-color 0.2s ease, transform 0.2s ease;
     animation: slideInCard 0.4s ease;
@@ -2795,7 +2795,7 @@ input::placeholder {
     margin-top: 12px;
     padding: 10px 14px;
     background: var(--bg-secondary);
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid var(--border-color);
     font-size: 12px;
 }
@@ -2860,7 +2860,7 @@ input::placeholder {
 .sim-trafo-panel {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 0;
     padding: 20px;
 }
 
@@ -2906,7 +2906,7 @@ input::placeholder {
 
 .sim-load-bar-large .load-bar-track {
     height: 14px;
-    border-radius: 7px;
+    border-radius: 0;
 }
 
 .sim-arrow-column {
@@ -2941,7 +2941,7 @@ input::placeholder {
     padding: 14px 18px;
     background: rgba(49, 116, 246, 0.06);
     border: 1px solid rgba(49, 116, 246, 0.15);
-    border-radius: 10px;
+    border-radius: 0;
     font-size: 13px;
     color: var(--text-secondary);
     line-height: 1.6;
@@ -2952,7 +2952,7 @@ input::placeholder {
     min-height: 60px;
     padding: 12px;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 0;
     background: var(--bg-input);
     color: var(--text-primary);
     font-size: 13px;
@@ -2977,7 +2977,7 @@ input::placeholder {
     padding: 10px 24px;
     font-size: 14px;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: 0;
     border: none;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -3026,7 +3026,7 @@ input::placeholder {
 .maneuver-history-filters input {
     padding: 8px 12px;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 0;
     background: var(--bg-input);
     color: var(--text-primary);
     font-size: 13px;
@@ -3035,7 +3035,7 @@ input::placeholder {
 
 .history-table-wrapper {
     overflow-x: auto;
-    border-radius: 12px;
+    border-radius: 0;
     border: 1px solid var(--border-color);
 }
 
@@ -3078,7 +3078,7 @@ input::placeholder {
     align-items: center;
     gap: 4px;
     padding: 3px 10px;
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 11px;
     font-weight: 600;
     white-space: nowrap;
@@ -3119,7 +3119,7 @@ input::placeholder {
     padding: 4px 12px;
     font-size: 11px;
     font-weight: 600;
-    border-radius: 6px;
+    border-radius: 0;
     border: 1px solid var(--color-danger);
     background: rgba(198, 40, 40, 0.08);
     color: var(--color-danger-light);
@@ -3158,7 +3158,7 @@ input::placeholder {
 .crud-form .form-group select {
     padding: 10px 14px;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 0;
     background: var(--bg-input);
     color: var(--text-primary);
     font-size: 14px;
@@ -3176,7 +3176,7 @@ input::placeholder {
 .maneuver-topology-container {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 0;
     padding: 16px;
     margin-top: 20px;
     position: relative;
@@ -3240,7 +3240,7 @@ input::placeholder {
 .maneuver-topology-canvas-wrap {
     width: 100%;
     min-height: 280px;
-    border-radius: 8px;
+    border-radius: 0;
     background: transparent;
     border: 1px solid var(--border-color);
     overflow: hidden;
@@ -3257,7 +3257,7 @@ input::placeholder {
     padding: 6px 14px;
     font-size: 12px;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid var(--color-info);
     background: rgba(25, 118, 210, 0.1);
     color: var(--color-info);
@@ -3275,7 +3275,7 @@ input::placeholder {
     padding: 6px 14px;
     font-size: 12px;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: 0;
     border: none;
     background: var(--color-success);
     color: #fff;

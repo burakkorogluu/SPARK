@@ -174,7 +174,7 @@ const ApiClient = (() => {
     async function uploadExcel(formData) {
         // Fetch expects FormData to be passed directly as body without 'Content-Type' header
         // It will automatically set multipart/form-data with the correct boundary
-        return _fetch(`${API_BASE_URL}/upload-excel`, {
+        return _fetch(`${API_BASE_URL}/osos/upload-excel`, {
             method: 'POST',
             body: formData
         });

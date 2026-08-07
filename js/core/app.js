@@ -81,6 +81,9 @@ const App = (() => {
         if (typeof ThemeManager !== 'undefined') {
             ThemeManager.initTheme();
         }
+        if (typeof I18n !== 'undefined') {
+            I18n.init();
+        }
 
         const kayitliTrafolar = VeriModulu.getTrafolar();
         if (kayitliTrafolar.length > 0) {
@@ -131,6 +134,14 @@ const App = (() => {
                 localStorage.setItem('spark_sidebar_collapsed', sidebar.classList.contains('collapsed'));
             });
         }
+
+        const langSelect = document.getElementById('global-lang-select');
+        if (langSelect) {
+            langSelect.value = I18n.getCurrent();
+            langSelect.addEventListener('change', (e) => {
+                I18n.setLanguage(e.target.value);
+            });
+        }
     }
 
     function navigate(screen) {
@@ -149,7 +160,8 @@ const App = (() => {
             'trafo-detay': 'Trafo Detay & Risk Analizi',
             'tahmin': 'Tahmin & Senaryo Simülasyonu',
             'manevra': 'Manevra Öneri & Karar Destek Modülü',
-            'scada-sld': 'Teknik SCADA (SLD)'
+            'scada-sld': 'Teknik SCADA (SLD)',
+            'ayarlar': 'Ayarlar'
         };
         const titleEl = document.getElementById('header-tab-title-text');
         if (titleEl && screenTitles[screen]) {

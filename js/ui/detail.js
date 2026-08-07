@@ -51,14 +51,14 @@ const DetailUI = (() => {
 
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
-                                <select class="chart-yontem-select" onchange="DetailUI.renderTrafoDetayInContainer('${trafoId}', this.closest('.trafo-card-details'), this.closest('.chart-card').querySelector('.chart-res-select').value, this.value)" style="background:var(--bg-card); color:var(--text); border:1px solid var(--border-color); border-radius:4px; padding:2px 5px; font-size:12px;">
+                                <select class="chart-yontem-select" onchange="DetailUI.renderTrafoDetayInContainer('${trafoId}', this.closest('.trafo-card-details'), this.closest('.chart-card').querySelector('.chart-res-select').value, this.value)" style="background:var(--bg-card); color:var(--text); border:1px solid var(--border-color); border-radius: 0; padding:2px 5px; font-size:12px;">
                                     <option value="ensemble" ${yontem === 'ensemble' ? 'selected' : ''}>Topluluk</option>
                                     <option value="xgboost" ${yontem === 'xgboost' ? 'selected' : ''}>XGBoost</option>
                                     <option value="randomForest" ${yontem === 'randomForest' ? 'selected' : ''}>RF</option>
                                     <option value="regression" ${yontem === 'regression' ? 'selected' : ''}>Reg</option>
                                     <option value="lightgbm" ${yontem === 'lightgbm' ? 'selected' : ''}>LGBM</option>
                                 </select>
-                                <select class="chart-res-select" onchange="DetailUI.renderTrafoDetayInContainer('${trafoId}', this.closest('.trafo-card-details'), this.value, this.closest('.chart-card').querySelector('.chart-yontem-select').value)" style="background:var(--bg-card); color:var(--text); border:1px solid var(--border-color); border-radius:4px; padding:2px 5px; font-size:12px;">
+                                <select class="chart-res-select" onchange="DetailUI.renderTrafoDetayInContainer('${trafoId}', this.closest('.trafo-card-details'), this.value, this.closest('.chart-card').querySelector('.chart-yontem-select').value)" style="background:var(--bg-card); color:var(--text); border:1px solid var(--border-color); border-radius: 0; padding:2px 5px; font-size:12px;">
                                     <option value="daily" ${resolution === 'daily' ? 'selected' : ''}>Günlük</option>
                                     <option value="hourly" ${resolution === 'hourly' ? 'selected' : ''}>Saatlik</option>
                                 </select>
@@ -80,14 +80,14 @@ const DetailUI = (() => {
 
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
-                                <select class="chart-yontem-select" onchange="DetailUI.renderTrafoDetayInContainer('${trafoId}', this.closest('.trafo-card-details'), this.closest('.chart-card').querySelector('.chart-res-select').value, this.value)" style="background:var(--bg-card); color:var(--text); border:1px solid var(--border-color); border-radius:4px; padding:2px 5px; font-size:12px;">
+                                <select class="chart-yontem-select" onchange="DetailUI.renderTrafoDetayInContainer('${trafoId}', this.closest('.trafo-card-details'), this.closest('.chart-card').querySelector('.chart-res-select').value, this.value)" style="background:var(--bg-card); color:var(--text); border:1px solid var(--border-color); border-radius: 0; padding:2px 5px; font-size:12px;">
                                     <option value="ensemble" ${yontem === 'ensemble' ? 'selected' : ''}>Topluluk</option>
                                     <option value="xgboost" ${yontem === 'xgboost' ? 'selected' : ''}>XGBoost</option>
                                     <option value="randomForest" ${yontem === 'randomForest' ? 'selected' : ''}>RF</option>
                                     <option value="regression" ${yontem === 'regression' ? 'selected' : ''}>Reg</option>
                                     <option value="lightgbm" ${yontem === 'lightgbm' ? 'selected' : ''}>LGBM</option>
                                 </select>
-                                <select class="chart-res-select" onchange="DetailUI.renderTrafoDetayInContainer('${trafoId}', this.closest('.trafo-card-details'), this.value, this.closest('.chart-card').querySelector('.chart-yontem-select').value)" style="background:var(--bg-card); color:var(--text); border:1px solid var(--border-color); border-radius:4px; padding:2px 5px; font-size:12px;">
+                                <select class="chart-res-select" onchange="DetailUI.renderTrafoDetayInContainer('${trafoId}', this.closest('.trafo-card-details'), this.value, this.closest('.chart-card').querySelector('.chart-yontem-select').value)" style="background:var(--bg-card); color:var(--text); border:1px solid var(--border-color); border-radius: 0; padding:2px 5px; font-size:12px;">
                                     <option value="daily" ${resolution === 'daily' ? 'selected' : ''}>Günlük</option>
                                     <option value="hourly" ${resolution === 'hourly' ? 'selected' : ''}>Saatlik</option>
                                 </select>

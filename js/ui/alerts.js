@@ -125,14 +125,14 @@ const AlertManager = (() => {
             const opacityStyle = isRead ? 'opacity: 0.6;' : '';
             
             return `
-                <div class="${bgClass}" style="padding: 10px; border-radius: 6px; font-size: 12px; margin-bottom: 0; ${opacityStyle} transition: opacity 0.2s ease;">
+                <div class="${bgClass}" style="padding: 10px; border-radius: 0; font-size: 12px; margin-bottom: 0; ${opacityStyle} transition: opacity 0.2s ease;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                         <span style="font-weight: 600;">${severityTR}</span>
                         <span style="font-size: 10px; opacity: 0.7;">${a.timestamp}</span>
                     </div>
                     <div style="color: var(--text-secondary); display: flex; justify-content: space-between; align-items: flex-end; gap: 10px;">
                         <div style="flex: 1;">${App.escapeHTML(a.message)}</div>
-                        ${!isRead ? `<button class="btn-mark-read" data-id="${a.id}" style="background: transparent; border: none; padding: 4px; margin: -4px; cursor: pointer; color: var(--color-success); border-radius: 4px; display: flex;" title="Okundu olarak işaretle" onmouseover="this.style.background='rgba(16, 185, 129, 0.1)'" onmouseout="this.style.background='transparent'">
+                        ${!isRead ? `<button class="btn-mark-read" data-id="${a.id}" style="background: transparent; border: none; padding: 4px; margin: -4px; cursor: pointer; color: var(--color-success); border-radius: 0; display: flex;" title="Okundu olarak işaretle" onmouseover="this.style.background='rgba(16, 185, 129, 0.1)'" onmouseout="this.style.background='transparent'">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                         </button>` : ''}
                     </div>
