@@ -161,7 +161,8 @@ const App = (() => {
             'tahmin': 'Tahmin & Senaryo Simülasyonu',
             'manevra': 'Manevra Öneri & Karar Destek Modülü',
             'scada-sld': 'Teknik SCADA (SLD)',
-            'ayarlar': 'Ayarlar'
+            'ayarlar': 'Ayarlar',
+            'raporlama': 'Raporlama & Dışa Aktarma'
         };
         const titleEl = document.getElementById('header-tab-title-text');
         if (titleEl && screenTitles[screen]) {
@@ -186,6 +187,9 @@ const App = (() => {
                 break;
             case 'scada-sld':
                 if (typeof ScadaSldUI !== 'undefined') ScadaSldUI.render();
+                break;
+            case 'raporlama':
+                if (typeof RaporlamaUI !== 'undefined') RaporlamaUI.render();
                 break;
         }
     }
@@ -214,7 +218,7 @@ const App = (() => {
         populateAySelects();
 
         const trafolar = Array.from(VeriModulu.getTrafolar().values());
-        const selectIds = ['input-trafo', 'table-trafo-filter', 'detay-trafo-select', 'tahmin-trafo-select'];
+        const selectIds = ['input-trafo', 'table-trafo-filter', 'detay-trafo-select', 'tahmin-trafo-select', 'settings-delete-trafo-select'];
 
         selectIds.forEach(id => {
             const sel = document.getElementById(id);
@@ -447,5 +451,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                 App.navigate('trafo-detay');
             }
         });
+    });
+
+    document.getElementById('btn-settings-delete-trafo')?.addEventListener('click', async () => {
+        const selectEl = document.getElementById('settings-delete-trafo-select');
+        const trafoId = selectEl?.value;
+        if (!trafoId) {
+            App.showToast('Lütfen silinecek trafoyu seçin.', 'warning');
+            return;
+        }
+
+        if (confirm(`${trafoId} trafosunu ve tüm verilerini silmek istediğinize emin misiniz?`)) {
+            try {
+                if (typeof ApiClient !== 'undefined' && ApiClient.deleteTransformer) {
+                    await ApiClient.deleteTransformer(trafoId);
+                }
+                
+                VeriModulu.trafoSil(trafoId);
+                App.showToast(`${trafoId} başarıyla silindi.`, 'success');
+                App.populateTrafoSelects();
+                
+            } catch (err) {
+                // Eğer hata 404 veya 'bulunamadı' ise, zaten backend'de yoktur. 
+                // LocalStorage'dan silinmesi için işleme devam et
+                const errMsg = err.message || "";
+                if (errMsg.toLowerCase().includes('bulunamadı') || errMsg.includes('404')) {
+                    VeriModulu.trafoSil(trafoId);
+                    App.showToast(`${trafoId} veritabanında yoktu ama yerel hafızadan temizlendi.`, 'info');
+                    App.populateTrafoSelects();
+                } else {
+                    App.showToast(`Silme hatası: ${App.escapeHTML(errMsg)}`, 'error');
+                }
+            }
+        }
     });
 });

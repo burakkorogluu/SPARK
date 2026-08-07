@@ -122,6 +122,28 @@ const VeriModulu = (() => {
         }
     }
 
+    function trafoSil(trafoId) {
+        const idx = TRAFOLAR.findIndex(t => t.id === trafoId);
+        if (idx !== -1) TRAFOLAR.splice(idx, 1);
+        
+        _ekTrafolar = _ekTrafolar.filter(t => t.id !== trafoId);
+        try {
+            localStorage.setItem('spark_ek_trafolar', JSON.stringify(_ekTrafolar));
+        } catch (e) {
+            console.error('Trafo silinemedi:', e);
+        }
+
+        // Hafızadan da sil
+        if (_veriMap.has(trafoId)) {
+            _veriMap.delete(trafoId);
+        }
+        _tumVeriler = _tumVeriler.filter(v => v.trafoId !== trafoId);
+        _tumVerilerIndex.clear();
+        _tumVeriler.forEach((v, i) => {
+            _tumVerilerIndex.set(`${v.trafoId}|${v.tarih}`, i);
+        });
+    }
+
     // ─── Veri Aralığı Parametreleri ───
     const BASLANGIC_TARIH = '2025-01-01';
     
@@ -293,6 +315,7 @@ const VeriModulu = (() => {
         getTrafolar: () => TRAFOLAR,
         getTrafo: (id) => TRAFOLAR.find((t) => t.id === id),
         trafoEkle,
+        trafoSil,
         getTumVeriler: () => _tumVeriler,
         getTrafoVerileri: (trafoId) => _veriMap.get(trafoId) || [],
         getAylikVeriler: (trafoId, yil, ay) => {

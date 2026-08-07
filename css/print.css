@@ -1,0 +1,134 @@
+/**
+ * SPARK Print CSS — Rapor PDF Çıktısı için
+ * ─────────────────────────────────────────
+ * Tarayıcının Ctrl+P / window.print() dialog'u ile
+ * sadece rapor belgesini A4 formatında basar.
+ */
+
+@media print {
+    /* ── Sayfa Ayarları ── */
+    @page {
+        size: A4 portrait;
+        margin: 1.5cm 1.8cm;
+    }
+
+    /* ── Gizlenecek UI Elemanları ── */
+    .app-topbar,
+    .app-sidebar,
+    .rapor-topbar,
+    #rapor-export-btns,
+    .toast-container,
+    .notification-dropdown,
+    #nav-raporlama,
+    button,
+    select,
+    label,
+    .loading-spinner {
+        display: none !important;
+    }
+
+    /* ── Layout Sıfırlama ── */
+    body {
+        background: #fff !important;
+        color: #111 !important;
+        font-family: 'Inter', sans-serif;
+        font-size: 10pt;
+    }
+
+    .app-layout,
+    .app-body,
+    .app-main {
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Sadece raporlama screen'i göster */
+    .screen {
+        display: none !important;
+    }
+
+    #screen-raporlama {
+        display: block !important;
+    }
+
+    #raporlama-container,
+    .rapor-screen {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    #rapor-preview-area {
+        overflow: visible !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+
+    /* ── Rapor Belgesi Stili ── */
+    #rapor-document {
+        max-width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: #fff !important;
+        color: #111 !important;
+    }
+
+    /* Başlık alanı rengi print'te de görünsün */
+    #rapor-document > div:first-child {
+        background: #1e3a5f !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color: #fff !important;
+    }
+
+    /* Tablo renkleri print'te korunsun */
+    table,
+    th,
+    td {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Tablo satırları sayfa kırılmasında bölünmesin */
+    tr {
+        page-break-inside: avoid;
+    }
+
+    /* Bölümler arası kırılma */
+    .rapor-section-title {
+        page-break-after: avoid;
+    }
+
+    /* Badge arka planları görünsün */
+    span[style*="background"] {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Soluk renkler siyah/koyu yap */
+    [style*="color:var(--text-muted)"],
+    [style*="color: var(--text-muted)"] {
+        color: #555 !important;
+    }
+
+    [style*="background:var(--bg-secondary)"],
+    [style*="background: var(--bg-secondary)"] {
+        background: #f8f9fa !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    [style*="background:var(--bg-card)"],
+    [style*="background: var(--bg-card)"] {
+        background: #fff !important;
+    }
+
+    [style*="border-color:var(--border-color)"],
+    [style*="border: 1px solid var(--border-color)"] {
+        border-color: #ddd !important;
+    }
+}

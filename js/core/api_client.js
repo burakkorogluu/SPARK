@@ -245,6 +245,17 @@ const ApiClient = (() => {
         });
     }
 
+    async function fetchReportData(transformerId, year, month) {
+        const url = `${API_BASE_URL}/report/summary?transformer_id=${encodeURIComponent(transformerId)}&year=${year}&month=${month}`;
+        return _fetch(url);
+    }
+
+    async function deleteTransformer(transformerId) {
+        return _fetch(`${API_BASE_URL}/transformers/${encodeURIComponent(transformerId)}`, {
+            method: 'DELETE'
+        });
+    }
+
     return {
         fetchMeasurements,
         fetchTransformers,
@@ -257,6 +268,8 @@ const ApiClient = (() => {
         applyManeuver,
         fetchManeuverHistory,
         rollbackManeuver,
+        fetchReportData,
+        deleteTransformer,
         addTransformer,
         addFeeder,
         addReactor,
@@ -272,6 +285,7 @@ const ApiClient = (() => {
         fetchScadaState,
         toggleScadaBreaker,
         ackScadaAlarm,
-        uploadExcel
+        uploadExcel,
+        fetchReportData
     };
 })();
