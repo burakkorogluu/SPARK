@@ -481,15 +481,15 @@ const RaporlamaUI = (() => {
         </div>`;
     }
 
-    // ─── exportPDF(): html2pdf ile direkt indirme ─────────────────────
+    // ─── exportPDF(): A4 Sayfasına Sığdırma (html2canvas + jsPDF) ─────────────────────
     function exportPDF() {
         if (!_currentData) {
             App.showToast('Önce rapor oluşturun.', 'warning');
             return;
         }
         
-        if (typeof html2pdf === 'undefined') {
-            App.showToast('html2pdf kütüphanesi yüklenemedi.', 'error');
+        if (typeof html2canvas === 'undefined' || typeof jspdf === 'undefined') {
+            App.showToast('PDF kütüphaneleri yüklenemedi. Lütfen sayfayı yenileyin.', 'error');
             return;
         }
 
@@ -499,28 +499,60 @@ const RaporlamaUI = (() => {
         const { trafo, donem } = _currentData;
         const fileName = `REACT_Rapor_${trafo.id}_${donem.yil}_${String(donem.ay).padStart(2, '0')}.pdf`;
 
-        const opt = {
-            margin:       [10, 10, 10, 10], // top, left, bottom, right in mm
-            filename:     fileName,
-            image:        { type: 'jpeg', quality: 1.0 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
         App.showToast('PDF oluşturuluyor, lütfen bekleyin...', 'info');
         
-        // Hide the shadow temporarily so the PDF doesn't have a weird floating box shadow
-        const originalShadow = element.style.boxShadow;
-        element.style.boxShadow = 'none';
+        // Kutu kaymalarını önlemek için container'ı sabitle
+        const originalWidth = element.style.width;
+        const originalMaxWidth = element.style.maxWidth;
+        const originalMargin = element.style.margin;
+        
+        // Genişliği daha büyük tutarak kutu içi yazıların sıkışmasını (taşmasını) engelliyoruz
+        element.style.width = '1400px';
+        element.style.maxWidth = '1400px';
+        element.style.margin = '0';
 
-        html2pdf().set(opt).from(element).save().then(() => {
-            element.style.boxShadow = originalShadow;
-            App.showToast(`PDF raporu indirildi: ${fileName}`, 'success');
-        }).catch(err => {
-            element.style.boxShadow = originalShadow;
-            console.error('PDF Hatası:', err);
-            App.showToast('PDF oluşturulurken hata oluştu.', 'error');
-        });
+        // DOM'un güncellenmesi için çok kısa bir süre bekle
+        setTimeout(async () => {
+            try {
+                // Elementin resmini çek
+                const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false });
+                
+                // Stilleri eski haline getir (kullanıcı beklerken arayüz düzelsin)
+                element.style.width = originalWidth;
+                element.style.maxWidth = originalMaxWidth;
+                element.style.margin = originalMargin;
+
+                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                
+                // jsPDF ile standart A4 PDF oluştur
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                
+                // Resmi A4 sayfasına sığacak şekilde ölçekle (aspect ratio korunur)
+                // Hem genişliğe hem yüksekliğe sığması için min oran alınır
+                const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
+                const finalWidth = canvas.width * ratio;
+                const finalHeight = canvas.height * ratio;
+                
+                // Yatayda ortala, üstten 5mm boşluk bırak
+                const x = (pdfWidth - finalWidth) / 2;
+                const y = 5;
+                
+                pdf.addImage(imgData, 'JPEG', x, y, finalWidth, finalHeight);
+                pdf.save(fileName);
+                
+                App.showToast(`PDF raporu indirildi: ${fileName}`, 'success');
+            } catch (err) {
+                element.style.width = originalWidth;
+                element.style.maxWidth = originalMaxWidth;
+                element.style.margin = originalMargin;
+                console.error('PDF Hatası:', err);
+                App.showToast('PDF oluşturulurken hata oluştu.', 'error');
+            }
+        }, 150);
     }
 
     // ─── exportExcel(): SheetJS ile .xlsx ─────────────────────────
