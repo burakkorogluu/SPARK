@@ -57,35 +57,35 @@ const VeriModulu = (() => {
     const TRAFOLAR = [
         {
             id: 'UMR-TRA',
-            adi: 'Ümraniye TM – TRA',
-            bolge: 'Ümraniye',
+            adi: 'TM-A-TRA',
+            bolge: 'TM-A',
             tip: 'Yer altı kablolu',
             kapasite: 100,
-            aciklama: 'Ümraniye Trafo Merkezi, 100 MVA Güç, Yer altı kablo ağı',
+            aciklama: 'TM-A Trafo Merkezi, 100 MVA Güç, Yer altı kablo ağı',
         },
         {
             id: 'UMR-TRB',
-            adi: 'Ümraniye TM – TRB',
-            bolge: 'Ümraniye',
+            adi: 'TM-A-TRB',
+            bolge: 'TM-A',
             tip: 'Yer altı kablolu',
             kapasite: 100,
-            aciklama: 'Ümraniye Trafo Merkezi, 100 MVA Güç, %14.8 kapasitif oran ile en riskli trafo',
+            aciklama: 'TM-A Trafo Merkezi, 100 MVA Güç, %14.8 kapasitif oran ile en riskli trafo',
         },
         {
             id: 'KRT-TRA',
-            adi: 'Kartal TM – TRA',
-            bolge: 'Kartal',
+            adi: 'TM-B-TRA',
+            bolge: 'TM-B',
             tip: 'Karma (Kablo + Havai)',
             kapasite: 80,
-            aciklama: 'Kartal Trafo Merkezi, 80 MVA Güç, Karma hat yapısı',
+            aciklama: 'TM-B Trafo Merkezi, 80 MVA Güç, Karma hat yapısı',
         },
         {
             id: 'KRT-TRB',
-            adi: 'Kartal TM – TRB',
-            bolge: 'Kartal',
+            adi: 'TM-B-TRB',
+            bolge: 'TM-B',
             tip: 'Karma (Kablo + Havai)',
             kapasite: 80,
-            aciklama: 'Kartal Trafo Merkezi, 80 MVA Güç, Karma hat yapısı',
+            aciklama: 'TM-B Trafo Merkezi, 80 MVA Güç, Karma hat yapısı',
         },
     ];
 
@@ -95,8 +95,9 @@ const VeriModulu = (() => {
         if (kayitli) {
             _ekTrafolar = JSON.parse(kayitli);
             if (Array.isArray(_ekTrafolar)) {
-                // Hatalı/bozuk kayıtları temizle (Örn: string olarak kaydedilmiş olanlar)
-                const gecerliTrafolar = _ekTrafolar.filter(t => t && typeof t === 'object' && t.id);
+                // Hatalı/bozuk kayıtları temizle ve varsayılan trafoların eski kopyalarını almayı engelle
+                const varsayilanIdler = ['UMR-TRA', 'UMR-TRB', 'KRT-TRA', 'KRT-TRB'];
+                const gecerliTrafolar = _ekTrafolar.filter(t => t && typeof t === 'object' && t.id && !varsayilanIdler.includes(t.id));
                 gecerliTrafolar.forEach(t => TRAFOLAR.push(t));
                 
                 // Eğer bozuk kayıtlar varsa localStorage'ı temiziyle güncelle

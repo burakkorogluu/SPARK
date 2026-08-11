@@ -636,6 +636,14 @@ const ManeuverUI = (() => {
                             <span class="sim-metric-value">%${sim.source_cap_ratio_before} → %${sim.source_cap_ratio_after}</span>
                         </div>
                         ` : ''}
+                        ${sim.source_penalty_cost_before !== undefined ? `
+                        <div class="sim-metric">
+                            <span class="sim-metric-label">Ceza / Maliyet</span>
+                            <span class="sim-metric-value" style="color: ${sim.source_penalty_cost_after > sim.source_penalty_cost_before ? '#ef4444' : (sim.source_penalty_cost_after < sim.source_penalty_cost_before ? '#10b981' : 'inherit')}">
+                                ${sim.source_penalty_cost_before > 0 ? sim.source_penalty_cost_before.toLocaleString('tr-TR') + ' TL' : '0 TL'} → ${sim.source_penalty_cost_after > 0 ? sim.source_penalty_cost_after.toLocaleString('tr-TR') + ' TL' : '0 TL'}
+                            </span>
+                        </div>
+                        ` : ''}
                         <div class="sim-metric">
                             <span class="sim-metric-label">Risk Seviyesi</span>
                             <span class="sim-metric-value">
@@ -674,6 +682,14 @@ const ManeuverUI = (() => {
                         <div class="sim-metric">
                             <span class="sim-metric-label">Kapasitif Oran</span>
                             <span class="sim-metric-value">%${sim.target_cap_ratio_before} → %${sim.target_cap_ratio_after}</span>
+                        </div>
+                        ` : ''}
+                        ${sim.target_penalty_cost_before !== undefined ? `
+                        <div class="sim-metric">
+                            <span class="sim-metric-label">Ceza / Maliyet</span>
+                            <span class="sim-metric-value" style="color: ${sim.target_penalty_cost_after > sim.target_penalty_cost_before ? '#ef4444' : (sim.target_penalty_cost_after < sim.target_penalty_cost_before ? '#10b981' : 'inherit')}">
+                                ${sim.target_penalty_cost_before > 0 ? sim.target_penalty_cost_before.toLocaleString('tr-TR') + ' TL' : '0 TL'} → ${sim.target_penalty_cost_after > 0 ? sim.target_penalty_cost_after.toLocaleString('tr-TR') + ' TL' : '0 TL'}
+                            </span>
                         </div>
                         ` : ''}
                         <div class="sim-metric">

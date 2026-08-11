@@ -16,10 +16,10 @@ Sistem, gerçek TEİAŞ yük kayıtları, OSOS tabanlı saatlik okumalar ve **Op
 Veriler SQLite veritabanı (`osos_sim.db`) üzerinde tutulmakta olup, SQLAlchemy ORM ile yönetilmektedir. Algoritmalar, 1.5 yıllık (yaklaşık 13.000+ saatlik) tarihsel veriyi işleyerek eğitilir.
 
 **Tanımlı Örnek Trafolar:**
-* 🏙️ **Ümraniye TM – TRA (`UMR-TRA`)**: `100 MVA` 
-* 🏙️ **Ümraniye TM – TRB (`UMR-TRB`)**: `100 MVA` (Kapasitif riski yüksek)
-* ⚓ **Kartal TM – TRA (`KRT-TRA`)**: `80 MVA`
-* ⚓ **Kartal TM – TRB (`KRT-TRB`)**: `80 MVA`
+* 🏙️ **TM-A-TRA (`UMR-TRA`)**: `100 MVA`
+* 🏙️ **TM-A-TRB (`UMR-TRB`)**: `100 MVA` (Kapasitif riski yüksek)
+* ⚓ **TM-B-TRA (`KRT-TRA`)**: `80 MVA`
+* ⚓ **TM-B-TRB (`KRT-TRB`)**: `80 MVA`
 
 ---
 

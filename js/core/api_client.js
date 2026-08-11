@@ -250,6 +250,13 @@ const ApiClient = (() => {
         return _fetch(url);
     }
 
+    async function fetchMultiReportData(transformerIds, year, month) {
+        // transformerIds: string[] — virgülle birleştirerek gönderilir
+        const ids = transformerIds.join(',');
+        const url = `${API_BASE_URL}/report/multi-summary?transformer_ids=${encodeURIComponent(ids)}&year=${year}&month=${month}`;
+        return _fetch(url);
+    }
+
     async function deleteTransformer(transformerId) {
         return _fetch(`${API_BASE_URL}/transformers/${encodeURIComponent(transformerId)}`, {
             method: 'DELETE'
@@ -269,6 +276,7 @@ const ApiClient = (() => {
         fetchManeuverHistory,
         rollbackManeuver,
         fetchReportData,
+        fetchMultiReportData,
         deleteTransformer,
         addTransformer,
         addFeeder,

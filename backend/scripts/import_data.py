@@ -16,10 +16,10 @@ def setup_db():
     
     db: Session = SessionLocal()
     transformers = [
-        models.Transformer(id="UMR-TRA", name="Ümraniye TM – TRA", region="Ümraniye", power_mva=100),
-        models.Transformer(id="UMR-TRB", name="Ümraniye TM – TRB", region="Ümraniye", power_mva=100),
-        models.Transformer(id="KRT-TRA", name="Kartal TM – TRA", region="Kartal", power_mva=80),
-        models.Transformer(id="KRT-TRB", name="Kartal TM – TRB", region="Kartal", power_mva=80),
+        models.Transformer(id="UMR-TRA", name="TM-A-TRA", region="TM-A", power_mva=100),
+        models.Transformer(id="UMR-TRB", name="TM-A-TRB", region="TM-A", power_mva=100),
+        models.Transformer(id="KRT-TRA", name="TM-B-TRA", region="TM-B", power_mva=80),
+        models.Transformer(id="KRT-TRB", name="TM-B-TRB", region="TM-B", power_mva=80),
     ]
     db.add_all(transformers)
     db.commit()

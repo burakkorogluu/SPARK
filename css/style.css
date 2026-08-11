@@ -196,7 +196,8 @@ body {
     letter-spacing: 1.5px;
     color: var(--text-primary);
     line-height: 1.2;
-    margin-left: 20px;
+    margin-right: 30px;
+    margin-left: -4px;
 }
 
 .brand-text span {

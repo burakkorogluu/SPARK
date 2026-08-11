@@ -36,10 +36,10 @@ const ThemeManager = (() => {
         if (customLogo) {
             // style.display='none' kalmışsa diye blokluyoruz
             customLogo.style.display = 'block';
-            customLogo.src = themeName === 'light' ? 'icon.png?v=' + ts : 'icon1.png?v=' + ts;
+            customLogo.src = themeName === 'light' ? 'assets/images/icon11.jpeg?v=' + ts : 'assets/images/icon31.jpg?v=' + ts;
         }
         if (favicon) {
-            favicon.href = themeName === 'light' ? 'icon.png?v=' + ts : 'icon1.png?v=' + ts;
+            favicon.href = themeName === 'light' ? 'assets/images/icon11.jpeg?v=' + ts : 'assets/images/icon31.jpg?v=' + ts;
         }
 
         if (typeof GrafikModulu !== 'undefined' && GrafikModulu.updateTheme) {

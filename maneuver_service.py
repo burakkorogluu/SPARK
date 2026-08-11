@@ -147,9 +147,9 @@ def _calculate_suggestion_score(stats, alt_stats, load_diff, is_reactive=False):
     return min(100, max(0, score))
 
 
-def get_projected_monthly_totals(db: Session, trafo_id: str):
+def _get_projected_monthly_ratios(db: Session, trafo_id: str):
     """
-    Calculate the projected end-of-month totals (active, cap, ind)
+    Calculate the projected end-of-month capacitive and inductive ratios
     by combining historical monthly totals with ensemble forecasts.
     """
     now = datetime.now()
@@ -158,7 +158,7 @@ def get_projected_monthly_totals(db: Session, trafo_id: str):
     # 1. Get current month's historical totals
     summaries = get_monthly_summary(db, year, month, transformer_id=trafo_id)
     if not summaries:
-        return 0, 0, 0
+        return 0, 0
     
     ozet = summaries[0]["ozet"]
     hist_aktif = ozet["toplamAktif"]
@@ -176,14 +176,6 @@ def get_projected_monthly_totals(db: Session, trafo_id: str):
     total_aktif = hist_aktif + pred_aktif
     total_kap = hist_kap + pred_kap
     total_end = hist_end + pred_end
-    
-    return total_aktif, total_kap, total_end
-
-def get_projected_monthly_ratios(db: Session, trafo_id: str):
-    """
-    Calculate the projected end-of-month capacitive and inductive ratios.
-    """
-    total_aktif, total_kap, total_end = get_projected_monthly_totals(db, trafo_id)
     
     proj_kap_ratio = (total_kap / total_aktif * 100) if total_aktif > 0 else 0.0
     proj_end_ratio = (total_end / total_aktif * 100) if total_aktif > 0 else 0.0
@@ -391,7 +383,7 @@ def analyze_and_suggest_maneuvers(db: Session):
                     suggestion_id += 1
 
         # 4. Predictive Maneuvers (Tahmine Dayalı Öneriler)
-        proj_kap_ratio, proj_end_ratio = get_projected_monthly_ratios(db, trafo.id)
+        proj_kap_ratio, proj_end_ratio = _get_projected_monthly_ratios(db, trafo.id)
         
         # Predictive scoring base: scale based on how much it exceeds the threshold (15 for cap, 20 for ind)
         if proj_kap_ratio > 14.5:
@@ -752,14 +744,6 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
             f"kapasitif oranı artırabilir. Ay sonu tahmini (müdahalesiz): %{source_cap_ratio_before:.1f}"
         )
 
-    REAKTIF_BIRIM_FIYAT = 1.35
-    
-    source_penalty_cost_before = src_eom_cap_before * REAKTIF_BIRIM_FIYAT if source_cap_ratio_before >= 15.0 else 0
-    source_penalty_cost_after = src_eom_cap_after * REAKTIF_BIRIM_FIYAT if source_cap_ratio_after >= 15.0 else 0
-    
-    target_penalty_cost_before = tgt_eom_cap_before * REAKTIF_BIRIM_FIYAT if target_cap_ratio_before >= 15.0 else 0
-    target_penalty_cost_after = tgt_eom_cap_after * REAKTIF_BIRIM_FIYAT if target_cap_ratio_after >= 15.0 else 0
-
     return {
         "asset_type": asset_type,
         "asset_id": asset_id,
@@ -780,10 +764,6 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
         "source_cap_ratio_after": round(source_cap_ratio_after, 1),
         "target_cap_ratio_before": round(target_cap_ratio_before, 1),
         "target_cap_ratio_after": round(target_cap_ratio_after, 1),
-        "source_penalty_cost_before": round(source_penalty_cost_before, 2),
-        "source_penalty_cost_after": round(source_penalty_cost_after, 2),
-        "target_penalty_cost_before": round(target_penalty_cost_before, 2),
-        "target_penalty_cost_after": round(target_penalty_cost_after, 2),
         "source_risk_before": _calculate_risk_level(source_ratio_before),
         "source_risk_after": _calculate_risk_level(source_ratio_after),
         "target_risk_before": _calculate_risk_level(target_ratio_before),
@@ -792,7 +772,6 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
         "overload_warning": overload_warning,
         "reactive_improvement": reactive_msg
     }
-
 
 
 def apply_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_id: str, reason: Optional[str] = None, override_overload: bool = False):

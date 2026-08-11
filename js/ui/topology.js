@@ -176,8 +176,8 @@ const TopolojiModulu = (() => {
         feedersEl.innerHTML = '';
 
         const bolgeIkonlari = {
-            'Ümraniye': '🏙️',
-            'Kartal': '⚓',
+            'TM-A': '🏙️',
+            'TM-B': '⚓',
             'Merkez': '🏢',
             'Sanayi': '🏭',
             'Sahil': '🏖️',

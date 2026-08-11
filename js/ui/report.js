@@ -19,6 +19,7 @@ const RaporlamaUI = (() => {
     };
 
     let _currentData = null;
+    let _currentMultiData = null;
     let _trafolar = [];
 
     // ─── Yardımcılar ─────────────────────────────────────────────
@@ -108,6 +109,16 @@ const RaporlamaUI = (() => {
                     Rapor Oluştur
                 </button>
 
+                <!-- Özet Rapor Butonu -->
+                <button id="btn-ozet-rapor" onclick="RaporlamaUI.openOzetPanel()"
+                    style="display:flex; align-items:center; gap:7px; padding:7px 16px;
+                    background:transparent; color:var(--color-primary); border:1px solid var(--color-primary);
+                    font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; border-radius:4px;"
+                    onmouseover="this.style.background='rgba(59,130,246,0.08)'" onmouseout="this.style.background='transparent'">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    Özet Rapor
+                </button>
+
                 <!-- Export Butonları (başta gizli) -->
                 <div id="rapor-export-btns" style="display:none; align-items:center; gap:8px; margin-left:auto;">
                     <button id="btn-rapor-pdf" onclick="RaporlamaUI.exportPDF()"
@@ -124,6 +135,40 @@ const RaporlamaUI = (() => {
                         onmouseover="this.style.background='rgba(16,185,129,0.1)'" onmouseout="this.style.background='transparent'">
                         Excel İndir
                     </button>
+                </div>
+            </div>
+
+            <!-- Özet Rapor Seçim Paneli (başta gizli) -->
+            <div id="ozet-rapor-panel" style="display:none; flex-direction:column; gap:0;
+                background:var(--bg-secondary); border-bottom:1px solid var(--border-color);
+                padding:14px 20px; flex-shrink:0;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <span style="font-size:12px; font-weight:700; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">Özet Rapor</span>
+                        <span style="font-size:11px; color:var(--text-muted);">Trafoları seçin, dönem seçin, Oluştur'a basın</span>
+                    </div>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <button onclick="RaporlamaUI.selectAllOzet(true)" style="font-size:11px; font-weight:600; padding:3px 10px;
+                            border:none; background:rgba(59,130,246,0.12); color:var(--color-primary); border-radius:4px; cursor:pointer;">Tümü</button>
+                        <button onclick="RaporlamaUI.selectAllOzet(false)" style="font-size:11px; font-weight:600; padding:3px 10px;
+                            border:none; background:var(--bg-card); color:var(--text-muted); border-radius:4px; cursor:pointer;">Temizle</button>
+                        <button onclick="RaporlamaUI.generateOzetRapor()" style="font-size:12px; font-weight:700; padding:5px 14px;
+                            border:none; background:var(--color-primary); color:#fff; border-radius:4px; cursor:pointer;">Oluştur</button>
+                        <button onclick="RaporlamaUI.closeOzetPanel()" style="font-size:14px; font-weight:700; padding:4px 8px;
+                            border:none; background:transparent; color:var(--text-muted); border-radius:4px; cursor:pointer;">✕</button>
+                    </div>
+                </div>
+                <div id="ozet-trafo-cblist" style="display:flex; flex-wrap:wrap; gap:6px;">
+                    ${trafolar.map(t => `
+                    <label style="display:flex; align-items:center; gap:5px; padding:5px 11px;
+                        background:var(--bg-card); border-radius:6px; cursor:pointer;
+                        font-size:12px; color:var(--text-primary); user-select:none;
+                        border:1px solid transparent; transition:border-color 0.15s;"
+                        onmouseover="this.style.borderColor='var(--color-primary)'" onmouseout="this.style.borderColor='transparent'">
+                        <input type="checkbox" class="ozet-trafo-cb" value="${t.id}" checked
+                            style="accent-color:var(--color-primary); cursor:pointer;">
+                        ${App.escapeHTML(t.adi)}
+                    </label>`).join('')}
                 </div>
             </div>
 
@@ -197,7 +242,7 @@ const RaporlamaUI = (() => {
 
     // ─── _renderPreview(): Rapor HTML'ini oluştur ─────────────────
     function _renderPreview(data, container) {
-        const { trafo, donem, ozet, gunlukVeriler, manevraGecmisi, alarmGecmisi } = data;
+        const { trafo, donem, ozet, gunlukVeriler, kritikNoktalar, manevraGecmisi, alarmGecmisi } = data;
         const ayAdi = AY_ADLARI[donem.ay - 1];
         const nowStr = new Date().toLocaleString('tr-TR');
         const risk = ozet?.genelRisk?.seviye || 'guvenli';
@@ -275,7 +320,7 @@ const RaporlamaUI = (() => {
                     padding-bottom:8px; border-bottom: 0;">
                     RİSK & CEZA ANALİZİ
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:stretch;">
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:14px; align-items:stretch;">
 
                     <!-- Genel Risk -->
                     <div style="padding:24px; background:var(--bg-card); border: none !important; border-radius:12px; ">
@@ -316,47 +361,234 @@ const RaporlamaUI = (() => {
                             </div>
                         </div>
                     </div>
+
+                    <!-- Ücretlendirme Durumu -->
+                    ${ozet?.ucretlendirme ? `
+                    <div style="padding:24px; background:var(--bg-card); border: none !important; border-radius:12px; border-top: 4px solid ${ozet.ucretlendirme.toplamCezaTL > 0 ? '#ef4444' : '#10b981'} !important;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                            <div style="font-size:13px; font-weight:600; color:var(--text-muted); letter-spacing:0.5px;">GÜNCEL CEZA TUTARI</div>
+                            <div style="padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; background:${ozet.ucretlendirme.toplamCezaTL > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)'}; color:${ozet.ucretlendirme.toplamCezaTL > 0 ? '#ef4444' : '#10b981'};">
+                                ${ozet.ucretlendirme.toplamCezaTL > 0 ? 'FATURA EDİLECEK' : '0 TL'}
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:12px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:13px; color:var(--text-muted);">Kapasitif Ceza Tutarı</span>
+                                <span style="font-size:14px; font-weight:600; color:${ozet.ucretlendirme.kapasitifCezaTL > 0 ? '#ef4444' : 'var(--text-primary)'};">${fmt(ozet.ucretlendirme.kapasitifCezaTL)} TL</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:13px; color:var(--text-muted);">Endüktif Ceza Tutarı</span>
+                                <span style="font-size:14px; font-weight:600; color:${ozet.ucretlendirme.enduktifCezaTL > 0 ? '#ef4444' : 'var(--text-primary)'};">${fmt(ozet.ucretlendirme.enduktifCezaTL)} TL</span>
+                            </div>
+                            ${ozet.ucretlendirme.toplamCezaTL > 0 ? `
+                            <div style="margin-top:8px; padding-top:12px; border-top:1px dashed var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:11px; color:var(--text-muted);">TOPLAM YANSITILACAK</span>
+                                <strong style="font-size:16px; color:#ef4444;">${fmt(ozet.ucretlendirme.toplamCezaTL)} TL</strong>
+                            </div>` : ''}
+                        </div>
+                    </div>` : ''}
                 </div>
             </div>
 
-            <!-- Günlük Veriler Tablosu -->
-            ${gunlukVeriler.length > 0 ? `
+            <!-- Kritik Günler Bölümü -->
             <div>
-                <div class="rapor-section-title" style="font-size:11px; font-weight:700; letter-spacing:2px;
+                <div style="font-size:11px; font-weight:700; letter-spacing:2px;
                     text-transform:uppercase; color:var(--text-muted); margin-bottom:14px;
-                    padding-bottom:8px; border-bottom: 0;">
-                    GÜNLÜK VERİLER (${gunlukVeriler.length} gün)
+                    padding-bottom:8px; border-bottom:0;">
+                    KRİTİK GÜNLER
                 </div>
-                <div style="overflow-x:auto; border: none !important; border-radius:8px; margin-top:8px;">
-                    <table style="width:100%; border-collapse:collapse; font-size:13px;">
-                        <thead>
-                            <tr style="background:var(--bg-secondary);">
+                ${(() => {
+                    const kn = kritikNoktalar || {};
+                    const LIMIT_KAP = 15;
+                    const LIMIT_END = 20;
+                    const asimGunleri = kn.limitAsimGunleri || [];
+                    const pikKap = kn.pikKapasitif;
+                    const pikEnd = kn.pikEnduktif;
+                    const ilkCeza = kn.ilkCezaRiskiTarihi;
+
+                    // Riskli günler: risk seviyesi guvenli değil olanlar
+                    const riskliGunler = (gunlukVeriler || []).filter(g => g.riskSeviye !== 'guvenli');
+
+                    let html = '<div style="display:flex; flex-direction:column; gap:8px;">';
+
+                    // Pik kapasitif günü
+                    if (pikKap) {
+                        html += `<div style="padding:10px 14px; background:var(--bg-card); border-radius:8px;
+                            display:flex; align-items:center; justify-content:space-between;">
+                            <div>
+                                <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">En Yüksek Kapasitif Oran</div>
+                                <div style="font-size:13px; color:var(--text-primary); margin-top:2px;">${pikKap.tarih}</div>
+                            </div>
+                            <strong style="font-size:18px; color:${pikKap.oran >= LIMIT_KAP ? '#ef4444' : '#f59e0b'};">%${fmt(pikKap.oran)}</strong>
+                        </div>`;
+                    }
+
+                    // Pik endüktif günü
+                    if (pikEnd) {
+                        html += `<div style="padding:10px 14px; background:var(--bg-card); border-radius:8px;
+                            display:flex; align-items:center; justify-content:space-between;">
+                            <div>
+                                <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">En Yüksek Endüktif Oran</div>
+                                <div style="font-size:13px; color:var(--text-primary); margin-top:2px;">${pikEnd.tarih}</div>
+                            </div>
+                            <strong style="font-size:18px; color:${pikEnd.oran >= LIMIT_END ? '#ef4444' : '#06b6d4'};">%${fmt(pikEnd.oran)}</strong>
+                        </div>`;
+                    }
+
+                    // İlk ceza riski tarihi
+                    if (ilkCeza) {
+                        html += `<div style="padding:10px 14px; background:rgba(239,68,68,0.07); border-radius:8px;
+                            border-left:3px solid #ef4444; display:flex; align-items:center; justify-content:space-between;">
+                            <div style="font-size:13px; font-weight:600; color:var(--text-muted);">Bu aydaki ilk ceza riski başlangıcı</div>
+                            <strong style="color:#ef4444;">${ilkCeza}</strong>
+                        </div>`;
+                    }
+
+                    // Limit aşım günleri
+                    if (asimGunleri.length > 0) {
+                        html += `<div style="padding:10px 14px; background:var(--bg-card); border-radius:8px;">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">
+                                Limit Aşımı Yaşanan Günler (${asimGunleri.length} gün)
+                            </div>
+                            <div style="overflow-x:auto;">
+                                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                                    <thead><tr style="background:var(--bg-secondary);">
+                                        <th style="${_th()}">Tarih</th>
+                                        <th style="${_th()} text-align:right">Kap. Oran (%)</th>
+                                        <th style="${_th()} text-align:right">End. Oran (%)</th>
+                                        <th style="${_th()}">Aşım</th>
+                                    </tr></thead>
+                                    <tbody>
+                                        ${asimGunleri.map(g => `<tr style="border-bottom:0; background:transparent;">
+                                            <td style="${_td()} font-weight:600">${g.tarih}</td>
+                                            <td style="${_td()} text-align:right; color:${g.kapAsim ? '#ef4444' : 'inherit'}; font-weight:${g.kapAsim ? 700 : 400}">${fmt(g.kapasitifOran)}</td>
+                                            <td style="${_td()} text-align:right; color:${g.endAsim ? '#ef4444' : 'inherit'}; font-weight:${g.endAsim ? 700 : 400}">${fmt(g.enduktifOran)}</td>
+                                            <td style="${_td()}">
+                                                ${g.kapAsim ? `<span style="padding:1px 6px; border-radius:3px; font-size:11px; font-weight:700; background:rgba(239,68,68,0.12); color:#ef4444; margin-right:3px;">Kap</span>` : ''}
+                                                ${g.endAsim ? `<span style="padding:1px 6px; border-radius:3px; font-size:11px; font-weight:700; background:rgba(239,68,68,0.12); color:#ef4444;">End</span>` : ''}
+                                            </td>
+                                        </tr>`).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>`;
+                    } else {
+                        html += `<div style="padding:10px 14px; background:rgba(16,185,129,0.07); border-radius:8px;
+                            border-left:3px solid #10b981; color:#10b981; font-weight:600; font-size:13px;">
+                            Bu ay boyunca limit aşımı yaşanmadı
+                        </div>`;
+                    }
+
+                    // Riskli günler (sadece limit aşımı dışında risk seviyesi yuksek olanlar)
+                    const ekstraRiskliGunler = riskliGunler.filter(g =>
+                        !asimGunleri.some(a => a.tarih === g.tarih)
+                    );
+                    if (ekstraRiskliGunler.length > 0) {
+                        html += `<div style="padding:10px 14px; background:var(--bg-card); border-radius:8px;">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">
+                                Dikkat Gerektiren Diğer Günler (${ekstraRiskliGunler.length} gün)
+                            </div>
+                            <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                                ${ekstraRiskliGunler.map(g => `<span style="padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600;
+                                    background:${RISK_BADGE[g.riskSeviye]?.bg || 'rgba(245,158,11,0.12)'};
+                                    color:${RISK_BADGE[g.riskSeviye]?.hex || '#f59e0b'}"
+                                    title="Kap:%${fmt(g.kapasitifOran)} End:%${fmt(g.enduktifOran)}">
+                                    ${g.tarih} (${(RISK_BADGE[g.riskSeviye]?.label||g.riskSeviye)})
+                                </span>`).join('')}
+                            </div>
+                        </div>`;
+                    }
+
+                    html += '</div>';
+                    return html;
+                })()}
+            </div>
+
+            <!-- Resmi Tatiller ve Bayramlar -->
+            ${(() => {
+                const kn = kritikNoktalar || {};
+                const tatilGunleri = kn.tatilGunleri || [];
+                if (tatilGunleri.length === 0) return '';
+                
+                return `
+                <div style="margin-top:24px;">
+                    <div style="font-size:11px; font-weight:700; letter-spacing:2px;
+                        text-transform:uppercase; color:var(--text-muted); margin-bottom:14px;
+                        padding-bottom:8px; border-bottom:0;">
+                        RESMİ TATİL VE BAYRAMLAR (${tatilGunleri.length} gün)
+                    </div>
+                    <div style="overflow-x:auto; border:none !important; border-radius:8px;">
+                        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                            <thead><tr style="background:var(--bg-secondary);">
                                 <th style="${_th()}">Tarih</th>
-                                <th style="${_th()}">Aktif (kWh)</th>
-                                <th style="${_th()}">Kapasitif (kVAr)</th>
-                                <th style="${_th()}">Endüktif (kVAr)</th>
-                                <th style="${_th()}">Kap. Oran (%)</th>
-                                <th style="${_th()}">End. Oran (%)</th>
-                                <th style="${_th()}">Risk</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${gunlukVeriler.map((g, i) => `
-                            <tr style="border-bottom: 0; background: transparent;">
-                                <td style="${_td()} font-weight:600;">${g.tarih}</td>
-                                <td style="${_td()} text-align:right;">${fmtInt(g.aktif)}</td>
-                                <td style="${_td()} text-align:right;">${fmtInt(g.kapasitif)}</td>
-                                <td style="${_td()} text-align:right;">${fmtInt(g.enduktif)}</td>
-                                <td style="${_td()} text-align:right; color:${g.kapasitifOran >= LIMIT_KAP ? '#ef4444' : 'inherit'}; font-weight:${g.kapasitifOran >= LIMIT_KAP ? '700' : '400'};">
-                                    ${fmt(g.kapasitifOran)}
-                                </td>
-                                <td style="${_td()} text-align:right; color:${g.enduktifOran >= LIMIT_END ? '#ef4444' : 'inherit'};">
-                                    ${fmt(g.enduktifOran)}
-                                </td>
-                                <td style="${_td()}">${riskIcon(g.riskSeviye)} ${riskBadge(g.riskSeviye)}</td>
-                            </tr>`).join('')}
-                        </tbody>
-                    </table>
+                                <th style="${_th()}">Tatil/Bayram</th>
+                                <th style="${_th()} text-align:right">Aktif (kWh)</th>
+                                <th style="${_th()} text-align:right">Kap. Oran (%)</th>
+                                <th style="${_th()} text-align:right">End. Oran (%)</th>
+                            </tr></thead>
+                            <tbody>
+                                ${tatilGunleri.map(t => {
+                                    const dAktif = t.degisim?.aktif || 0;
+                                    const dKap = t.degisim?.kapasitif || 0;
+                                    const dEnd = t.degisim?.enduktif || 0;
+                                    const rBadge = t.riskli 
+                                        ? '<span style="margin-left:6px; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700; background:rgba(239,68,68,0.12); color:#ef4444;">RİSKLİ</span>'
+                                        : '<span style="margin-left:6px; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700; background:rgba(16,185,129,0.12); color:#10b981;">NORMAL</span>';
+                                    return `<tr style="border-bottom:0; background:transparent;">
+                                        <td style="${_td()} font-weight:600">${t.tarih}</td>
+                                        <td style="${_td()} color:var(--color-primary); font-weight:600;">${App.escapeHTML(t.isim)}${rBadge}</td>
+                                        <td style="${_td()} text-align:right;">
+                                            <div>${fmtInt(t.aktif)}</div>
+                                            <div style="font-size:10px; font-weight:600; color:${dAktif > 0 ? '#ef4444' : (dAktif < 0 ? '#10b981' : 'var(--text-muted)')};" title="Aylık ortalamaya göre değişim">${dAktif > 0 ? '▲' : (dAktif < 0 ? '▼' : '')} %${fmt(Math.abs(dAktif))}</div>
+                                        </td>
+                                        <td style="${_td()} text-align:right; color:${t.kapasitifOran >= 15 ? '#ef4444' : 'inherit'}; font-weight:${t.kapasitifOran >= 15 ? 700 : 400}">
+                                            <div>${fmt(t.kapasitifOran)}</div>
+                                            <div style="font-size:10px; font-weight:600; color:${dKap > 0 ? '#ef4444' : (dKap < 0 ? '#10b981' : 'var(--text-muted)')};" title="Aylık ortalamaya göre değişim">${dKap > 0 ? '▲' : (dKap < 0 ? '▼' : '')} ${fmt(Math.abs(dKap))}</div>
+                                        </td>
+                                        <td style="${_td()} text-align:right; color:${t.enduktifOran >= 20 ? '#ef4444' : 'inherit'}; font-weight:${t.enduktifOran >= 20 ? 700 : 400}">
+                                            <div>${fmt(t.enduktifOran)}</div>
+                                            <div style="font-size:10px; font-weight:600; color:${dEnd > 0 ? '#ef4444' : (dEnd < 0 ? '#10b981' : 'var(--text-muted)')};" title="Aylık ortalamaya göre değişim">${dEnd > 0 ? '▲' : (dEnd < 0 ? '▼' : '')} ${fmt(Math.abs(dEnd))}</div>
+                                        </td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            })()}
+
+
+
+            <!-- Ay Sonu Tahmini (Proaktif) -->
+            ${data.aySonuTahmini ? `
+            <div style="margin-top:24px; padding:16px 20px; background:${data.aySonuTahmini.cezaVar ? 'rgba(239,68,68,0.05)' : 'rgba(16,185,129,0.05)'}; border-radius:12px; border-left:4px solid ${data.aySonuTahmini.cezaVar ? '#ef4444' : '#10b981'};">
+                <div style="font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">
+                    AY SONU TAHMİNİ (PROAKTİF CEZA RİSKİ)
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-size:13px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">
+                            ${data.aySonuTahmini.cezaVar ? 'Ceza Sınırı Aşılabilir' : 'Ceza Beklenmiyor'}
+                        </div>
+                        <div style="font-size:12px; color:var(--text-muted);">
+                            Mevcut kullanım alışkanlıkları ve tahmin algoritmalarına (Ensemble) göre ay sonu projeksiyonu.
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:16px;">
+                        <div style="text-align:right;">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Kapasitif</div>
+                            <div style="font-size:16px; font-weight:700; color:${data.aySonuTahmini.kapasitifCeza ? '#ef4444' : 'inherit'};">%${fmt(data.aySonuTahmini.kapasitifOran)}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Endüktif</div>
+                            <div style="font-size:16px; font-weight:700; color:${data.aySonuTahmini.enduktifCeza ? '#ef4444' : 'inherit'};">%${fmt(data.aySonuTahmini.enduktifOran)}</div>
+                        </div>
+                        ${data.aySonuTahmini.tahminiCezaTL > 0 ? `
+                        <div style="text-align:right; border-left:1px solid rgba(0,0,0,0.1); padding-left:16px; margin-left:8px;">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Tahmini Fatura</div>
+                            <div style="font-size:16px; font-weight:700; color:#ef4444;">${fmt(data.aySonuTahmini.tahminiCezaTL)} TL</div>
+                        </div>` : ''}
+                    </div>
                 </div>
             </div>` : ''}
 
@@ -483,7 +715,7 @@ const RaporlamaUI = (() => {
 
     // ─── exportPDF(): A4 Sayfasına Sığdırma (html2canvas + jsPDF) ─────────────────────
     function exportPDF() {
-        if (!_currentData) {
+        if (!_currentData && !_currentMultiData) {
             App.showToast('Önce rapor oluşturun.', 'warning');
             return;
         }
@@ -495,9 +727,15 @@ const RaporlamaUI = (() => {
 
         const element = document.getElementById('rapor-document');
         if (!element) return;
-        
-        const { trafo, donem } = _currentData;
-        const fileName = `REACT_Rapor_${trafo.id}_${donem.yil}_${String(donem.ay).padStart(2, '0')}.pdf`;
+
+        let fileName;
+        if (_currentData) {
+            const { trafo, donem } = _currentData;
+            fileName = `REACT_Rapor_${trafo.id}_${donem.yil}_${String(donem.ay).padStart(2, '0')}.pdf`;
+        } else {
+            const { donem } = _currentMultiData;
+            fileName = `REACT_OzetRapor_${donem.yil}_${String(donem.ay).padStart(2, '0')}.pdf`;
+        }
 
         App.showToast('PDF oluşturuluyor, lütfen bekleyin...', 'info');
         
@@ -587,19 +825,70 @@ const RaporlamaUI = (() => {
             ['EPDK Kapasitif Ceza', (ozet?.kapasitifOran ?? 0) >= 15 ? 'EVET' : 'HAYIR', ''],
             ['EPDK Endüktif Ceza', (ozet?.enduktifOran ?? 0) >= 20 ? 'EVET' : 'HAYIR', ''],
         ];
+        
+        if (_currentData.aySonuTahmini) {
+            const ast = _currentData.aySonuTahmini;
+            ozetData.push(
+                [],
+                ['Ay Sonu Tahmini (Proaktif)'],
+                ['Tahmini Kapasitif Oran', ast.kapasitifOran, '%'],
+                ['Tahmini Endüktif Oran', ast.enduktifOran, '%'],
+                ['Ay Sonu Kapasitif Ceza Riski', ast.kapasitifCeza ? 'RİSKLİ' : 'NORMAL', ''],
+                ['Ay Sonu Endüktif Ceza Riski', ast.enduktifCeza ? 'RİSKLİ' : 'NORMAL', ''],
+                ['Tahmini Yansıyacak Fatura Tutarı', ast.tahminiCezaTL > 0 ? ast.tahminiCezaTL : 0, 'TL']
+            );
+        }
+        
         const ws1 = XLSX.utils.aoa_to_sheet(ozetData);
         ws1['!cols'] = [{ wch: 35 }, { wch: 20 }, { wch: 10 }];
         XLSX.utils.book_append_sheet(wb, ws1, 'Özet');
 
-        // ── Sayfa 2: Günlük Veriler ──
-        const gunlukHeader = ['Tarih', 'Aktif (kWh)', 'Kapasitif (kVAr)', 'Endüktif (kVAr)', 'Kapasitif Oran (%)', 'Endüktif Oran (%)', 'Risk Seviyesi'];
-        const gunlukRows = gunlukVeriler.map(g => [
-            g.tarih, g.aktif, g.kapasitif, g.enduktif,
-            g.kapasitifOran, g.enduktifOran, g.riskSeviye
+        // ── Sayfa 2: Kritik Günler ──
+        const kn = (_currentData.kritikNoktalar) || {};
+        const asimGunleri = kn.limitAsimGunleri || [];
+        const kritikHeader = ['Tarih', 'Kapasitif Oran (%)', 'Endüktif Oran (%)', 'Kap. Aşım', 'End. Aşım'];
+        const kritikRows = asimGunleri.map(g => [
+            g.tarih, g.kapasitifOran, g.enduktifOran,
+            g.kapAsim ? 'EVET' : '', g.endAsim ? 'EVET' : ''
         ]);
-        const ws2 = XLSX.utils.aoa_to_sheet([gunlukHeader, ...gunlukRows]);
-        ws2['!cols'] = [{ wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 14 }];
-        XLSX.utils.book_append_sheet(wb, ws2, 'Günlük Veriler');
+        const ws2Data = [
+            ['REACT — Kritik Günler'],
+            [`Trafo: ${trafo.adi} | ${ayAdi} ${donem.yil}`],
+            [],
+        ];
+        if (kn.pikKapasitif) ws2Data.push(['En Yüksek Kapasitif Oran', kn.pikKapasitif.tarih, `%${kn.pikKapasitif.oran}`]);
+        if (kn.pikEnduktif) ws2Data.push(['En Yüksek Endüktif Oran', kn.pikEnduktif.tarih, `%${kn.pikEnduktif.oran}`]);
+        if (kn.ilkCezaRiskiTarihi) ws2Data.push(['İlk Ceza Riski Tarihi', kn.ilkCezaRiskiTarihi]);
+        ws2Data.push([]);
+        if (asimGunleri.length > 0) {
+            ws2Data.push(kritikHeader);
+            ws2Data.push(...kritikRows);
+        } else {
+            ws2Data.push(['Bu ay boyunca limit aşımı yaşanmadı.']);
+        }
+        
+        ws2Data.push([], []);
+        const tatilGunleri = kn.tatilGunleri || [];
+        if (tatilGunleri.length > 0) {
+            ws2Data.push(['REACT — Resmi Tatil ve Bayramlar']);
+            ws2Data.push(['Tarih', 'Tatil/Bayram', 'Durum', 'Aktif (kWh)', 'Aktif Değişim (%)', 'Kapasitif Oran (%)', 'Kap. Değişim', 'Endüktif Oran (%)', 'End. Değişim']);
+            const tatilRows = tatilGunleri.map(t => {
+                const dAktif = t.degisim?.aktif || 0;
+                const dKap = t.degisim?.kapasitif || 0;
+                const dEnd = t.degisim?.enduktif || 0;
+                return [
+                    t.tarih, t.isim, t.riskli ? 'RİSKLİ' : 'NORMAL',
+                    t.aktif, `${dAktif > 0 ? '+' : ''}${dAktif}`,
+                    t.kapasitifOran, `${dKap > 0 ? '+' : ''}${dKap}`,
+                    t.enduktifOran, `${dEnd > 0 ? '+' : ''}${dEnd}`
+                ];
+            });
+            ws2Data.push(...tatilRows);
+        }
+        
+        const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+        ws2['!cols'] = [{ wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 18 }, { wch: 14 }];
+        XLSX.utils.book_append_sheet(wb, ws2, 'Kritik Günler');
 
         // ── Sayfa 3: Manevra & Alarmlar ──
         const manevraHeader = ['Tarih', 'Varlık', 'Kaynak Trafo', 'Hedef Trafo', 'Etki', 'Gerekçe', 'Durum'];
@@ -635,10 +924,262 @@ const RaporlamaUI = (() => {
         App.showToast(`Excel raporu indirildi: ${fileName}`, 'success');
     }
 
+    // ─── Özet Rapor Paneli ────────────────────────────────
+    function openOzetPanel() {
+        const panel = document.getElementById('ozet-rapor-panel');
+        if (panel) panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+    }
+    function closeOzetPanel() {
+        const panel = document.getElementById('ozet-rapor-panel');
+        if (panel) panel.style.display = 'none';
+    }
+    function selectAllOzet(checked) {
+        document.querySelectorAll('.ozet-trafo-cb').forEach(cb => { cb.checked = checked; });
+    }
+
+    // ─── generateOzetRapor(): Çoklu Trafo Özet Raporu ────────────
+    async function generateOzetRapor() {
+        const aySel = document.getElementById('rapor-ay-select');
+        const previewArea = document.getElementById('rapor-preview-area');
+        if (!aySel || !previewArea) return;
+
+        const [yil, ay] = aySel.value.split('-').map(Number);
+        const secilenIds = Array.from(document.querySelectorAll('.ozet-trafo-cb:checked')).map(cb => cb.value);
+
+        if (secilenIds.length === 0) {
+            App.showToast('En az bir trafo seçin.', 'warning');
+            return;
+        }
+
+        previewArea.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+                height:100%; color:var(--text-muted); gap:16px;">
+                <div class="loading-spinner" style="width:36px; height:36px; border-width:3px;"></div>
+                <p style="font-size:14px; margin:0;">${secilenIds.length} trafo için özet rapor yükleniyor...</p>
+            </div>`;
+
+        try {
+            const data = await ApiClient.fetchMultiReportData(secilenIds, yil, ay);
+            _currentMultiData = data;
+            _currentData = null;
+            closeOzetPanel();
+            _renderOzetRapor(data, previewArea);
+            const exportBtns = document.getElementById('rapor-export-btns');
+            if (exportBtns) exportBtns.style.display = 'flex';
+        } catch (err) {
+            previewArea.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+                    height:100%; color:#ef4444; gap:12px;">
+                    <p style="font-size:14px; margin:0;">Hata: ${App.escapeHTML(err.message)}</p>
+                </div>`;
+        }
+    }
+
+    // ─── _renderOzetRapor(): Çoklu Trafo Özet Görünümü ───────────
+    function _renderOzetRapor(data, container) {
+        const { trafolar, donem } = data;
+        const ayAdi = AY_ADLARI[donem.ay - 1];
+        const nowStr = new Date().toLocaleString('tr-TR');
+        const LIMIT_KAP = 15;
+        const LIMIT_END = 20;
+
+        container.innerHTML = `
+        <div id="rapor-document" style="max-width:1100px; margin:0 auto;
+            background:var(--bg-primary); border-radius:12px;
+            overflow:hidden; border:none !important; font-family:'Inter',sans-serif;">
+
+            <!-- Başlık -->
+            <div style="background:linear-gradient(135deg,var(--bg-card) 0%,var(--bg-secondary) 100%);
+                padding:32px 40px; color:var(--text-primary);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
+                    <div>
+                        <div style="font-size:11px; letter-spacing:2px; text-transform:uppercase; opacity:0.6; margin-bottom:8px;">REACT — Reaktif Güç Takip ve Analiz Sistemi</div>
+                        <h1 style="margin:0; font-size:22px; font-weight:800; letter-spacing:-0.5px;">Çoklu Trafo Özet Raporu</h1>
+                        <div style="margin-top:8px; font-size:14px; opacity:0.85;">${trafolar.length} trafo &nbsp;|&nbsp; ${ayAdi} ${donem.yil}</div>
+                    </div>
+                    <div style="text-align:right; font-size:12px; opacity:0.65;"><div>Oluşturulma: ${nowStr}</div></div>
+                </div>
+            </div>
+
+            <div style="padding:28px 36px; display:flex; flex-direction:column; gap:24px;">
+
+            <!-- Karşılaştırma Tablosu -->
+            <div>
+                <div style="font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+                    color:var(--text-muted); margin-bottom:14px;">TRAFO KARŞILAŞTIRMASI</div>
+                <div style="overflow-x:auto; border-radius:10px;">
+                    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <thead><tr style="background:var(--bg-secondary);">
+                            <th style="${_th()}">Trafo</th>
+                            <th style="${_th()}">Bölge</th>
+                            <th style="${_th()} text-align:right">Aktif (kWh)</th>
+                            <th style="${_th()} text-align:right">Kap. Oran (%)</th>
+                            <th style="${_th()} text-align:right">End. Oran (%)</th>
+                            <th style="${_th()}">Risk</th>
+                            <th style="${_th()}">EPDK</th>
+                            <th style="${_th()} text-align:right">Limit Aşım (gün)</th>
+                            <th style="${_th()}">İlk Ceza Riski</th>
+                        </tr></thead>
+                        <tbody>
+                            ${trafolar.map(t => {
+                                const o = t.ozet || {};
+                                const kn = t.kritikNoktalar || {};
+                                const kap = o.kapasitifOran || 0;
+                                const end = o.enduktifOran || 0;
+                                const risk = (o.genelRisk || {}).seviye || 'guvenli';
+                                const ceza = kap >= LIMIT_KAP || end >= LIMIT_END;
+                                const asimGun = kn.limitAsimGunSayisi || 0;
+                                const ilkCeza = kn.ilkCezaRiskiTarihi || '—';
+                                return `<tr style="border-bottom:0; background:transparent;">
+                                    <td style="${_td()} font-weight:700">${App.escapeHTML(t.trafo.adi)}</td>
+                                    <td style="${_td()}">${App.escapeHTML(t.trafo.bolge || '—')}</td>
+                                    <td style="${_td()} text-align:right">${fmtInt(o.toplamAktif)}</td>
+                                    <td style="${_td()} text-align:right; color:${kap>=LIMIT_KAP?'#ef4444':kap>=12?'#f59e0b':'inherit'}; font-weight:${kap>=LIMIT_KAP?700:400}">${fmt(kap)}</td>
+                                    <td style="${_td()} text-align:right; color:${end>=LIMIT_END?'#ef4444':end>=16?'#f59e0b':'inherit'}; font-weight:${end>=LIMIT_END?700:400}">${fmt(end)}</td>
+                                    <td style="${_td()}">${riskBadge(risk)}</td>
+                                    <td style="${_td()}">
+                                        <span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;
+                                            background:${ceza?'rgba(239,68,68,0.12)':'rgba(16,185,129,0.12)'};
+                                            color:${ceza?'#ef4444':'#10b981'}">${ceza?'Riskli':'Normal'}</span>
+                                    </td>
+                                    <td style="${_td()} text-align:right; font-weight:700; color:${asimGun>0?'#ef4444':'var(--text-muted)'}">${asimGun}</td>
+                                    <td style="${_td()}; color:${ilkCeza!=='—'?'#f59e0b':'var(--text-muted)'}">${ilkCeza}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Her Trafo İçin Detay Kartı -->
+            <div>
+                <div style="font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+                    color:var(--text-muted); margin-bottom:14px;">KRİTİK NOKTALAR — TRAFO DETAYLARI</div>
+                <div style="display:flex; flex-direction:column; gap:12px;">
+                    ${trafolar.map(t => {
+                        const o = t.ozet || {};
+                        const kn = t.kritikNoktalar || {};
+                        const kap = o.kapasitifOran || 0;
+                        const end = o.enduktifOran || 0;
+                        const risk = (o.genelRisk || {}).seviye || 'guvenli';
+                        const asimGunleri = kn.limitAsimGunleri || [];
+                        const pikKap = kn.pikKapasitif;
+                        const pikEnd = kn.pikEnduktif;
+                        const ilkCeza = kn.ilkCezaRiskiTarihi;
+                        return `<div style="background:var(--bg-card); border-radius:12px; padding:18px 22px; border:none;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+                                <div>
+                                    <div style="font-size:14px; font-weight:700; color:var(--text-primary);">${App.escapeHTML(t.trafo.adi)}</div>
+                                    <div style="font-size:12px; color:var(--text-muted);">${App.escapeHTML(t.trafo.bolge||'')} · ${t.trafo.kapasite} MVA</div>
+                                </div>
+                                ${riskBadge(risk)}
+                            </div>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; margin-bottom:12px;">
+                                <div style="padding:8px 12px; background:var(--bg-secondary); border-radius:7px;">
+                                    <div style="font-size:10px; color:var(--text-muted); font-weight:600;">KAP. ORAN</div>
+                                    <div style="font-size:15px; font-weight:800; color:${kap>=LIMIT_KAP?'#ef4444':kap>=12?'#f59e0b':'#10b981'};">${fmt(kap)}%</div>
+                                </div>
+                                <div style="padding:8px 12px; background:var(--bg-secondary); border-radius:7px;">
+                                    <div style="font-size:10px; color:var(--text-muted); font-weight:600;">END. ORAN</div>
+                                    <div style="font-size:15px; font-weight:800; color:${end>=LIMIT_END?'#ef4444':end>=16?'#f59e0b':'#10b981'};">${fmt(end)}%</div>
+                                </div>
+                                <div style="padding:8px 12px; background:var(--bg-secondary); border-radius:7px;">
+                                    <div style="font-size:10px; color:var(--text-muted); font-weight:600;">AKTİF</div>
+                                    <div style="font-size:15px; font-weight:800; color:var(--text-primary);">${fmtInt(o.toplamAktif)}</div>
+                                </div>
+                                <div style="padding:8px 12px; background:var(--bg-secondary); border-radius:7px;">
+                                    <div style="font-size:10px; color:var(--text-muted); font-weight:600;">LİMİT AŞİM</div>
+                                    <div style="font-size:15px; font-weight:800; color:${(kn.limitAsimGunSayisi||0)>0?'#ef4444':'#10b981'};">${kn.limitAsimGunSayisi||0} gün</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:5px; font-size:12px;">
+                                ${pikKap?`<div style="padding:6px 10px; background:var(--bg-secondary); border-radius:6px;
+                                    display:flex; align-items:center; justify-content:space-between;">
+                                    <span style="color:var(--text-muted);">En Yüksek Kapasitif Oran</span>
+                                    <span><strong style="color:${pikKap.oran>=LIMIT_KAP?'#ef4444':'#f59e0b'}">
+                                        %${fmt(pikKap.oran)}</strong>
+                                        <span style="font-size:11px; color:var(--text-muted); margin-left:6px;">${pikKap.tarih}</span>
+                                    </span>
+                                </div>`:''}
+                                ${pikEnd?`<div style="padding:6px 10px; background:var(--bg-secondary); border-radius:6px;
+                                    display:flex; align-items:center; justify-content:space-between;">
+                                    <span style="color:var(--text-muted);">En Yüksek Endüktif Oran</span>
+                                    <span><strong style="color:${pikEnd.oran>=LIMIT_END?'#ef4444':'#06b6d4'}">
+                                        %${fmt(pikEnd.oran)}</strong>
+                                        <span style="font-size:11px; color:var(--text-muted); margin-left:6px;">${pikEnd.tarih}</span>
+                                    </span>
+                                </div>`:''}
+                                ${ilkCeza?`<div style="padding:6px 10px; background:rgba(239,68,68,0.07); border-radius:6px;
+                                    border-left:3px solid #ef4444; display:flex; align-items:center; justify-content:space-between;">
+                                    <span style="color:var(--text-muted); font-weight:600;">İlk Ceza Riski Tarihi</span>
+                                    <strong style="color:#ef4444">${ilkCeza}</strong>
+                                </div>`:''}
+                                ${asimGunleri.length>0?`
+                                <div style="padding:6px 10px; background:var(--bg-secondary); border-radius:6px;">
+                                    <div style="font-size:11px; color:var(--text-muted); font-weight:600; margin-bottom:5px;">Limit Aşımı Yaşanan Günler</div>
+                                    <div>${asimGunleri.slice(0,10).map(g=>`<span style="padding:1px 5px; margin:1px; border-radius:3px;
+                                        font-size:11px; font-weight:600; background:rgba(239,68,68,0.12); color:#ef4444
+                                        " title="Kap:%${fmt(g.kapasitifOran)} End:%${fmt(g.enduktifOran)}">${g.tarih}</span>`).join('')}
+                                    ${asimGunleri.length>10?`<span style="font-size:11px; color:var(--text-muted);">+${asimGunleri.length-10} daha</span>`:''}</div>
+                                </div>`:
+                                `<div style="padding:6px 10px; background:rgba(16,185,129,0.07); border-radius:6px;
+                                    border-left:3px solid #10b981; color:#10b981; font-weight:600;">Limit aşımı yaşanmadı</div>`}
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>
+
+            <!-- Altbilgi -->
+            <div style="padding-top:16px; font-size:11px; color:var(--text-muted);
+                display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                <span>REACT — Reaktif Güç Takip ve Analiz Sistemi</span>
+                <span>Oluşturulma: ${nowStr}</span>
+                <span>${trafolar.length} trafo | ${ayAdi} ${donem.yil}</span>
+            </div>
+
+            </div>
+        </div>`;
+    }
+
+    // ─── exportOzetExcel(): Özet mod için Excel ───────────────
+    function exportOzetExcel() {
+        if (!_currentMultiData) { App.showToast('Önce özet rapor oluşturun.', 'warning'); return; }
+        if (typeof XLSX === 'undefined') { App.showToast('SheetJS kütüphanesi yüklenemedi.', 'error'); return; }
+        const { trafolar, donem } = _currentMultiData;
+        const ayAdi = AY_ADLARI[donem.ay - 1];
+        const wb = XLSX.utils.book_new();
+        const header = ['Trafo Adı','Bölge','Kapasite (MVA)','Aktif (kWh)','Kapasitif (kVAr)','Endüktif (kVAr)',
+            'Kap. Oran (%)','End. Oran (%)','Risk','EPDK','Limit Aşım (gün)','İlk Ceza Riski',
+            'Pik Kap. (%)','Pik Kap. Tarihi','Pik End. (%)','Pik End. Tarihi'];
+        const rows = trafolar.map(t => {
+            const o = t.ozet || {}; const kn = t.kritikNoktalar || {};
+            return [t.trafo.adi, t.trafo.bolge, t.trafo.kapasite,
+                o.toplamAktif||0, o.toplamKapasitif||0, o.toplamEnduktif||0,
+                o.kapasitifOran||0, o.enduktifOran||0,
+                (o.genelRisk||{}).seviye||'—',
+                ((o.kapasitifOran||0)>=15||(o.enduktifOran||0)>=20)?'RİSKLİ':'NORMAL',
+                kn.limitAsimGunSayisi||0, kn.ilkCezaRiskiTarihi||'—',
+                (kn.pikKapasitif||{}).oran||'—', (kn.pikKapasitif||{}).tarih||'—',
+                (kn.pikEnduktif||{}).oran||'—', (kn.pikEnduktif||{}).tarih||'—'];
+        });
+        const ws = XLSX.utils.aoa_to_sheet([[`REACT — Çoklu Trafo Özet | ${ayAdi} ${donem.yil}`],[],header,...rows]);
+        ws['!cols'] = header.map((_,i) => ({ wch: i<2?28:16 }));
+        XLSX.utils.book_append_sheet(wb, ws, 'Özet');
+        const fn = `REACT_OzetRapor_${donem.yil}_${String(donem.ay).padStart(2,'0')}.xlsx`;
+        XLSX.writeFile(wb, fn);
+        App.showToast(`Excel özet raporu indirildi: ${fn}`, 'success');
+    }
+
     return {
         render,
         generateReport,
         exportPDF,
         exportExcel,
+        openOzetPanel,
+        closeOzetPanel,
+        selectAllOzet,
+        generateOzetRapor,
+        exportOzetExcel,
     };
 })();

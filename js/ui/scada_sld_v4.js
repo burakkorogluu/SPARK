@@ -16,7 +16,7 @@ const ScadaSldUI = (() => {
     // SCADA UI State (Initial state populated from Backend)
     const state = {
         activeTab: 'R22kV',
-        selectedBolge: 'Ümraniye',
+        selectedBolge: 'TM-A',
         telemetry: {},
         breakers: {
             "t101-q1": true,
