@@ -1,29 +1,29 @@
-# 🌐 REACT | Akıllı Şebeke Reaktif Güç Takip, Saatlik Tahmin ve Karar Destek Sistemi
+# REACT | Akıllı Şebeke Reaktif Güç Takip, Saatlik Tahmin ve Karar Destek Sistemi
 
 **REACT**, Türkiye Elektrik İletim A.Ş. (**TEİAŞ**) trafo merkezlerinin saatlik yük verilerini kullanarak aktif, endüktif ve kapasitif enerji tüketimlerini gerçek zamanlı izleyen; EPDK reaktif ceza sınırlarına karşı gelişmiş yapay zeka (XGBoost), makine öğrenmesi ve meteorolojik verilerle **saatlik ay sonu ceza projeksiyonu** sunan modern bir **SCADA ve Karar Destek Sistemidir**. Sistem ayrıca **Pandapower** tabanlı güç akışı (powerflow) analizleriyle şebeke topolojisini simüle edebilmektedir.
 
 ---
 
-## 🎯 Projenin Amacı ve Çözdüğü Problem
+## Projenin Amacı ve Çözdüğü Problem
 
 Türkiye'de **EPDK (Enerji Piyasası Düzenleme Kurumu)** mevzuatına göre aylık kümülatif reaktif enerji tüketim oranlarının sınırları (%20 Endüktif, %15 Kapasitif) aşması durumunda kurumlara cezai işlem uygulanır. Geleneksel sistemlerin aksine REACT, sadece anlık durumu göstermekle kalmaz, ay sonuna kadar olan kümülatif oranı tahmin ederek önceden uyarı verir. Ayrıca uygulanacak reaktif müdahalelerin (örn. Şönt Reaktör veya Yük Aktarımı) güç akışı üzerindeki kesin faydasını simüle eder.
 
 ---
 
-## ⚡ Veri Seti ve Altyapı
+## Veri Seti ve Altyapı
 
 Sistem, gerçek TEİAŞ yük kayıtları, OSOS tabanlı saatlik okumalar ve **Open-Meteo API** üzerinden anlık/geçmiş hava durumu (Sıcaklık, Nem, Rüzgar, Bulutluluk vb.) metrikleriyle çalışır.
 Veriler SQLite veritabanı (`osos_sim.db`) üzerinde tutulmakta olup, SQLAlchemy ORM ile yönetilmektedir. Algoritmalar, 1.5 yıllık (yaklaşık 13.000+ saatlik) tarihsel veriyi işleyerek eğitilir.
 
 **Tanımlı Örnek Trafolar:**
-* 🏙️ **TM-A-TRA (`UMR-TRA`)**: `100 MVA`
-* 🏙️ **TM-A-TRB (`UMR-TRB`)**: `100 MVA` (Kapasitif riski yüksek)
-* ⚓ **TM-B-TRA (`KRT-TRA`)**: `80 MVA`
-* ⚓ **TM-B-TRB (`KRT-TRB`)**: `80 MVA`
+* **TM-A-TRA (`UMR-TRA`)**: `100 MVA`
+* **TM-A-TRB (`UMR-TRB`)**: `100 MVA` (Kapasitif riski yüksek)
+* **TM-B-TRA (`KRT-TRA`)**: `80 MVA`
+* **TM-B-TRB (`KRT-TRB`)**: `80 MVA`
 
 ---
 
-## 🚀 Batch Prediction (Yığın Tahmin) ve Hız Optimizasyonu
+## Batch Prediction (Yığın Tahmin) ve Hız Optimizasyonu
 
 REACT, sektör standardı olan **Batch Prediction Serving** mimarisi kullanmaktadır:
 * **Asenkron Arka Plan Görevi (Cron):** Modeller periyodik olarak geçmiş verilerle eğitilir ve önümüzdeki 30 günün saatlik tahminlerini üretip veritabanına kaydeder.
@@ -32,30 +32,30 @@ REACT, sektör standardı olan **Batch Prediction Serving** mimarisi kullanmakta
 
 ---
 
-## 🖥️ Sistem Ekranları ve Modüller
+## Sistem Ekranları ve Modüller
 
-### 1. 📊 Genel Görünüm (Dashboard)
+### 1. Genel Görünüm (Dashboard)
 Trafoların kümülatif durumlarının, güvenlik rozetlerinin (Yeşil/Sarı/Kırmızı) ve Chart.js destekli anlık özet grafiklerinin bulunduğu ana ekran.
 
-### 2. 🔌 Trafo Detay Analizi & Saatlik Veri
+### 2. Trafo Detay Analizi & Saatlik Veri
 Seçilen trafonun saat saat tüketim geçmişi, kümülatif ilerleyiş grafikleri ve manuel operatör müdahalesine imkan tanıyan veri tablosu.
 * **Excel Veri Yükleme (Upload Excel):** Geçmişe dönük trafo verilerini sisteme topluca aktarmak için Excel yükleme arayüzü sunar.
 
-### 3. 🌐 Şebeke Topolojisi, SCADA & Güç Akışı Analizi
+### 3. Şebeke Topolojisi, SCADA & Güç Akışı Analizi
 Trafolar arası enerji akışını animasyonlarla gösteren endüstriyel şema. Pandapower tabanlı altyapı sayesinde **Güç Akışı (Power Flow)** analizleri çalıştırılabilir.
 * **Kesici Kontrolü (Toggle Breaker):** SCADA ekranı üzerinden trafoların veya hatların enerjisi kesilip verilebilir, güç akışı değişimi simüle edilebilir.
 * **Alarm Yönetimi (Ack Alarm):** Limit aşımlarında üretilen SCADA alarmları operatör tarafından onaylanabilir.
 
-### 4. 📈 Saatlik Ay Sonu Tahminci & Yapay Zeka (XGBoost + SHAP)
+### 4. Saatlik Ay Sonu Tahminci & Yapay Zeka (XGBoost + SHAP)
 Python Backend'de çalışan farklı tahmin algoritmaları ve değerlendirme servisleri:
-1. **🤖 XGBoost & SHAP (Yapay Zeka):** Hava durumu vb. verileri analiz eder. SHAP ile istatistiksel kanıt sunar.
-2. **🌳 Random Forest (Makine Öğrenmesi):** Hafta sonu, saat ve gecikme (lag) özniteliklerini kullanan Regresyon Ormanı.
-3. **🚀 Topluluk Modeli (Ensemble):** Çeşitli modellerin birleştirilmiş, daha stabil ve genel geçerliliği en yüksek modelidir.
-4. **📈 İstatistiksel ve Zaman Serisi Modelleri:** Holt-Winters, Doğrusal Regresyon, İstatistiksel Ortalama gibi yaklaşımlar da sisteme entegredir.
+1. **XGBoost & SHAP (Yapay Zeka):** Hava durumu vb. verileri analiz eder. SHAP ile istatistiksel kanıt sunar.
+2. **Random Forest (Makine Öğrenmesi):** Hafta sonu, saat ve gecikme (lag) özniteliklerini kullanan Regresyon Ormanı.
+3. **Topluluk Modeli (Ensemble):** Çeşitli modellerin birleştirilmiş, daha stabil ve genel geçerliliği en yüksek modelidir.
+4. **İstatistiksel ve Zaman Serisi Modelleri:** Holt-Winters, Doğrusal Regresyon, İstatistiksel Ortalama gibi yaklaşımlar da sisteme entegredir.
 
 ---
 
-## 🛠️ Mimari ve Klasör Yapısı (Güncel)
+## Mimari ve Klasör Yapısı (Güncel)
 
 REACT, **Python FastAPI** sunucusu (Modüler Yapı) ve **Vanilla JS** ön yüzünden oluşan modern bir yapıdadır. Proje yakın zamanda refactor edilmiş ve klasör yapısı daha ölçeklenebilir, modern bir standarda (Router, Service, Core mimarisine) getirilmiştir.
 
@@ -89,7 +89,7 @@ REACT/
 
 ---
 
-## 🚀 Kurulum ve Çalıştırma
+## Kurulum ve Çalıştırma
 
 Proje hem Backend hem de Frontend'in eşzamanlı çalışmasını gerektirir. Bunu en kolay şekilde ana dizinde bulunan başlatma betikleriyle yapabilirsiniz:
 
