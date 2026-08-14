@@ -1,12 +1,12 @@
-# 🌐 SPARK | Akıllı Şebeke Reaktif Güç Takip, Saatlik Tahmin ve Karar Destek Sistemi
+# 🌐 REACT | Akıllı Şebeke Reaktif Güç Takip, Saatlik Tahmin ve Karar Destek Sistemi
 
-**SPARK**, Türkiye Elektrik İletim A.Ş. (**TEİAŞ**) trafo merkezlerinin saatlik yük verilerini kullanarak aktif, endüktif ve kapasitif enerji tüketimlerini gerçek zamanlı izleyen; EPDK reaktif ceza sınırlarına karşı gelişmiş yapay zeka (XGBoost), makine öğrenmesi ve meteorolojik verilerle **saatlik ay sonu ceza projeksiyonu** sunan modern bir **SCADA ve Karar Destek Sistemidir**. Sistem ayrıca **Pandapower** tabanlı güç akışı (powerflow) analizleriyle şebeke topolojisini simüle edebilmektedir.
+**REACT**, Türkiye Elektrik İletim A.Ş. (**TEİAŞ**) trafo merkezlerinin saatlik yük verilerini kullanarak aktif, endüktif ve kapasitif enerji tüketimlerini gerçek zamanlı izleyen; EPDK reaktif ceza sınırlarına karşı gelişmiş yapay zeka (XGBoost), makine öğrenmesi ve meteorolojik verilerle **saatlik ay sonu ceza projeksiyonu** sunan modern bir **SCADA ve Karar Destek Sistemidir**. Sistem ayrıca **Pandapower** tabanlı güç akışı (powerflow) analizleriyle şebeke topolojisini simüle edebilmektedir.
 
 ---
 
 ## 🎯 Projenin Amacı ve Çözdüğü Problem
 
-Türkiye'de **EPDK (Enerji Piyasası Düzenleme Kurumu)** mevzuatına göre aylık kümülatif reaktif enerji tüketim oranlarının sınırları (%20 Endüktif, %15 Kapasitif) aşması durumunda kurumlara cezai işlem uygulanır. Geleneksel sistemlerin aksine SPARK, sadece anlık durumu göstermekle kalmaz, ay sonuna kadar olan kümülatif oranı tahmin ederek önceden uyarı verir. Ayrıca uygulanacak reaktif müdahalelerin (örn. Şönt Reaktör veya Yük Aktarımı) güç akışı üzerindeki kesin faydasını simüle eder.
+Türkiye'de **EPDK (Enerji Piyasası Düzenleme Kurumu)** mevzuatına göre aylık kümülatif reaktif enerji tüketim oranlarının sınırları (%20 Endüktif, %15 Kapasitif) aşması durumunda kurumlara cezai işlem uygulanır. Geleneksel sistemlerin aksine REACT, sadece anlık durumu göstermekle kalmaz, ay sonuna kadar olan kümülatif oranı tahmin ederek önceden uyarı verir. Ayrıca uygulanacak reaktif müdahalelerin (örn. Şönt Reaktör veya Yük Aktarımı) güç akışı üzerindeki kesin faydasını simüle eder.
 
 ---
 
@@ -25,7 +25,7 @@ Veriler SQLite veritabanı (`osos_sim.db`) üzerinde tutulmakta olup, SQLAlchemy
 
 ## 🚀 Batch Prediction (Yığın Tahmin) ve Hız Optimizasyonu
 
-SPARK, sektör standardı olan **Batch Prediction Serving** mimarisi kullanmaktadır:
+REACT, sektör standardı olan **Batch Prediction Serving** mimarisi kullanmaktadır:
 * **Asenkron Arka Plan Görevi (Cron):** Modeller periyodik olarak geçmiş verilerle eğitilir ve önümüzdeki 30 günün saatlik tahminlerini üretip veritabanına kaydeder.
 * **Akıllı Temizlik:** Simülatörden veya OSOS'tan "Gerçek" ölçüm verisi geldiğinde, veritabanındaki o saate ait eski tahmin otomatik olarak silinir.
 * **Sıfır Bekleme (Sub-second API):** Kullanıcı arayüzden tahmin istediğinde modelleri anlık çalıştırmak yerine doğrudan veritabanından önceden hesaplanmış veriler çekilir. Yanıt süresi milisaniyeler seviyesindedir.
@@ -57,11 +57,13 @@ Python Backend'de çalışan farklı tahmin algoritmaları ve değerlendirme ser
 
 ## 🛠️ Mimari ve Klasör Yapısı (Güncel)
 
-SPARK, **Python FastAPI** sunucusu (Modüler Yapı) ve **Vanilla JS** ön yüzünden oluşan modern bir yapıdadır. Proje yakın zamanda refactor edilmiş ve klasör yapısı daha ölçeklenebilir, modern bir standarda (Router, Service, Core mimarisine) getirilmiştir.
+REACT, **Python FastAPI** sunucusu (Modüler Yapı) ve **Vanilla JS** ön yüzünden oluşan modern bir yapıdadır. Proje yakın zamanda refactor edilmiş ve klasör yapısı daha ölçeklenebilir, modern bir standarda (Router, Service, Core mimarisine) getirilmiştir.
 
 ```text
-SPARK/
+REACT/
 ├── index.html                  # Ana uygulama iskeleti ve giriş noktası (DOM yapılandırması)
+├── start.ps1                   # Windows için tek tıkla otomatik başlatma betiği
+├── start.sh                    # Mac/Linux için otomatik başlatma betiği
 ├── backend/
 │   ├── main.py                 # FastAPI uygulamasının ana giriş noktası
 │   ├── api/
@@ -89,13 +91,31 @@ SPARK/
 
 ## 🚀 Kurulum ve Çalıştırma
 
-Sistem hem Backend hem de Frontend'in eşzamanlı çalışmasını gerektirir.
+Proje hem Backend hem de Frontend'in eşzamanlı çalışmasını gerektirir. Bunu en kolay şekilde ana dizinde bulunan başlatma betikleriyle yapabilirsiniz:
 
-### 1. Backend (Sunucu) Başlatma
+### Windows İçin Hızlı Başlatma
+Proje kök dizinindeki `start.ps1` dosyasına sağ tıklayıp **"PowerShell ile Çalıştır"** (Run with PowerShell) diyerek projeyi tek tıkla ayağa kaldırabilirsiniz. Bu betik:
+- Gerekirse Python sanal ortamını (`venv`) oluşturur.
+- Gerekli kütüphaneleri yükler.
+- Backend API ve Frontend Web sunucusunu başlatıp projeyi tarayıcınızda açar.
+
+### Mac/Linux İçin Hızlı Başlatma
+Terminal üzerinden proje kök dizinine gidin ve betiği çalıştırın:
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+### Manuel Başlatma
+Eğer betikleri kullanmak istemezseniz veya manuel başlatmak isterseniz:
+
+**1. Backend (Sunucu) Başlatma**
 Terminalinizde proje dizinine gidin ve aşağıdaki komutları çalıştırın:
 ```bash
-# Python sanal ortamını (venv) aktifleştirin
-source backend/venv/bin/activate 
+# Windows için venv aktifleştirme:
+backend\venv\Scripts\Activate.ps1
+# Mac/Linux için venv aktifleştirme:
+# source backend/venv/bin/activate 
 
 # Bağımlılıkları Kurun
 pip install -r backend/requirements.txt
@@ -104,7 +124,10 @@ pip install -r backend/requirements.txt
 cd backend
 uvicorn main:app --reload --port 8000
 ```
-*(Sunucu `http://127.0.0.1:8000` adresinde ayağa kalkacaktır.)*
 
-### 2. Frontend (İstemci) Başlatma
-Sunucu ayaktayken, ana dizindeki **`index.html`** dosyasını herhangi bir modern web tarayıcısında (Chrome, Firefox, Safari) açmanız yeterlidir. Veya bir lokal web sunucusu ile (örn: `python3 -m http.server 8080`) kök dizini (SPARK) sunarak çalıştırabilirsiniz.
+**2. Frontend (İstemci) Başlatma**
+Sunucu ayaktayken yeni bir terminal penceresinde proje kök dizininde lokal bir web sunucusu başlatın:
+```bash
+python -m http.server 8080
+```
+Ardından tarayıcınızdan `http://localhost:8080` adresine gidebilirsiniz.
