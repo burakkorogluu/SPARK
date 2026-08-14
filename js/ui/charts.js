@@ -209,11 +209,13 @@ const GrafikModulu = (() => {
             datasets.push({
                 label: 'Ay Sonu Tahmini (%)',
                 data: tahminValues,
-                backgroundColor: tColors.map(c => c + (isLight ? '4D' : '59')), // Gölge rengi biraz daha belirgin (%30 - %35 opaklık)
-                hoverBackgroundColor: tColors.map(c => c + (isLight ? 'E6' : 'FF')), // Fare gelince koyulaşsın/canlansın
-                borderColor: 'transparent', 
-                hoverBorderColor: 'transparent',
+                backgroundColor: tColors.map(c => c + (isLight ? '4D' : '59')), // Gölge rengi
+                hoverBackgroundColor: tColors.map(c => c + (isLight ? 'E6' : 'FF')), 
+                borderColor: tColors, 
+                hoverBorderColor: tColors,
                 borderWidth: 0,
+                customDashedBorder: [6, 4],
+                customBorderWidth: 2,
                 borderRadius: 6,
                 barThickness: 24, 
                 grouped: false, 
@@ -234,7 +236,7 @@ const GrafikModulu = (() => {
 
         _charts[canvasId] = new Chart(ctx, {
             type: 'bar',
-            plugins: [shadowOffsetPlugin],
+            plugins: [shadowOffsetPlugin, dashedBarPlugin],
             data: {
                 labels,
                 datasets: sortedDatasets,

@@ -73,13 +73,13 @@ def _get_trafo_stats(db: Session):
     return transformers, trafo_stats
 
 
-def _calculate_risk_level(load_ratio):
-    """Determine risk level based on load ratio."""
-    if load_ratio > 85:
+def _calculate_risk_level(load_ratio, cap_ratio=0.0, ind_ratio=0.0):
+    """Determine risk level based on load ratio and reactive ratios."""
+    if load_ratio > 85 or cap_ratio >= 15.0 or ind_ratio >= 20.0:
         return "tehlikeli"
-    elif load_ratio > 70:
+    elif load_ratio > 70 or cap_ratio >= 12.0 or ind_ratio >= 16.0:
         return "riskli"
-    elif load_ratio > 50:
+    elif load_ratio > 50 or cap_ratio >= 10.0 or ind_ratio >= 12.0:
         return "dikkat"
     elif load_ratio > 30:
         return "normal"
@@ -784,10 +784,10 @@ def simulate_maneuver(db: Session, asset_type: str, asset_id: str, target_trafo_
         "source_penalty_cost_after": round(source_penalty_cost_after, 2),
         "target_penalty_cost_before": round(target_penalty_cost_before, 2),
         "target_penalty_cost_after": round(target_penalty_cost_after, 2),
-        "source_risk_before": _calculate_risk_level(source_ratio_before),
-        "source_risk_after": _calculate_risk_level(source_ratio_after),
-        "target_risk_before": _calculate_risk_level(target_ratio_before),
-        "target_risk_after": _calculate_risk_level(target_ratio_after),
+        "source_risk_before": _calculate_risk_level(source_ratio_before, source_cap_ratio_before),
+        "source_risk_after": _calculate_risk_level(source_ratio_after, source_cap_ratio_after),
+        "target_risk_before": _calculate_risk_level(target_ratio_before, target_cap_ratio_before),
+        "target_risk_after": _calculate_risk_level(target_ratio_after, target_cap_ratio_after),
         "is_overload": is_overload,
         "overload_warning": overload_warning,
         "reactive_improvement": reactive_msg

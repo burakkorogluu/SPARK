@@ -15,6 +15,8 @@ def test_calculate_risk_level():
     assert _calculate_risk_level(60) == "dikkat"
     assert _calculate_risk_level(40) == "normal"
     assert _calculate_risk_level(20) == "guvenli"
+    assert _calculate_risk_level(20, cap_ratio=16) == "tehlikeli"
+    assert _calculate_risk_level(20, ind_ratio=18) == "riskli"
 
 def test_calculate_suggestion_score():
     stats = {"load_ratio": 90, "cap_ratio": 16, "ind_ratio": 5}
